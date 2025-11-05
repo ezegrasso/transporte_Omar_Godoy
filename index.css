@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ajustes base suaves para no chocar con Bootstrap */
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #f8fafc;
+  /* tailwind slate-50 */
+}
+
+/* Animación sutil para resaltar filas guardadas y desvanecer al fondo de la tabla */
+@keyframes rowSavedFlash {
+  0% {
+    background-color: var(--bs-success-bg-subtle, #d1e7dd);
+  }
+
+  60% {
+    background-color: var(--bs-success-bg-subtle, #d1e7dd);
+  }
+
+  100% {
+    background-color: var(--bs-table-bg, transparent);
+  }
+}
+
+.row-saved-anim {
+  animation: rowSavedFlash 2s ease-in-out;
+}
