@@ -14,7 +14,8 @@ router.post('/',
         body('nombre').isString().notEmpty(),
         body('email').isEmail(),
         body('password').isLength({ min: 6 }),
-        body('rol').isIn(['admin', 'camionero'])
+        body('rol').isIn(['admin', 'camionero']),
+        body('avatarUrl').optional().isString().isLength({ min: 5 })
     ],
     async (req, res) => {
         const errors = validationResult(req);
@@ -37,6 +38,35 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 });
 
+// Actualizar perfil propio
+router.put('/me',
+    authMiddleware,
+    [
+        body('nombre').optional().isString().notEmpty(),
+        body('email').optional().isEmail(),
+        body('password').optional().isLength({ min: 6 }),
+        body('avatarUrl').optional().isString().isLength({ min: 5 })
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+        try {
+            const usuario = await Usuario.scope('withPassword').findByPk(req.user.id);
+            if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+            const updatable = ['nombre', 'email', 'password', 'avatarUrl'];
+            updatable.forEach((k) => { if (req.body[k] !== undefined) usuario[k] = req.body[k]; });
+            await usuario.save();
+            const sanitizado = await Usuario.findByPk(req.user.id);
+            res.json(sanitizado);
+        } catch (error) {
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                return res.status(400).json({ error: 'El email ya está en uso' });
+            }
+            res.status(500).json({ error: 'Error al actualizar perfil' });
+        }
+    }
+);
+
 // Ver todos los usuarios (solo admin)
 router.get('/', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
     try {
@@ -56,7 +86,8 @@ router.put('/:id',
         body('nombre').optional().isString().notEmpty(),
         body('email').optional().isEmail(),
         body('password').optional().isLength({ min: 6 }),
-        body('rol').optional().isIn(['admin', 'camionero'])
+        body('rol').optional().isIn(['admin', 'camionero']),
+        body('avatarUrl').optional().isString().isLength({ min: 5 })
     ],
     async (req, res) => {
         const errors = validationResult(req);
@@ -66,7 +97,7 @@ router.put('/:id',
             const usuario = await Usuario.scope('withPassword').findByPk(id);
             if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-            const updatable = ['nombre', 'email', 'password', 'rol'];
+            const updatable = ['nombre', 'email', 'password', 'rol', 'avatarUrl'];
             updatable.forEach((k) => {
                 if (req.body[k] !== undefined) usuario[k] = req.body[k];
             });

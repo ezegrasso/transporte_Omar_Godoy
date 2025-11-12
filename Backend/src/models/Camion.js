@@ -35,4 +35,4 @@ export default Camion;
 // Relación: Un Camion tiene muchos Viajes
 import Viaje from './Viajes.js';
 Camion.hasMany(Viaje, { foreignKey: 'camionId' });
-Viaje.belongsTo(Camion, { foreignKey: 'camionId' });
+Viaje.belongsTo(Camion, { as: 'camion', foreignKey: 'camionId' });

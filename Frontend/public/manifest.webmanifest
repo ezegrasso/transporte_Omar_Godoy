@@ -1,0 +1,18 @@
+{
+    "name": "Transporte Omar Godoy",
+    "short_name": "Transporte",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#0ea5e9",
+    "theme_color": "#0ea5e9",
+    "description": "Gestión de camiones, viajes y usuarios",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}

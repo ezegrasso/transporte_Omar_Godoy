@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import morgan from 'morgan';
 import sequelize, { connectDB, syncModels } from './config/db.js';
 import { ensureDatabase } from './config/ensureDatabase.js';
+import { ensureSchema } from './config/ensureSchema.js';
 import camionesRouter from './routes/rutaCamiones.js';
 import viajesRouter from './routes/rutaViajes.js';
 import usuariosRouter from './routes/rutaUsuario.js';
@@ -52,6 +53,7 @@ const PORT = process.env.PORT || 3000;
 (async () => {
     await ensureDatabase();
     await connectDB();
+    await ensureSchema();
     await syncModels();
     // Crear admin inicial si no existe y hay envs configurados
     if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {

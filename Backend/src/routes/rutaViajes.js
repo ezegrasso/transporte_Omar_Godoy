@@ -4,6 +4,7 @@ import { body, param, query, validationResult } from 'express-validator';
 import sequelize from '../config/db.js';
 import Viaje from '../models/Viajes.js';
 import Usuario from '../models/Usuario.js';
+import Camion from '../models/Camion.js';
 import { authMiddleware, roleMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
@@ -34,7 +35,16 @@ router.get('/', authMiddleware, [
                 where.camioneroId = req.user.id;
             }
         }
-        const { rows, count } = await Viaje.findAndCountAll({ where, limit, offset, order: [[sortBy, order]] });
+        const { rows, count } = await Viaje.findAndCountAll({
+            where,
+            limit,
+            offset,
+            order: [[sortBy, order]],
+            include: [
+                { model: Camion, as: 'camion', attributes: ['id', 'patente', 'marca', 'modelo', 'anio'] },
+                { model: Usuario, as: 'camionero', attributes: ['id', 'nombre', 'email'] }
+            ]
+        });
         res.json({ data: rows, page, limit, total: count });
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener viajes' });
@@ -105,6 +115,26 @@ router.patch('/:id/finalizar',
         }
     });
 
+// Cancelar viaje tomado (camionero devuelve a pendiente)
+router.patch('/:id/cancelar',
+    authMiddleware,
+    roleMiddleware(['camionero']),
+    [param('id').isInt()],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+        try {
+            const viaje = await Viaje.findByPk(req.params.id);
+            if (!viaje || viaje.estado !== 'en curso' || viaje.camioneroId !== req.user.id) return res.status(400).json({ error: 'No autorizado o viaje no válido' });
+            viaje.estado = 'pendiente';
+            viaje.camioneroId = null;
+            await viaje.save();
+            res.json(viaje);
+        } catch (error) {
+            res.status(500).json({ error: 'Error al cancelar viaje' });
+        }
+    });
+
 // Reporte de viajes (solo admin)
 router.get('/reporte', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
     try {
@@ -114,5 +144,47 @@ router.get('/reporte', authMiddleware, roleMiddleware(['admin']), async (req, re
         res.status(500).json({ error: 'Error al obtener reporte' });
     }
 });
+
+// Detalle de viaje (solo admin)
+router.get('/:id',
+    authMiddleware,
+    roleMiddleware(['admin']),
+    [param('id').isInt()],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+        try {
+            const viaje = await Viaje.findByPk(req.params.id, {
+                include: [
+                    { model: Camion, as: 'camion', attributes: ['id', 'patente', 'marca', 'modelo', 'anio'] },
+                    { model: Usuario, as: 'camionero', attributes: ['id', 'nombre', 'email'] }
+                ]
+            });
+            if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
+            res.json(viaje);
+        } catch (error) {
+            res.status(500).json({ error: 'Error al obtener detalle' });
+        }
+    });
+
+// Liberar viaje (admin fuerza que un viaje en curso vuelva a pendiente)
+router.patch('/:id/liberar',
+    authMiddleware,
+    roleMiddleware(['admin']),
+    [param('id').isInt()],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+        try {
+            const viaje = await Viaje.findByPk(req.params.id);
+            if (!viaje || viaje.estado !== 'en curso') return res.status(400).json({ error: 'Viaje no está en curso' });
+            viaje.estado = 'pendiente';
+            viaje.camioneroId = null;
+            await viaje.save();
+            res.json(viaje);
+        } catch (error) {
+            res.status(500).json({ error: 'Error al liberar viaje' });
+        }
+    });
 
 export default router;
