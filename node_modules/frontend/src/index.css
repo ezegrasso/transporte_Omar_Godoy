@@ -1,0 +1,190 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ajustes base suaves para no chocar con Bootstrap */
+:root {
+  color-scheme: light;
+}
+
+[data-bs-theme="light"] {
+  --bs-primary: #0ea5e9;
+  /* cyan-500 */
+  --bs-success: #22c55e;
+  /* green-500 */
+  --bs-body-bg: #f8fafc;
+  /* slate-50 */
+  --bs-body-color: #0f172a;
+  /* slate-900 */
+}
+
+[data-bs-theme="dark"] {
+  --bs-primary: #38bdf8;
+  /* cyan-400 */
+  --bs-success: #22c55e;
+  /* green-500 */
+  --bs-body-bg: #0b1220;
+  /* near-slate-950 */
+  --bs-body-color: #e2e8f0;
+  /* slate-200 */
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bs-body-bg);
+}
+
+/* Offset para navbar fija */
+.app-content {
+  padding-top: 4.5rem;
+  /* ~72px para cubrir navbar fixed-top */
+}
+
+@media (max-width: 575.98px) {
+  .app-content {
+    padding-top: 4rem;
+  }
+}
+
+/* Animación sutil para resaltar filas guardadas y desvanecer al fondo de la tabla */
+@keyframes rowSavedFlash {
+  0% {
+    background-color: var(--bs-success-bg-subtle, #d1e7dd);
+  }
+
+  60% {
+    background-color: var(--bs-success-bg-subtle, #d1e7dd);
+  }
+
+  100% {
+    background-color: var(--bs-table-bg, transparent);
+  }
+}
+
+.row-saved-anim {
+  animation: rowSavedFlash 2s ease-in-out;
+}
+
+/* Sticky header para tablas */
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bs-body-bg);
+  z-index: 1;
+  box-shadow: 0 2px 0 0 var(--bs-border-color);
+}
+
+/* Micro-interacciones */
+.card-hover {
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .08) !important;
+}
+
+/* Fondo hero para Login */
+.auth-hero {
+  min-height: calc(100vh - 64px);
+  background: radial-gradient(1200px 600px at 10% -10%, rgba(14, 165, 233, .15), transparent),
+    radial-gradient(1200px 600px at 110% 110%, rgba(56, 189, 248, .12), transparent),
+    linear-gradient(180deg, var(--bs-body-bg), var(--bs-body-bg));
+}
+
+/* Badges personalizados de alto contraste (roles y estados) */
+.badge-role-admin {
+  background-color: #0ea5e9 !important;
+  color: #052c3b !important;
+}
+
+.badge-role-camionero {
+  background-color: #64748b !important;
+  color: #0b1220 !important;
+}
+
+[data-bs-theme="dark"] .badge-role-admin {
+  background-color: #38bdf8 !important;
+  color: #071c24 !important;
+}
+
+[data-bs-theme="dark"] .badge-role-camionero {
+  background-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+
+.badge-estado-pendiente {
+  background-color: #f59e0b !important;
+  color: #1f2937 !important;
+}
+
+.badge-estado-en_curso {
+  background-color: #22d3ee !important;
+  color: #083344 !important;
+}
+
+.badge-estado-finalizado {
+  background-color: #22c55e !important;
+  color: #052e1a !important;
+}
+
+[data-bs-theme="dark"] .badge-estado-pendiente {
+  background-color: #f59e0b !important;
+  color: #111827 !important;
+}
+
+[data-bs-theme="dark"] .badge-estado-en_curso {
+  background-color: #06b6d4 !important;
+  color: #e0f2fe !important;
+}
+
+[data-bs-theme="dark"] .badge-estado-finalizado {
+  background-color: #16a34a !important;
+  color: #ecfdf5 !important;
+}
+
+/* Modificador opcional por si queremos más compacidad que table-sm */
+.table-compact td,
+.table-compact th {
+  padding-top: .25rem;
+  padding-bottom: .25rem;
+}
+
+/* Badge con dot al inicio */
+.badge-dot::before {
+  content: '';
+  display: inline-block;
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: .375rem;
+  vertical-align: middle;
+}
+
+/* Chips de filtros activos */
+.filter-chips {
+  gap: .35rem;
+}
+
+.filter-chip {
+  border-radius: 999px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  color: var(--bs-body-color);
+  padding: .125rem .5rem;
+  display: inline-flex;
+  align-items: center;
+  font-size: .875rem;
+}
+
+.filter-chip .bi-x {
+  margin-left: .25rem;
+  cursor: pointer;
+}
