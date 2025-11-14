@@ -104,6 +104,8 @@ export default function Admin() {
     // Filtros adicionales
     const [filtroCamion, setFiltroCamion] = useState('');
     const [filtroCamionero, setFiltroCamionero] = useState('');
+    const [filtroTipo, setFiltroTipo] = useState('');
+    const [filtroCliente, setFiltroCliente] = useState('');
     const camionesOpciones = useMemo(() => {
         const set = new Set();
         viajes.forEach(v => { const pat = v.camion?.patente || v.camionId; if (pat) set.add(pat); });
@@ -112,6 +114,16 @@ export default function Admin() {
     const camionerosOpciones = useMemo(() => {
         const set = new Set();
         viajes.forEach(v => { const nom = v.camionero?.nombre; if (nom) set.add(nom); });
+        return Array.from(set);
+    }, [viajes]);
+    const tiposOpciones = useMemo(() => {
+        const set = new Set();
+        viajes.forEach(v => { const t = v.tipoMercaderia?.trim(); if (t) set.add(t); });
+        return Array.from(set);
+    }, [viajes]);
+    const clientesOpciones = useMemo(() => {
+        const set = new Set();
+        viajes.forEach(v => { const c = v.cliente?.trim(); if (c) set.add(c); });
         return Array.from(set);
     }, [viajes]);
 
@@ -282,9 +294,11 @@ export default function Admin() {
             const okTexto = !term || text.includes(term);
             const okCamion = !filtroCamion || (v.camion?.patente || v.camionId || '') === filtroCamion;
             const okCamionero = !filtroCamionero || (v.camionero?.nombre || '') === filtroCamionero;
-            return okEstado && okTexto && okCamion && okCamionero;
+            const okTipo = !filtroTipo || (v.tipoMercaderia || '') === filtroTipo;
+            const okCliente = !filtroCliente || (v.cliente || '') === filtroCliente;
+            return okEstado && okTexto && okCamion && okCamionero && okTipo && okCliente;
         });
-    }, [viajes, filtroEstado, busqueda, filtroCamion, filtroCamionero]);
+    }, [viajes, filtroEstado, busqueda, filtroCamion, filtroCamionero, filtroTipo, filtroCliente]);
 
     const viajesOrdenados = useMemo(() => {
         const arr = [...viajesFiltrados];
@@ -642,11 +656,29 @@ export default function Admin() {
                                 </select>
                             </div>
                             <div>
+                                <label className="form-label mb-1">Tipo</label>
+                                <select className="form-select form-select-sm" value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setPage(1); }}>
+                                    <option value="">Todos</option>
+                                    {tiposOpciones.map(t => (
+                                        <option key={t} value={t}>{t}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="form-label mb-1">Cliente</label>
+                                <select className="form-select form-select-sm" value={filtroCliente} onChange={e => { setFiltroCliente(e.target.value); setPage(1); }}>
+                                    <option value="">Todos</option>
+                                    {clientesOpciones.map(c => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
                                 <label className="form-label mb-1">Buscar</label>
                                 <input className="form-control form-control-sm" placeholder="Origen, destino, tipo, cliente, patente, chofer" value={busqueda} onChange={e => { setBusqueda(e.target.value); setPage(1); }} />
                             </div>
                         </div>
-                        {(filtroEstado || filtroCamion || filtroCamionero || busqueda) && (
+                        {(filtroEstado || filtroCamion || filtroCamionero || filtroTipo || filtroCliente || busqueda) && (
                             <div className="d-flex flex-wrap filter-chips mb-2">
                                 {filtroEstado && (
                                     <span className="filter-chip">Estado: <strong className="ms-1 text-capitalize">{filtroEstado}</strong>
@@ -663,12 +695,22 @@ export default function Admin() {
                                         <i className="bi bi-x ms-1" role="button" onClick={() => { setFiltroCamionero(''); setPage(1); }}></i>
                                     </span>
                                 )}
+                                {filtroTipo && (
+                                    <span className="filter-chip">Tipo: <strong className="ms-1">{filtroTipo}</strong>
+                                        <i className="bi bi-x ms-1" role="button" onClick={() => { setFiltroTipo(''); setPage(1); }}></i>
+                                    </span>
+                                )}
+                                {filtroCliente && (
+                                    <span className="filter-chip">Cliente: <strong className="ms-1">{filtroCliente}</strong>
+                                        <i className="bi bi-x ms-1" role="button" onClick={() => { setFiltroCliente(''); setPage(1); }}></i>
+                                    </span>
+                                )}
                                 {busqueda && (
                                     <span className="filter-chip">Buscar: <strong className="ms-1">{busqueda}</strong>
                                         <i className="bi bi-x ms-1" role="button" onClick={() => { setBusqueda(''); setPage(1); }}></i>
                                     </span>
                                 )}
-                                <button className="btn btn-sm btn-outline-secondary" onClick={() => { setFiltroEstado(''); setFiltroCamion(''); setFiltroCamionero(''); setBusqueda(''); setPage(1); }}>
+                                <button className="btn btn-sm btn-outline-secondary" onClick={() => { setFiltroEstado(''); setFiltroCamion(''); setFiltroCamionero(''); setFiltroTipo(''); setFiltroCliente(''); setBusqueda(''); setPage(1); }}>
                                     Limpiar filtros
                                 </button>
                             </div>
