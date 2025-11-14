@@ -26,11 +26,27 @@ router.post('/login',
             if (!usuario) return res.status(401).json({ error: 'Credenciales inválidas' });
             const valid = await bcrypt.compare(password, usuario.password);
             if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
-            const token = jwt.sign({ id: usuario.id, rol: usuario.rol }, process.env.JWT_SECRET, { expiresIn: '8h' });
+            const expires = process.env.JWT_EXPIRES || '8h';
+            const token = jwt.sign({ id: usuario.id, rol: usuario.rol }, process.env.JWT_SECRET, { expiresIn: expires });
             res.json({ token, usuario: { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol } });
         } catch (error) {
             res.status(500).json({ error: 'Error en login' });
         }
     });
+
+// Refresh: devuelve info del usuario actual (token debe ser válido)
+router.get('/refresh', async (req, res, next) => {
+    // Importar on-demand para evitar ciclos
+    const { authMiddleware } = await import('../middlewares/authMiddleware.js');
+    return authMiddleware(req, res, async () => {
+        try {
+            const usuario = await Usuario.findByPk(req.user.id, { attributes: ['id', 'nombre', 'rol'] });
+            if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+            res.json({ usuario });
+        } catch (error) {
+            res.status(500).json({ error: 'Error en refresh' });
+        }
+    });
+});
 
 export default router;

@@ -37,7 +37,11 @@ router.post('/',
     authMiddleware,
     roleMiddleware(['admin']),
     [
-        body('patente').isString().notEmpty(),
+        body('patente')
+            .isString().notEmpty()
+            .customSanitizer(v => String(v).toUpperCase().trim())
+            .matches(/^([A-Z]{3}\d{3}|[A-Z]{2}\d{3}[A-Z]{2})$/)
+            .withMessage('Patente inválida (formato permitido: AAA123 o AB123CD)'),
         body('marca').isString().notEmpty(),
         body('modelo').isString().notEmpty(),
         body('anio').isInt({ min: 1900 })
@@ -49,6 +53,9 @@ router.post('/',
             const nuevoCamion = await Camion.create(req.body);
             res.status(201).json(nuevoCamion);
         } catch (error) {
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                return res.status(400).json({ error: 'La patente ya está en uso' });
+            }
             res.status(500).json({ error: 'Error al crear camión' });
         }
     });
@@ -59,7 +66,13 @@ router.put('/:id',
     roleMiddleware(['admin']),
     [
         param('id').isInt(),
-        body('anio').optional().isInt({ min: 1900 })
+        body('anio').optional().isInt({ min: 1900 }),
+        body('patente')
+            .optional()
+            .isString().notEmpty()
+            .customSanitizer(v => String(v).toUpperCase().trim())
+            .matches(/^([A-Z]{3}\d{3}|[A-Z]{2}\d{3}[A-Z]{2})$/)
+            .withMessage('Patente inválida (formato permitido: AAA123 o AB123CD)')
     ],
     async (req, res) => {
         const errors = validationResult(req);
@@ -74,6 +87,9 @@ router.put('/:id',
                 res.status(404).json({ error: 'Camión no encontrado' });
             }
         } catch (error) {
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                return res.status(400).json({ error: 'La patente ya está en uso' });
+            }
             res.status(500).json({ error: 'Error al actualizar camión' });
         }
     });
