@@ -64,6 +64,8 @@ export default function Camionero() {
                     case 'fecha': return new Date(v.fecha || 0).getTime();
                     case 'origen': return (v.origen || '').toLowerCase();
                     case 'destino': return (v.destino || '').toLowerCase();
+                    case 'tipo': return (v.tipoMercaderia || '').toLowerCase();
+                    case 'cliente': return (v.cliente || '').toLowerCase();
                     case 'camion': return ((v.camion?.patente || v.camionId || '') + '').toString().toLowerCase();
                     default: return '';
                 }
@@ -98,6 +100,8 @@ export default function Camionero() {
                     case 'fecha': return new Date(v.fecha || 0).getTime();
                     case 'origen': return (v.origen || '').toLowerCase();
                     case 'destino': return (v.destino || '').toLowerCase();
+                    case 'tipo': return (v.tipoMercaderia || '').toLowerCase();
+                    case 'cliente': return (v.cliente || '').toLowerCase();
                     case 'camion': return ((v.camion?.patente || v.camionId || '') + '').toString().toLowerCase();
                     default: return '';
                 }
@@ -238,6 +242,8 @@ export default function Camionero() {
                             </div>
                             <div className="col-12 col-sm-6">
                                 <div><strong>Camión:</strong> {viajeEnCursoActual.camion ? `${viajeEnCursoActual.camion.patente} (${viajeEnCursoActual.camion.marca})` : viajeEnCursoActual.camionId}</div>
+                                <div><strong>Tipo:</strong> {viajeEnCursoActual.tipoMercaderia || '-'}</div>
+                                <div><strong>Cliente:</strong> {viajeEnCursoActual.cliente || '-'}</div>
                                 <div><strong>Km cargados:</strong> {viajeEnCursoActual.km ?? '-'}</div>
                                 <div><strong>Combustible:</strong> {viajeEnCursoActual.combustible ?? '-'}</div>
                             </div>
@@ -279,9 +285,9 @@ export default function Camionero() {
                         </div>
                         <div className="ms-auto">
                             <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                                const headers = ['Fecha', 'Origen', 'Destino', 'Camión']
+                                const headers = ['Fecha', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión']
                                 const rows = pendientesOrdenados.map(v => [
-                                    new Date(v.fecha).toLocaleDateString(), v.origen || '', v.destino || '', v.camion?.patente || v.camionId || ''
+                                    new Date(v.fecha).toLocaleDateString(), v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || ''
                                 ])
                                 downloadCSV('pendientes.csv', headers, rows)
                                 showToast('Exportado pendientes', 'success')
@@ -297,7 +303,7 @@ export default function Camionero() {
                             <table className={`table ${compact ? 'table-sm' : ''} table-striped table-hover align-middle table-sticky`}>
                                 <thead>
                                     <tr>
-                                        {['fecha', 'origen', 'destino', 'camion'].map((k) => (
+                                        {['fecha', 'origen', 'destino', 'tipo', 'cliente', 'camion'].map((k) => (
                                             <th key={k} role="button" onClick={() => {
                                                 setSortPend(s => ({ key: k, dir: s.key === k && s.dir === 'asc' ? 'desc' : 'asc' }))
                                             }}>
@@ -323,6 +329,8 @@ export default function Camionero() {
                                             </td>
                                             <td title={v.origen} data-bs-toggle="tooltip">{v.origen}</td>
                                             <td title={v.destino} data-bs-toggle="tooltip">{v.destino}</td>
+                                            <td title={v.tipoMercaderia || ''} data-bs-toggle="tooltip">{v.tipoMercaderia || '-'}</td>
+                                            <td title={v.cliente || ''} data-bs-toggle="tooltip">{v.cliente || '-'}</td>
                                             <td title={v.camion ? `${v.camion.patente} • ${v.camion.marca} ${v.camion.modelo}` : v.camionId} data-bs-toggle="tooltip">
                                                 {v.camion ? (
                                                     <span>{v.camion.patente} <small className="text-body-secondary">({v.camion.marca})</small></span>
@@ -371,9 +379,9 @@ export default function Camionero() {
                         </div>
                         <div className="ms-auto">
                             <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                                const headers = ['Fecha', 'Origen', 'Destino', 'Camión', 'Estado', 'Km', 'Combustible']
+                                const headers = ['Fecha', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión', 'Estado', 'Km', 'Combustible']
                                 const rows = miosOrdenados.map(v => [
-                                    new Date(v.fecha).toLocaleDateString(), v.origen || '', v.destino || '', v.camion?.patente || v.camionId || '', v.estado, v.km ?? '', v.combustible ?? ''
+                                    new Date(v.fecha).toLocaleDateString(), v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || '', v.estado, v.km ?? '', v.combustible ?? ''
                                 ])
                                 downloadCSV(`mis_viajes_${estadoMios}.csv`, headers, rows)
                                 showToast('Exportado mis viajes', 'success')
@@ -389,7 +397,7 @@ export default function Camionero() {
                             <table className={`table ${compact ? 'table-sm' : ''} table-striped table-hover align-middle table-sticky`}>
                                 <thead>
                                     <tr>
-                                        {['fecha', 'origen', 'destino', 'camion'].map((k) => (
+                                        {['fecha', 'origen', 'destino', 'tipo', 'cliente', 'camion'].map((k) => (
                                             <th key={k} role="button" onClick={() => {
                                                 setSortMios(s => ({ key: k, dir: s.key === k && s.dir === 'asc' ? 'desc' : 'asc' }))
                                             }}>
@@ -412,6 +420,8 @@ export default function Camionero() {
                                             <td>{new Date(v.fecha).toLocaleDateString()}</td>
                                             <td title={v.origen} data-bs-toggle="tooltip">{v.origen}</td>
                                             <td title={v.destino} data-bs-toggle="tooltip">{v.destino}</td>
+                                            <td title={v.tipoMercaderia || ''} data-bs-toggle="tooltip">{v.tipoMercaderia || '-'}</td>
+                                            <td title={v.cliente || ''} data-bs-toggle="tooltip">{v.cliente || '-'}</td>
                                             <td title={v.camion?.patente || v.camionId} data-bs-toggle="tooltip">{v.camion?.patente || v.camionId}</td>
                                             <td>{v.km ?? '-'}</td>
                                             <td>{v.combustible ?? '-'}</td>
@@ -458,6 +468,8 @@ export default function Camionero() {
                                         </div>
                                         <div className="col-12 col-sm-6">
                                             <div><strong>Camión:</strong> {viajeSeleccionado.camion?.patente || viajeSeleccionado.camionId}</div>
+                                            <div><strong>Tipo:</strong> {viajeSeleccionado.tipoMercaderia || '-'}</div>
+                                            <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
                                             <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
                                             <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}</div>
                                         </div>
