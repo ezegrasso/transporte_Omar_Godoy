@@ -15,7 +15,7 @@ export default function Admin() {
 
     const [nuevoCamion, setNuevoCamion] = useState({ patente: '', marca: '', modelo: '', anio: '' });
     const [camionErrors, setCamionErrors] = useState({});
-    const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '' });
+    const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '', tipoMercaderia: '', cliente: '' });
     const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '', rol: 'camionero' });
     const [savingCamion, setSavingCamion] = useState(false);
     const [savingViaje, setSavingViaje] = useState(false);
@@ -185,9 +185,14 @@ export default function Admin() {
         setError('');
         setSavingViaje(true);
         try {
-            const body = { ...nuevoViaje, camionId: Number(nuevoViaje.camionId) };
+            const body = {
+                ...nuevoViaje,
+                camionId: Number(nuevoViaje.camionId) || 0,
+                tipoMercaderia: nuevoViaje.tipoMercaderia?.trim() || null,
+                cliente: nuevoViaje.cliente?.trim() || null
+            };
             await api.post('/api/viajes', body);
-            setNuevoViaje({ origen: '', destino: '', fecha: '', camionId: '' });
+            setNuevoViaje({ origen: '', destino: '', fecha: '', camionId: '', tipoMercaderia: '', cliente: '' });
             await fetchViajes();
             showToast('Viaje creado', 'success');
         } catch (e) {
@@ -273,7 +278,7 @@ export default function Admin() {
         const term = busqueda.trim().toLowerCase();
         return viajes.filter(v => {
             const okEstado = !filtroEstado || v.estado === filtroEstado;
-            const text = `${v.origen ?? ''} ${v.destino ?? ''} ${v.camion?.patente ?? v.camionId ?? ''} ${v.camionero?.nombre ?? ''}`.toLowerCase();
+            const text = `${v.origen ?? ''} ${v.destino ?? ''} ${v.tipoMercaderia ?? ''} ${v.cliente ?? ''} ${v.camion?.patente ?? v.camionId ?? ''} ${v.camionero?.nombre ?? ''}`.toLowerCase();
             const okTexto = !term || text.includes(term);
             const okCamion = !filtroCamion || (v.camion?.patente || v.camionId || '') === filtroCamion;
             const okCamionero = !filtroCamionero || (v.camionero?.nombre || '') === filtroCamionero;
@@ -293,6 +298,8 @@ export default function Admin() {
                     case 'estado': return (v.estado || '').toLowerCase();
                     case 'camion': return ((v.camion?.patente || v.camionId || '') + '').toString().toLowerCase();
                     case 'camionero': return (v.camionero?.nombre || '').toLowerCase();
+                    case 'tipo': return (v.tipoMercaderia || '').toLowerCase();
+                    case 'cliente': return (v.cliente || '').toLowerCase();
                     case 'km': return Number(v.km) || 0;
                     case 'combustible': return Number(v.combustible) || 0;
                     default: return '';
@@ -316,7 +323,7 @@ export default function Admin() {
 
     const exportViajes = (scope = 'filtro') => {
         const set = scope === 'pagina' ? viajesPagina : viajesOrdenados;
-        const headers = ['Fecha', 'Origen', 'Destino', 'Estado', 'Camión', 'Camionero', 'Km', 'Combustible'];
+        const headers = ['Fecha', 'Origen', 'Destino', 'Estado', 'Camión', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible'];
         const rows = set.map(v => [
             new Date(v.fecha).toLocaleDateString(),
             v.origen || '',
@@ -324,6 +331,8 @@ export default function Admin() {
             v.estado || '',
             v.camion?.patente || v.camionId || '',
             v.camionero?.nombre || '',
+            v.tipoMercaderia || '',
+            v.cliente || '',
             v.km ?? '',
             v.combustible ?? ''
         ]);
@@ -581,6 +590,8 @@ export default function Admin() {
                                 <form onSubmit={crearViaje} className="row g-2 mt-2" style={{ opacity: savingViaje ? 0.85 : 1 }}>
                                     <div className="col-6"><input className="form-control" placeholder="Origen" value={nuevoViaje.origen} onChange={e => setNuevoViaje(v => ({ ...v, origen: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" placeholder="Destino" value={nuevoViaje.destino} onChange={e => setNuevoViaje(v => ({ ...v, destino: e.target.value }))} /></div>
+                                    <div className="col-6"><input className="form-control" placeholder="Tipo de mercadería" value={nuevoViaje.tipoMercaderia} onChange={e => setNuevoViaje(v => ({ ...v, tipoMercaderia: e.target.value }))} /></div>
+                                    <div className="col-6"><input className="form-control" placeholder="Cliente" value={nuevoViaje.cliente} onChange={e => setNuevoViaje(v => ({ ...v, cliente: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" type="date" placeholder="Fecha" value={nuevoViaje.fecha} onChange={e => setNuevoViaje(v => ({ ...v, fecha: e.target.value }))} /></div>
                                     <div className="col-6">
                                         <select className="form-select" value={nuevoViaje.camionId} onChange={e => setNuevoViaje(v => ({ ...v, camionId: e.target.value }))}>
@@ -632,7 +643,7 @@ export default function Admin() {
                             </div>
                             <div>
                                 <label className="form-label mb-1">Buscar</label>
-                                <input className="form-control form-control-sm" placeholder="Origen, destino, patente, chofer" value={busqueda} onChange={e => { setBusqueda(e.target.value); setPage(1); }} />
+                                <input className="form-control form-control-sm" placeholder="Origen, destino, tipo, cliente, patente, chofer" value={busqueda} onChange={e => { setBusqueda(e.target.value); setPage(1); }} />
                             </div>
                         </div>
                         {(filtroEstado || filtroCamion || filtroCamionero || busqueda) && (
@@ -677,7 +688,7 @@ export default function Admin() {
                                 <table className={`table ${compact ? 'table-sm' : ''} table-striped table-hover table-sticky`}>
                                     <thead>
                                         <tr>
-                                            {['fecha', 'origen', 'destino', 'estado', 'camion', 'camionero', 'km', 'combustible'].map((k) => (
+                                            {['fecha', 'origen', 'destino', 'estado', 'camion', 'camionero', 'tipo', 'cliente', 'km', 'combustible'].map((k) => (
                                                 <th key={k} role="button" onClick={() => {
                                                     if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
                                                     else { setSortKey(k); setSortDir('asc'); }
@@ -713,6 +724,8 @@ export default function Admin() {
                                                     ) : v.camionId}
                                                 </td>
                                                 <td title={v.camionero?.nombre || '-'} data-bs-toggle="tooltip">{v.camionero?.nombre || '-'}</td>
+                                                <td title={v.tipoMercaderia || '-'} data-bs-toggle="tooltip">{v.tipoMercaderia || '-'}</td>
+                                                <td title={v.cliente || '-'} data-bs-toggle="tooltip">{v.cliente || '-'}</td>
                                                 <td className="text-end">{v.km ?? '-'}</td>
                                                 <td className="text-end">{v.combustible ?? '-'}</td>
                                                 <td className="text-end" style={{ width: 180 }}>
@@ -995,6 +1008,8 @@ export default function Admin() {
                                     <div className="col-12 col-md-6">
                                         <div><strong>Camión:</strong> {detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca} ${detalle.camion.modelo}, ${detalle.camion.anio})` : detalle.camionId}</div>
                                         <div><strong>Camionero:</strong> {detalle.camionero?.nombre || '-'}</div>
+                                        <div><strong>Tipo mercadería:</strong> {detalle.tipoMercaderia ?? '-'}</div>
+                                        <div><strong>Cliente:</strong> {detalle.cliente ?? '-'}</div>
                                         <div><strong>Kilómetros:</strong> {detalle.km ?? '-'}</div>
                                         <div><strong>Combustible:</strong> {detalle.combustible ?? '-'}</div>
                                     </div>
