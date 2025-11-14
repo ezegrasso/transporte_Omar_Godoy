@@ -14,6 +14,7 @@ export default function Admin() {
     const [error, setError] = useState('');
 
     const [nuevoCamion, setNuevoCamion] = useState({ patente: '', marca: '', modelo: '', anio: '' });
+    const [camionErrors, setCamionErrors] = useState({});
     const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '' });
     const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '', rol: 'camionero' });
     const [savingCamion, setSavingCamion] = useState(false);
@@ -124,14 +125,45 @@ export default function Admin() {
         })();
     }, []);
 
+    const validarPatente = (pat) => {
+        if (!pat) return 'La patente es requerida';
+        const p = String(pat).toUpperCase().trim();
+        const ok = /^([A-Z]{3}\d{3}|[A-Z]{2}\d{3}[A-Z]{2})$/.test(p);
+        return ok ? '' : 'Formato inválido (use AAA123 o AB123CD)';
+    };
+
+    const validarNuevoCamion = (camion) => {
+        const errs = {};
+        const pErr = validarPatente(camion.patente);
+        if (pErr) errs.patente = pErr;
+        if (!camion.marca?.trim()) errs.marca = 'La marca es requerida';
+        if (!camion.modelo?.trim()) errs.modelo = 'El modelo es requerido';
+        const an = Number(camion.anio);
+        if (!an || an < 1900) errs.anio = 'El año debe ser >= 1900';
+        return errs;
+    };
+
     const crearCamion = async (e) => {
         e.preventDefault();
         setError('');
+        const normalized = {
+            patente: String(nuevoCamion.patente || '').toUpperCase().trim(),
+            marca: nuevoCamion.marca,
+            modelo: nuevoCamion.modelo,
+            anio: nuevoCamion.anio
+        };
+        const errs = validarNuevoCamion(normalized);
+        setCamionErrors(errs);
+        if (Object.keys(errs).length) {
+            showToast(Object.values(errs)[0], 'error');
+            return;
+        }
         setSavingCamion(true);
         try {
-            const body = { ...nuevoCamion, anio: Number(nuevoCamion.anio) || null };
+            const body = { ...normalized, anio: Number(normalized.anio) || null };
             const { data: created } = await api.post('/api/camiones', body);
             setNuevoCamion({ patente: '', marca: '', modelo: '', anio: '' });
+            setCamionErrors({});
             const list = await fetchCamiones();
             const newId = created?.id ?? (list.find(c => c.patente === body.patente)?.id);
             if (newId) {
@@ -312,6 +344,11 @@ export default function Admin() {
     const saveEditCamion = async (id) => {
         try {
             const body = { ...editCamionData, anio: editCamionData.anio ? Number(editCamionData.anio) : null };
+            if (body.patente) {
+                body.patente = String(body.patente).toUpperCase().trim();
+                const pErr = validarPatente(body.patente);
+                if (pErr) { showToast(pErr, 'error'); return; }
+            }
             await api.put(`/api/camiones/${id}`, body);
             showToast('Camión actualizado', 'success');
             setEditCamionId(null);
@@ -427,11 +464,61 @@ export default function Admin() {
                             <div className="card-body">
                                 <h3 className="h5">Crear camión</h3>
                                 <form onSubmit={crearCamion} className="row g-2 mt-2" style={{ opacity: savingCamion ? 0.85 : 1 }}>
-                                    <div className="col-6"><input className="form-control" placeholder="Patente" value={nuevoCamion.patente} onChange={e => setNuevoCamion(v => ({ ...v, patente: e.target.value }))} /></div>
-                                    <div className="col-6"><input className="form-control" placeholder="Marca" value={nuevoCamion.marca} onChange={e => setNuevoCamion(v => ({ ...v, marca: e.target.value }))} /></div>
-                                    <div className="col-6"><input className="form-control" placeholder="Modelo" value={nuevoCamion.modelo} onChange={e => setNuevoCamion(v => ({ ...v, modelo: e.target.value }))} /></div>
-                                    <div className="col-6"><input className="form-control" placeholder="Año" value={nuevoCamion.anio} onChange={e => setNuevoCamion(v => ({ ...v, anio: e.target.value }))} /></div>
-                                    <div className="col-12"><button className="btn btn-primary" disabled={savingCamion}>{savingCamion ? 'Guardando…' : 'Guardar'}</button></div>
+                                    <div className="col-6">
+                                        <input
+                                            className={`form-control ${camionErrors.patente ? 'is-invalid' : ''}`}
+                                            placeholder="Patente (AAA123 o AB123CD)"
+                                            value={nuevoCamion.patente}
+                                            onChange={e => {
+                                                const val = e.target.value.toUpperCase();
+                                                setNuevoCamion(v => ({ ...v, patente: val }));
+                                                const err = validarPatente(val);
+                                                setCamionErrors(prev => ({ ...prev, patente: err }));
+                                            }}
+                                        />
+                                        {camionErrors.patente && <div className="invalid-feedback">{camionErrors.patente}</div>}
+                                    </div>
+                                    <div className="col-6">
+                                        <input
+                                            className={`form-control ${camionErrors.marca ? 'is-invalid' : ''}`}
+                                            placeholder="Marca"
+                                            value={nuevoCamion.marca}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setNuevoCamion(v => ({ ...v, marca: val }));
+                                                setCamionErrors(prev => ({ ...prev, marca: val.trim() ? '' : 'La marca es requerida' }));
+                                            }}
+                                        />
+                                        {camionErrors.marca && <div className="invalid-feedback">{camionErrors.marca}</div>}
+                                    </div>
+                                    <div className="col-6">
+                                        <input
+                                            className={`form-control ${camionErrors.modelo ? 'is-invalid' : ''}`}
+                                            placeholder="Modelo"
+                                            value={nuevoCamion.modelo}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setNuevoCamion(v => ({ ...v, modelo: val }));
+                                                setCamionErrors(prev => ({ ...prev, modelo: val.trim() ? '' : 'El modelo es requerido' }));
+                                            }}
+                                        />
+                                        {camionErrors.modelo && <div className="invalid-feedback">{camionErrors.modelo}</div>}
+                                    </div>
+                                    <div className="col-6">
+                                        <input
+                                            className={`form-control ${camionErrors.anio ? 'is-invalid' : ''}`}
+                                            placeholder="Año"
+                                            value={nuevoCamion.anio}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setNuevoCamion(v => ({ ...v, anio: val }));
+                                                const num = Number(val);
+                                                setCamionErrors(prev => ({ ...prev, anio: (!num || num < 1900) ? 'El año debe ser >= 1900' : '' }));
+                                            }}
+                                        />
+                                        {camionErrors.anio && <div className="invalid-feedback">{camionErrors.anio}</div>}
+                                    </div>
+                                    <div className="col-12"><button className="btn btn-primary" disabled={savingCamion || Object.values(camionErrors).some(Boolean)}>{savingCamion ? 'Guardando…' : 'Guardar'}</button></div>
                                 </form>
                                 <div className="table-responsive mt-3">
                                     {camiones.length === 0 ? (
