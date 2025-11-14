@@ -1043,9 +1043,9 @@ export default function Admin() {
                                 <div className="row g-3">
                                     <div className="col-12 col-md-6">
                                         <div><strong>Fecha:</strong> {new Date(detalle.fecha).toLocaleDateString()}</div>
+                                        <div><strong>Estado:</strong> <span className={`badge badge-dot ${detalle.estado === 'finalizado' ? 'badge-estado-finalizado' : detalle.estado === 'en curso' ? 'badge-estado-en_curso' : 'badge-estado-pendiente'} text-capitalize`}>{detalle.estado}</span></div>
                                         <div><strong>Origen:</strong> {detalle.origen}</div>
                                         <div><strong>Destino:</strong> {detalle.destino}</div>
-                                        <div><strong>Estado:</strong> <span className={`badge badge-dot ${detalle.estado === 'finalizado' ? 'badge-estado-finalizado' : detalle.estado === 'en curso' ? 'badge-estado-en_curso' : 'badge-estado-pendiente'} text-capitalize`}>{detalle.estado}</span></div>
                                     </div>
                                     <div className="col-12 col-md-6">
                                         <div><strong>Camión:</strong> {detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca} ${detalle.camion.modelo}, ${detalle.camion.anio})` : detalle.camionId}</div>
@@ -1080,7 +1080,7 @@ export default function Admin() {
                                 if (!detalle) return;
                                 const w = window.open('', '_blank');
                                 if (!w) return;
-                                const html = `<!doctype html><html><head><meta charset='utf-8'><title>Detalle viaje ${detalle.id}</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"></head><body class="p-3"><h4>Detalle de viaje #${detalle.id}</h4><hr/><div><strong>Fecha:</strong> ${new Date(detalle.fecha).toLocaleDateString()}</div><div><strong>Origen:</strong> ${detalle.origen}</div><div><strong>Destino:</strong> ${detalle.destino}</div><div><strong>Estado:</strong> ${detalle.estado}</div><div><strong>Camión:</strong> ${detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca} ${detalle.camion.modelo}, ${detalle.camion.anio})` : (detalle.camionId || '')}</div><div><strong>Camionero:</strong> ${detalle.camionero?.nombre || '-'}</div><div><strong>Kilómetros:</strong> ${detalle.km ?? '-'}</div><div><strong>Combustible:</strong> ${detalle.combustible ?? '-'}</div></body></html>`;
+                                const html = `<!doctype html><html><head><meta charset='utf-8'><title>Detalle viaje ${detalle.id}</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"></head><body class="p-3"><h4>Detalle de viaje #${detalle.id}</h4><hr/><div><strong>Fecha:</strong> ${new Date(detalle.fecha).toLocaleDateString()}</div><div><strong>Estado:</strong> ${detalle.estado}</div><div><strong>Origen:</strong> ${detalle.origen}</div><div><strong>Destino:</strong> ${detalle.destino}</div><div><strong>Camión:</strong> ${detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca} ${detalle.camion.modelo}, ${detalle.camion.anio})` : (detalle.camionId || '')}</div><div><strong>Camionero:</strong> ${detalle.camionero?.nombre || '-'}</div><div><strong>Tipo mercadería:</strong> ${detalle.tipoMercaderia ?? '-'}</div><div><strong>Cliente:</strong> ${detalle.cliente ?? '-'}</div><div><strong>Kilómetros:</strong> ${detalle.km ?? '-'}</div><div><strong>Combustible:</strong> ${detalle.combustible ?? '-'}</div></body></html>`;
                                 w.document.write(html);
                                 w.document.close();
                                 w.focus();
