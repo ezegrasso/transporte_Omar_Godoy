@@ -23,11 +23,20 @@ dotenv.config();
 
 const app = express();
 app.use(helmet());
-// Soporte de múltiples orígenes en CORS mediante variable de entorno separada por comas
+// Soporte de múltiples orígenes en CORS con expansión localhost <-> 127.0.0.1
 const corsEnv = process.env.CORS_ORIGIN;
 let corsOrigin = '*';
 if (corsEnv && corsEnv !== '*') {
-    const list = corsEnv.split(',').map(s => s.trim()).filter(Boolean);
+    const raw = corsEnv.split(',').map(s => s.trim()).filter(Boolean);
+    const set = new Set();
+    for (const o of raw) {
+        set.add(o);
+        const mLocal = o.match(/^http:\/\/localhost:(\d+)$/);
+        if (mLocal) set.add(`http://127.0.0.1:${mLocal[1]}`);
+        const m127 = o.match(/^http:\/\/127\.0\.0\.1:(\d+)$/);
+        if (m127) set.add(`http://localhost:${m127[1]}`);
+    }
+    const list = Array.from(set);
     corsOrigin = list.length === 1 ? list[0] : list;
 }
 app.use(cors({ origin: corsOrigin }));
