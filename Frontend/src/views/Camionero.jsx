@@ -287,9 +287,9 @@ export default function Camionero() {
                         </div>
                         <div className="ms-auto">
                             <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                                const headers = ['Fecha', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión']
+                                const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión']
                                 const rows = pendientesOrdenados.map(v => [
-                                    new Date(v.fecha).toLocaleDateString(), v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || ''
+                                    new Date(v.fecha).toLocaleDateString(), v.estado || '', v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || ''
                                 ])
                                 downloadCSV('pendientes.csv', headers, rows)
                                 showToast('Exportado pendientes', 'success')
@@ -389,9 +389,9 @@ export default function Camionero() {
                         </div>
                         <div className="ms-auto">
                             <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                                const headers = ['Fecha', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión', 'Estado', 'Km', 'Combustible']
+                                const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión', 'Km', 'Combustible']
                                 const rows = miosOrdenados.map(v => [
-                                    new Date(v.fecha).toLocaleDateString(), v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || '', v.estado, v.km ?? '', v.combustible ?? ''
+                                    new Date(v.fecha).toLocaleDateString(), v.estado || '', v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || '', v.km ?? '', v.combustible ?? ''
                                 ])
                                 downloadCSV(`mis_viajes_${estadoMios}.csv`, headers, rows)
                                 showToast('Exportado mis viajes', 'success')

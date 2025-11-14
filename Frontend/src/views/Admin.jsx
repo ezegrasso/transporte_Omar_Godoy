@@ -337,12 +337,12 @@ export default function Admin() {
 
     const exportViajes = (scope = 'filtro') => {
         const set = scope === 'pagina' ? viajesPagina : viajesOrdenados;
-        const headers = ['Fecha', 'Origen', 'Destino', 'Estado', 'Camión', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible'];
+        const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible'];
         const rows = set.map(v => [
             new Date(v.fecha).toLocaleDateString(),
+            v.estado || '',
             v.origen || '',
             v.destino || '',
-            v.estado || '',
             v.camion?.patente || v.camionId || '',
             v.camionero?.nombre || '',
             v.tipoMercaderia || '',
@@ -1061,12 +1061,12 @@ export default function Admin() {
                         <div className="modal-footer">
                             <button type="button" className="btn btn-outline-secondary" onClick={() => {
                                 if (!detalle) return;
-                                const headers = ['Fecha', 'Origen', 'Destino', 'Estado', 'Camión', 'Camionero', 'Km', 'Combustible'];
+                                const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Camionero', 'Km', 'Combustible'];
                                 const row = [
                                     new Date(detalle.fecha).toLocaleDateString(),
+                                    detalle.estado || '',
                                     detalle.origen || '',
                                     detalle.destino || '',
-                                    detalle.estado || '',
                                     detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca})` : (detalle.camionId || ''),
                                     detalle.camionero?.nombre || '',
                                     detalle.km ?? '',
