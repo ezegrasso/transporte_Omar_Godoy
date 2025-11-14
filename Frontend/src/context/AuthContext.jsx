@@ -24,9 +24,11 @@ export const AuthProvider = ({ children }) => {
             try {
                 const token = localStorage.getItem('token');
                 if (!token) { setUser(null); return; }
-                // Si tenemos token pero no user, o siempre validar /me por seguridad
-                const { data } = await (await import('../services/api')).default.get('/api/usuarios/me');
-                const normalized = data ? { ...data, rol: String(data.rol || '').toLowerCase().trim() } : null;
+                // Usar endpoint de refresh del backend
+                const api = (await import('../services/api')).default;
+                const { data } = await api.get('/api/auth/refresh');
+                const raw = data?.usuario || data || null;
+                const normalized = raw ? { ...raw, rol: String(raw.rol || '').toLowerCase().trim() } : null;
                 if (normalized) {
                     localStorage.setItem('user', JSON.stringify(normalized));
                 } else {
@@ -63,8 +65,9 @@ export const AuthProvider = ({ children }) => {
     };
 
     const refresh = async () => {
-        const { data } = await api.get('/api/usuarios/me');
-        const normalized = data ? { ...data, rol: String(data.rol || '').toLowerCase().trim() } : null;
+        const { data } = await api.get('/api/auth/refresh');
+        const raw = data?.usuario || data || null;
+        const normalized = raw ? { ...raw, rol: String(raw.rol || '').toLowerCase().trim() } : null;
         if (normalized) localStorage.setItem('user', JSON.stringify(normalized));
         setUser(normalized);
         return normalized;
