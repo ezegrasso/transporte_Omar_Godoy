@@ -53,7 +53,7 @@ export default function Camionero() {
 
     const pendientesFiltrados = useMemo(() => {
         const term = filtroPend.trim().toLowerCase();
-        return pendientes.filter(v => !term || `${v.origen ?? ''} ${v.destino ?? ''} ${v.camion?.patente ?? v.camionId ?? ''}`.toLowerCase().includes(term));
+        return pendientes.filter(v => !term || `${v.origen ?? ''} ${v.destino ?? ''} ${v.tipoMercaderia ?? ''} ${v.cliente ?? ''} ${v.camion?.patente ?? v.camionId ?? ''}`.toLowerCase().includes(term));
     }, [pendientes, filtroPend]);
     const pendientesOrdenados = useMemo(() => {
         const arr = [...pendientesFiltrados];
@@ -89,7 +89,7 @@ export default function Camionero() {
         const term = filtroMios.trim().toLowerCase();
         return mios
             .filter(v => estadoMios === 'todos' ? true : v.estado === estadoMios)
-            .filter(v => !term || `${v.origen ?? ''} ${v.destino ?? ''} ${v.camion?.patente ?? v.camionId ?? ''}`.toLowerCase().includes(term));
+            .filter(v => !term || `${v.origen ?? ''} ${v.destino ?? ''} ${v.tipoMercaderia ?? ''} ${v.cliente ?? ''} ${v.camion?.patente ?? v.camionId ?? ''}`.toLowerCase().includes(term));
     }, [mios, filtroMios, estadoMios]);
     const miosOrdenados = useMemo(() => {
         const arr = [...miosFiltrados];
@@ -281,7 +281,7 @@ export default function Camionero() {
                         </div>
                         <div>
                             <label className="form-label mb-1">Buscar</label>
-                            <input className="form-control form-control-sm" placeholder="Origen, destino, patente" value={filtroPend} onChange={e => { setFiltroPend(e.target.value); setPagePend(1); }} />
+                            <input className="form-control form-control-sm" placeholder="Origen, destino, tipo, cliente, patente" value={filtroPend} onChange={e => { setFiltroPend(e.target.value); setPagePend(1); }} />
                         </div>
                         <div className="ms-auto">
                             <button className="btn btn-sm btn-outline-secondary" onClick={() => {
@@ -375,7 +375,7 @@ export default function Camionero() {
                         </div>
                         <div>
                             <label className="form-label mb-1">Buscar</label>
-                            <input className="form-control form-control-sm" placeholder="Origen, destino, patente" value={filtroMios} onChange={e => { setFiltroMios(e.target.value); setPageMios(1); }} />
+                            <input className="form-control form-control-sm" placeholder="Origen, destino, tipo, cliente, patente" value={filtroMios} onChange={e => { setFiltroMios(e.target.value); setPageMios(1); }} />
                         </div>
                         <div className="ms-auto">
                             <button className="btn btn-sm btn-outline-secondary" onClick={() => {
