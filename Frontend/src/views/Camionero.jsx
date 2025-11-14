@@ -62,6 +62,7 @@ export default function Camionero() {
             const getVal = (v, k) => {
                 switch (k) {
                     case 'fecha': return new Date(v.fecha || 0).getTime();
+                    case 'estado': return (v.estado || '').toLowerCase();
                     case 'origen': return (v.origen || '').toLowerCase();
                     case 'destino': return (v.destino || '').toLowerCase();
                     case 'tipo': return (v.tipoMercaderia || '').toLowerCase();
@@ -98,6 +99,7 @@ export default function Camionero() {
             const getVal = (v, k) => {
                 switch (k) {
                     case 'fecha': return new Date(v.fecha || 0).getTime();
+                    case 'estado': return (v.estado || '').toLowerCase();
                     case 'origen': return (v.origen || '').toLowerCase();
                     case 'destino': return (v.destino || '').toLowerCase();
                     case 'tipo': return (v.tipoMercaderia || '').toLowerCase();
@@ -303,7 +305,7 @@ export default function Camionero() {
                             <table className={`table ${compact ? 'table-sm' : ''} table-striped table-hover align-middle table-sticky`}>
                                 <thead>
                                     <tr>
-                                        {['fecha', 'origen', 'destino', 'tipo', 'cliente', 'camion'].map((k) => (
+                                        {['fecha', 'estado', 'origen', 'destino', 'tipo', 'cliente', 'camion'].map((k) => (
                                             <th key={k} role="button" onClick={() => {
                                                 setSortPend(s => ({ key: k, dir: s.key === k && s.dir === 'asc' ? 'desc' : 'asc' }))
                                             }}>
@@ -326,6 +328,14 @@ export default function Camionero() {
                                                 {savedMioId === v.id && (
                                                     <span className="badge rounded-pill text-bg-info ms-2">Nuevo</span>
                                                 )}
+                                            </td>
+                                            <td>
+                                                <span className={`badge badge-dot ${v.estado === 'finalizado'
+                                                    ? 'badge-estado-finalizado'
+                                                    : v.estado === 'en curso'
+                                                        ? 'badge-estado-en_curso'
+                                                        : 'badge-estado-pendiente'
+                                                    } text-capitalize`}>{v.estado}</span>
                                             </td>
                                             <td title={v.origen} data-bs-toggle="tooltip">{v.origen}</td>
                                             <td title={v.destino} data-bs-toggle="tooltip">{v.destino}</td>
@@ -397,7 +407,7 @@ export default function Camionero() {
                             <table className={`table ${compact ? 'table-sm' : ''} table-striped table-hover align-middle table-sticky`}>
                                 <thead>
                                     <tr>
-                                        {['fecha', 'origen', 'destino', 'tipo', 'cliente', 'camion'].map((k) => (
+                                        {['fecha', 'estado', 'origen', 'destino', 'tipo', 'cliente', 'camion'].map((k) => (
                                             <th key={k} role="button" onClick={() => {
                                                 setSortMios(s => ({ key: k, dir: s.key === k && s.dir === 'asc' ? 'desc' : 'asc' }))
                                             }}>
@@ -418,6 +428,14 @@ export default function Camionero() {
                                     {miosPagina.map(v => (
                                         <tr key={v.id} className={savedMioId === v.id ? 'table-warning row-saved-anim' : ''}>
                                             <td>{new Date(v.fecha).toLocaleDateString()}</td>
+                                            <td>
+                                                <span className={`badge badge-dot ${v.estado === 'finalizado'
+                                                    ? 'badge-estado-finalizado'
+                                                    : v.estado === 'en curso'
+                                                        ? 'badge-estado-en_curso'
+                                                        : 'badge-estado-pendiente'
+                                                    } text-capitalize`}>{v.estado}</span>
+                                            </td>
                                             <td title={v.origen} data-bs-toggle="tooltip">{v.origen}</td>
                                             <td title={v.destino} data-bs-toggle="tooltip">{v.destino}</td>
                                             <td title={v.tipoMercaderia || ''} data-bs-toggle="tooltip">{v.tipoMercaderia || '-'}</td>

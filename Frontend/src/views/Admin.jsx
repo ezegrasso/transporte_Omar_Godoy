@@ -730,7 +730,7 @@ export default function Admin() {
                                 <table className={`table ${compact ? 'table-sm' : ''} table-striped table-hover table-sticky`}>
                                     <thead>
                                         <tr>
-                                            {['fecha', 'origen', 'destino', 'estado', 'camion', 'camionero', 'tipo', 'cliente', 'km', 'combustible'].map((k) => (
+                                            {['fecha', 'estado', 'origen', 'destino', 'camion', 'camionero', 'tipo', 'cliente', 'km', 'combustible'].map((k) => (
                                                 <th key={k} role="button" onClick={() => {
                                                     if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
                                                     else { setSortKey(k); setSortDir('asc'); }
@@ -750,8 +750,6 @@ export default function Admin() {
                                         {viajesPagina.map(v => (
                                             <tr key={v.id}>
                                                 <td>{new Date(v.fecha).toLocaleDateString()}</td>
-                                                <td title={v.origen} data-bs-toggle="tooltip">{v.origen}</td>
-                                                <td title={v.destino} data-bs-toggle="tooltip">{v.destino}</td>
                                                 <td>
                                                     <span className={`badge badge-dot ${v.estado === 'finalizado'
                                                         ? 'badge-estado-finalizado'
@@ -760,6 +758,8 @@ export default function Admin() {
                                                             : 'badge-estado-pendiente'
                                                         } text-capitalize`}>{v.estado}</span>
                                                 </td>
+                                                <td title={v.origen} data-bs-toggle="tooltip">{v.origen}</td>
+                                                <td title={v.destino} data-bs-toggle="tooltip">{v.destino}</td>
                                                 <td title={v.camion ? `${v.camion.patente} • ${v.camion.marca} ${v.camion.modelo}` : v.camionId} data-bs-toggle="tooltip">
                                                     {v.camion ? (
                                                         <span>{v.camion.patente} <small className="text-body-secondary">({v.camion.marca})</small></span>
