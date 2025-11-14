@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Login from './views/Login'
 import Home from './views/Home'
 import Admin from './views/Admin'
+import Administracion from './views/Administracion'
 import Camionero from './views/Camionero'
 import { useAuth } from './context/AuthContext'
 
@@ -40,6 +41,7 @@ function NavBar() {
             <li className="nav-item"><Link className="nav-link" to="/">Inicio</Link></li>
             {!user && <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>}
             {user?.rol === 'admin' && <li className="nav-item"><Link className="nav-link" to="/admin">Admin</Link></li>}
+            {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion">Administración</Link></li>}
             {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero">Camionero</Link></li>}
           </ul>
           <div className="d-flex align-items-center gap-2">
@@ -62,7 +64,7 @@ function NavBar() {
                   <ul className="dropdown-menu dropdown-menu-end">
                     <li className="dropdown-item d-flex align-items-center justify-content-between">
                       <span>Rol</span>
-                      <span className={`badge ${user?.rol === 'admin' ? 'badge-role-admin' : 'badge-role-camionero'}`}>{user?.rol}</span>
+                      <span className={`badge ${user?.rol === 'admin' ? 'badge-role-admin' : user?.rol === 'administracion' ? 'badge-role-administracion' : 'badge-role-camionero'}`}>{user?.rol}</span>
                     </li>
                     <li><hr className="dropdown-divider" /></li>
                     <li>
@@ -90,7 +92,8 @@ export default function App() {
       '/': 'Inicio',
       '/login': 'Login',
       '/admin': 'Admin',
-      '/camionero': 'Camionero'
+      '/camionero': 'Camionero',
+      '/administracion': 'Administración'
     }
     const match = Object.keys(map).find(k => location.pathname.startsWith(k)) || '/'
     document.title = `${map[match]} — ${base}`
@@ -114,6 +117,11 @@ export default function App() {
         <Route path="/admin" element={
           <ProtectedRoute roles={["admin"]}>
             <Admin />
+          </ProtectedRoute>
+        } />
+        <Route path="/administracion" element={
+          <ProtectedRoute roles={["administracion"]}>
+            <Administracion />
           </ProtectedRoute>
         } />
         <Route path="/camionero" element={

@@ -109,6 +109,12 @@ body {
   color: #0b1220 !important;
 }
 
+.badge-role-administracion {
+  background-color: #a78bfa !important;
+  /* violet-400 */
+  color: #251c45 !important;
+}
+
 [data-bs-theme="dark"] .badge-role-admin {
   background-color: #38bdf8 !important;
   color: #071c24 !important;
@@ -117,6 +123,12 @@ body {
 [data-bs-theme="dark"] .badge-role-camionero {
   background-color: #475569 !important;
   color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .badge-role-administracion {
+  background-color: #7c3aed !important;
+  /* violet-600 */
+  color: #ede9fe !important;
 }
 
 .badge-estado-pendiente {

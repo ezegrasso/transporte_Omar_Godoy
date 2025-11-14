@@ -955,6 +955,7 @@ export default function Admin() {
                                     <div className="col-6">
                                         <select className="form-select" value={nuevoUsuario.rol} onChange={e => setNuevoUsuario(v => ({ ...v, rol: e.target.value }))}>
                                             <option value="camionero">Camionero</option>
+                                            <option value="administracion">Administración</option>
                                             <option value="admin">Admin</option>
                                         </select>
                                     </div>
@@ -985,10 +986,11 @@ export default function Admin() {
                                                             {editUsuarioId === u.id ? (
                                                                 <select className="form-select form-select-sm" value={editUsuarioData.rol} onChange={e => setEditUsuarioData(v => ({ ...v, rol: e.target.value }))}>
                                                                     <option value="camionero">Camionero</option>
+                                                                    <option value="administracion">Administración</option>
                                                                     <option value="admin">Admin</option>
                                                                 </select>
                                                             ) : (
-                                                                <span className={`badge ${u.rol === 'admin' ? 'badge-role-admin' : 'badge-role-camionero'}`}>{u.rol}</span>
+                                                                <span className={`badge ${u.rol === 'admin' ? 'badge-role-admin' : u.rol === 'administracion' ? 'badge-role-administracion' : 'badge-role-camionero'}`}>{u.rol}</span>
                                                             )}
                                                         </td>
                                                         <td className="text-end">

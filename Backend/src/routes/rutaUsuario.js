@@ -14,7 +14,7 @@ router.post('/',
         body('nombre').isString().notEmpty(),
         body('email').isEmail(),
         body('password').isLength({ min: 6 }),
-        body('rol').isIn(['admin', 'camionero']),
+        body('rol').isIn(['admin', 'camionero', 'administracion']),
         body('avatarUrl').optional().isString().isLength({ min: 5 })
     ],
     async (req, res) => {
@@ -86,7 +86,7 @@ router.put('/:id',
         body('nombre').optional().isString().notEmpty(),
         body('email').optional().isEmail(),
         body('password').optional().isLength({ min: 6 }),
-        body('rol').optional().isIn(['admin', 'camionero']),
+        body('rol').optional().isIn(['admin', 'camionero', 'administracion']),
         body('avatarUrl').optional().isString().isLength({ min: 5 })
     ],
     async (req, res) => {
