@@ -36,7 +36,7 @@ npm run dev
 ```
 
 ## CORS
-En producción define `CORS_ORIGIN` con los orígenes permitidos. En desarrollo usa `http://localhost:5173` o `http://127.0.0.1:5173` para el Frontend. Si agregás uno, el backend también permitirá el otro para el mismo puerto automáticamente.
+En producción define `CORS_ORIGIN` con los orígenes permitidos. En desarrollo usa `http://localhost:5173` o `http://127.0.0.1:5173` para el Frontend. Si agregás uno, el backend también permitirá el otro para el mismo puerto automáticamente. Si activás `CORS_ALLOW_LAN_5173=true`, también se permitirán IPs privadas de red local (192.168.x.x, 10.x.x.x, 172.16–31.x.x) en el puerto 5173 para probar desde el celular.
 
 ## Autenticación
 - Inicio de sesión: `POST /api/auth/login` devuelve `{ token, usuario }`.

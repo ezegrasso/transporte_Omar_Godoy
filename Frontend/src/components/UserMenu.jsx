@@ -16,7 +16,7 @@ export default function UserMenu() {
     if (!user) return null;
 
     const initials = (user.nombre || user.email || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
-    const isAdmin = String(user?.rol || '').toLowerCase() === 'admin';
+    const isCeo = String(user?.rol || '').toLowerCase() === 'ceo';
 
     const handleSave = async () => {
         setSaving(true);
@@ -55,12 +55,12 @@ export default function UserMenu() {
                     <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: 32, height: 32, fontSize: 12 }}>{initials}</div>
                 )}
                 <span className="text-start d-none d-sm-inline" style={{ maxWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.nombre}</span>
-                {isAdmin && (<i className={`bi bi-caret-${open ? 'up' : 'down'}-fill small`}></i>)}
+                {isCeo && (<i className={`bi bi-caret-${open ? 'up' : 'down'}-fill small`}></i>)}
             </button>
             {open && (
                 <div className="dropdown-menu show end-0 mt-2 p-2 shadow-sm" style={{ minWidth: 220 }}>
                     <div className="small text-body-secondary mb-2">{user.email}</div>
-                    {isAdmin && (
+                    {isCeo && (
                         <button className="dropdown-item d-flex align-items-center gap-2" onClick={() => { setEditing(true); setOpen(false); }}>
                             <i className="bi bi-person-gear"></i> Editar perfil
                         </button>
@@ -70,7 +70,7 @@ export default function UserMenu() {
                     </button>
                 </div>
             )}
-            {isAdmin && editing && createPortal((
+            {isCeo && editing && createPortal((
                 <div>
                     <div className="modal fade show" style={{ display: 'block', zIndex: 1060 }} role="dialog" aria-modal="true">
                         <div className="modal-dialog" onClick={e => e.stopPropagation()}>

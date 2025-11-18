@@ -35,7 +35,7 @@ export default function Camionero() {
         setPendientes(data.items || data.data || []);
     };
     const fetchMios = async () => {
-        // No pasar estado para que el backend (no admin) devuelva todos los viajes del camionero
+        // No pasar estado para que el backend (no ceo/administracion) devuelva todos los viajes del camionero
         const { data } = await api.get('/api/viajes?limit=100');
         const list = data.items || data.data || [];
         setMios(list);
@@ -268,7 +268,7 @@ export default function Camionero() {
                                 </div>
                             </div>
                         </div>
-                        <small className="text-body-secondary d-block mt-2">Al finalizar, se registrará el km y el combustible y el administrador podrá verlo en su panel.</small>
+                        <small className="text-body-secondary d-block mt-2">Al finalizar, se registrará el km y el combustible y el CEO podrá verlo en su panel.</small>
                     </div>
                 </div>
             )}

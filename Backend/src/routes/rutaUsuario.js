@@ -9,12 +9,12 @@ const router = Router();
 // Crear usuario (solo admin)
 router.post('/',
     authMiddleware,
-    roleMiddleware(['admin']),
+    roleMiddleware(['ceo']),
     [
         body('nombre').isString().notEmpty(),
         body('email').isEmail(),
         body('password').isLength({ min: 6 }),
-        body('rol').isIn(['admin', 'camionero', 'administracion']),
+        body('rol').isIn(['ceo', 'camionero', 'administracion']),
         body('avatarUrl').optional().isString().isLength({ min: 5 })
     ],
     async (req, res) => {
@@ -68,7 +68,7 @@ router.put('/me',
 );
 
 // Ver todos los usuarios (solo admin)
-router.get('/', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+router.get('/', authMiddleware, roleMiddleware(['ceo']), async (req, res) => {
     try {
         const usuarios = await Usuario.findAll();
         res.json(usuarios);
@@ -80,13 +80,13 @@ router.get('/', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
 // Actualizar usuario (solo admin)
 router.put('/:id',
     authMiddleware,
-    roleMiddleware(['admin']),
+    roleMiddleware(['ceo']),
     [
         param('id').isInt(),
         body('nombre').optional().isString().notEmpty(),
         body('email').optional().isEmail(),
         body('password').optional().isLength({ min: 6 }),
-        body('rol').optional().isIn(['admin', 'camionero', 'administracion']),
+        body('rol').optional().isIn(['ceo', 'camionero', 'administracion']),
         body('avatarUrl').optional().isString().isLength({ min: 5 })
     ],
     async (req, res) => {
@@ -96,6 +96,11 @@ router.put('/:id',
             const { id } = req.params;
             const usuario = await Usuario.scope('withPassword').findByPk(id);
             if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+            // Impedir cambiar el rol del CEO (se puede editar nombre/email/password/avatar)
+            if (usuario.rol === 'ceo' && req.body.rol && req.body.rol !== 'ceo') {
+                return res.status(400).json({ error: 'El rol del CEO no puede modificarse' });
+            }
 
             const updatable = ['nombre', 'email', 'password', 'rol', 'avatarUrl'];
             updatable.forEach((k) => {
@@ -116,16 +121,20 @@ router.put('/:id',
 // Eliminar usuario (solo admin)
 router.delete('/:id',
     authMiddleware,
-    roleMiddleware(['admin']),
+    roleMiddleware(['ceo']),
     [param('id').isInt()],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
             const { id } = req.params;
-            const deleted = await Usuario.destroy({ where: { id } });
-            if (deleted) return res.json({ mensaje: 'Usuario eliminado' });
-            return res.status(404).json({ error: 'Usuario no encontrado' });
+            const usuario = await Usuario.findByPk(id);
+            if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+            if (usuario.rol === 'ceo') {
+                return res.status(400).json({ error: 'El usuario CEO no puede eliminarse' });
+            }
+            await Usuario.destroy({ where: { id } });
+            return res.json({ mensaje: 'Usuario eliminado' });
         } catch (error) {
             res.status(500).json({ error: 'Error al eliminar usuario' });
         }

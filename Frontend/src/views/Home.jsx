@@ -36,7 +36,7 @@ export default function Home() {
             <PageHeader
                 title="Panel general"
                 subtitle="Resumen rápido y accesos directos"
-                actions={<Link className="btn btn-primary" to="/admin">Ir a Admin</Link>}
+                actions={<Link className="btn btn-primary" to="/ceo">Ir a CEO</Link>}
             />
 
             <div className="row g-3">

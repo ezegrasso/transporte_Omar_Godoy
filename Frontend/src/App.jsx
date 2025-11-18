@@ -4,7 +4,7 @@ import { Tooltip } from 'bootstrap'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './views/Login'
 import Home from './views/Home'
-import Admin from './views/Admin'
+import Ceo from './views/Ceo'
 import Administracion from './views/Administracion'
 import Camionero from './views/Camionero'
 import { useAuth } from './context/AuthContext'
@@ -40,7 +40,7 @@ function NavBar() {
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item"><Link className="nav-link" to="/">Inicio</Link></li>
             {!user && <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>}
-            {user?.rol === 'admin' && <li className="nav-item"><Link className="nav-link" to="/admin">Admin</Link></li>}
+            {user?.rol === 'ceo' && <li className="nav-item"><Link className="nav-link" to="/ceo">CEO</Link></li>}
             {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion">Administración</Link></li>}
             {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero">Camionero</Link></li>}
           </ul>
@@ -64,7 +64,7 @@ function NavBar() {
                   <ul className="dropdown-menu dropdown-menu-end">
                     <li className="dropdown-item d-flex align-items-center justify-content-between">
                       <span>Rol</span>
-                      <span className={`badge ${user?.rol === 'admin' ? 'badge-role-admin' : user?.rol === 'administracion' ? 'badge-role-administracion' : 'badge-role-camionero'}`}>{user?.rol}</span>
+                      <span className={`badge ${user?.rol === 'ceo' ? 'badge-role-ceo' : user?.rol === 'administracion' ? 'badge-role-administracion' : 'badge-role-camionero'}`}>{user?.rol}</span>
                     </li>
                     <li><hr className="dropdown-divider" /></li>
                     <li>
@@ -86,17 +86,65 @@ function NavBar() {
 export default function App() {
   const location = useLocation()
   const { initializing } = useAuth()
+  // Ajusta dinámicamente el offset del contenido según la altura real del navbar fijo
+  useEffect(() => {
+    const updateOffset = () => {
+      const nav = document.querySelector('.navbar.fixed-top')
+      if (nav) {
+        const h = Math.ceil(nav.getBoundingClientRect().height)
+        document.documentElement.style.setProperty('--app-navbar-offset', `${h}px`)
+      }
+    }
+
+    // Inicial
+    updateOffset()
+
+    // Recalcular en resize de ventana
+    window.addEventListener('resize', updateOffset)
+
+    // Recalcular cuando cambia la altura del navbar (apertura/cierre del colapsable)
+    const nav = document.querySelector('.navbar.fixed-top')
+    let ro
+    if (nav && 'ResizeObserver' in window) {
+      ro = new ResizeObserver(() => updateOffset())
+      ro.observe(nav)
+    }
+
+    // Escuchar eventos de Bootstrap del colapsable si existen
+    const collapseEl = document.getElementById('navbarSupportedContent')
+    const onShown = () => updateOffset()
+    const onHidden = () => updateOffset()
+    if (collapseEl) {
+      collapseEl.addEventListener('shown.bs.collapse', onShown)
+      collapseEl.addEventListener('hidden.bs.collapse', onHidden)
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateOffset)
+      if (ro) ro.disconnect()
+      if (collapseEl) {
+        collapseEl.removeEventListener('shown.bs.collapse', onShown)
+        collapseEl.removeEventListener('hidden.bs.collapse', onHidden)
+      }
+    }
+  }, [])
   useEffect(() => {
     const base = 'Transporte'
     const map = {
       '/': 'Inicio',
       '/login': 'Login',
-      '/admin': 'Admin',
+      '/ceo': 'CEO',
       '/camionero': 'Camionero',
       '/administracion': 'Administración'
     }
     const match = Object.keys(map).find(k => location.pathname.startsWith(k)) || '/'
     document.title = `${map[match]} — ${base}`
+    // Recalcular el offset también al cambiar de ruta (por si varía la altura)
+    const nav = document.querySelector('.navbar.fixed-top')
+    if (nav) {
+      const h = Math.ceil(nav.getBoundingClientRect().height)
+      document.documentElement.style.setProperty('--app-navbar-offset', `${h}px`)
+    }
   }, [location.pathname])
 
   if (initializing) {
@@ -109,27 +157,29 @@ export default function App() {
   }
 
   return (
-    <div className="container py-4 max-w-6xl mx-auto app-content">
+    <>
       <NavBar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/admin" element={
-          <ProtectedRoute roles={["admin"]}>
-            <Admin />
-          </ProtectedRoute>
-        } />
-        <Route path="/administracion" element={
-          <ProtectedRoute roles={["administracion"]}>
-            <Administracion />
-          </ProtectedRoute>
-        } />
-        <Route path="/camionero" element={
-          <ProtectedRoute roles={["camionero"]}>
-            <Camionero />
-          </ProtectedRoute>
-        } />
-      </Routes>
-    </div>
+      <div className="container pt-3 pb-4 max-w-6xl mx-auto app-content">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/ceo" element={
+            <ProtectedRoute roles={["ceo"]}>
+              <Ceo />
+            </ProtectedRoute>
+          } />
+          <Route path="/administracion" element={
+            <ProtectedRoute roles={["administracion"]}>
+              <Administracion />
+            </ProtectedRoute>
+          } />
+          <Route path="/camionero" element={
+            <ProtectedRoute roles={["camionero"]}>
+              <Camionero />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </div>
+    </>
   )
 }

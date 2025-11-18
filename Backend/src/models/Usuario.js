@@ -16,7 +16,8 @@ const Usuario = sequelize.define('Usuario', {
     email: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true
+        // Quitamos unique aquí para evitar que sync({alter:true}) intente recrear múltiples índices.
+        // El índice único se define abajo en la opción indexes con nombre estable.
     },
     password: {
         type: DataTypes.STRING,
@@ -38,7 +39,14 @@ const Usuario = sequelize.define('Usuario', {
     },
     scopes: {
         withPassword: {}
-    }
+    },
+    indexes: [
+        {
+            name: 'ux_usuarios_email',
+            unique: true,
+            fields: ['email']
+        }
+    ]
 });
 
 // Hooks para hashear password

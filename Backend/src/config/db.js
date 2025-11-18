@@ -37,8 +37,9 @@ export default sequelize;
 // Sincronizar modelos con la base de datos (los modelos deben estar importados previamente desde server.js)
 export const syncModels = async () => {
     try {
-        // Evitar alteraciones automáticas que puedan fallar por constraints inexistentes
-        await sequelize.sync();
+        // Por defecto evitamos alteraciones automáticas. Para desarrollo, habilita DB_ALTER_ON_BOOT=true
+        const doAlter = String(process.env.DB_ALTER_ON_BOOT || '').toLowerCase() === 'true';
+        await sequelize.sync({ alter: !!doAlter });
         console.log('Modelos sincronizados con la base de datos.');
     } catch (error) {
         console.error('Error al sincronizar los modelos:', error);

@@ -33,6 +33,36 @@ const Viaje = sequelize.define('Viaje', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true
     },
+    // Gestión administrativa
+    facturaUrl: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    remitosJson: {
+        type: DataTypes.TEXT, // JSON array de URLs
+        allowNull: true
+    },
+    facturaEstado: {
+        type: DataTypes.STRING, // 'pendiente' | 'cobrada' | 'no cobrada'
+        allowNull: true
+    },
+    fechaFactura: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
+    facturaNotificadaVencida: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
+    tipoMercaderia: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    cliente: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     camionId: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -48,6 +78,15 @@ const Viaje = sequelize.define('Viaje', {
             model: 'usuarios',
             key: 'id'
         }
+    },
+    // Campos históricos para mantener nombre y email aunque se elimine el usuario camionero
+    camioneroNombre: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    camioneroEmail: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 }, {
     tableName: 'viajes',

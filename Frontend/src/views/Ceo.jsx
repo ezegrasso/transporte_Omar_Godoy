@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../components/UI/PageHeader';
 import api from '../services/api';
-import UserMenu from '../components/UserMenu';
 import EmptyState from '../components/UI/EmptyState';
 import { useToast } from '../context/ToastContext';
 import { downloadCSV } from '../utils/csv';
+import { useAuth } from '../context/AuthContext';
 
-export default function Admin() {
+export default function Ceo() {
+    const { user } = useAuth();
     const [camiones, setCamiones] = useState([]);
     const [viajes, setViajes] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
@@ -24,7 +25,7 @@ export default function Admin() {
     const [filtroEstado, setFiltroEstado] = useState('');
     const [busqueda, setBusqueda] = useState('');
     const [sortKey, setSortKey] = useState('fecha');
-    const [sortDir, setSortDir] = useState('desc'); // 'asc' | 'desc'
+    const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(1);
     const pageSize = 10;
     const [density, setDensity] = useState(() => localStorage.getItem('tableDensity') || 'comfortable');
@@ -79,7 +80,7 @@ export default function Admin() {
     };
 
     // Utilidad: descargar CSV simple
-    const downloadCSV = (filename, headers, rows) => {
+    const downloadCSVLocal = (filename, headers, rows) => {
         try {
             const csvRows = [];
             if (headers && headers.length) csvRows.push(headers.map(h => `"${String(h).replaceAll('"', '""')}"`).join(','));
@@ -350,7 +351,7 @@ export default function Admin() {
             v.km ?? '',
             v.combustible ?? ''
         ]);
-        downloadCSV(`viajes_${scope}.csv`, headers, rows);
+        downloadCSVLocal(`viajes_${scope}.csv`, headers, rows);
         showToast(`Exportado CSV (${scope})`, 'success');
     };
 
@@ -439,10 +440,108 @@ export default function Admin() {
         }
     };
 
+    // Notificaciones (campana)
+    const [notisOpen, setNotisOpen] = useState(false);
+    const [notis, setNotis] = useState([]);
+    const [loadingNotis, setLoadingNotis] = useState(false);
+    const [bellPulse, setBellPulse] = useState(false);
+    const unreadCount = useMemo(() => (notis || []).filter(n => !n.leida).length, [notis]);
+    const [prevUnread, setPrevUnread] = useState(0);
+    const AUTO_OPEN_THRESHOLD = Number(import.meta?.env?.VITE_NOTIS_AUTO_OPEN_THRESHOLD ?? 3);
+
+    const playBeep = () => {
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            const ctx = new Ctx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 880;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            gain.gain.setValueAtTime(0.001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.21);
+            setTimeout(() => ctx.close().catch(() => { }), 300);
+        } catch { }
+    };
+
+    const fetchNotis = async () => {
+        if (user?.rol !== 'ceo') return;
+        setLoadingNotis(true);
+        try {
+            const { data } = await api.get('/api/notificaciones');
+            const list = data || [];
+            setNotis(list);
+            const nextUnread = (list || []).filter(n => !n.leida).length;
+            if (nextUnread > prevUnread) {
+                setBellPulse(true);
+                setTimeout(() => setBellPulse(false), 1200);
+                const delta = nextUnread - prevUnread;
+                showToast(`+${delta} notificaciones nuevas`, 'info');
+                playBeep();
+                if (delta >= AUTO_OPEN_THRESHOLD && !notisOpen) {
+                    setNotisOpen(true);
+                }
+            }
+            setPrevUnread(nextUnread);
+        } catch { }
+        finally { setLoadingNotis(false); }
+    };
+
+    useEffect(() => { fetchNotis(); /* eslint-disable-next-line */ }, [user?.rol]);
+    useEffect(() => {
+        if (user?.rol !== 'ceo') return;
+        const id = setInterval(() => { fetchNotis(); }, 60000);
+        return () => clearInterval(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.rol]);
+
     return (
         <>
             <div className="container py-3 space-y-4">
-                <PageHeader title="Panel Admin" subtitle="Gestión de camiones, viajes y usuarios" actions={loading && <span className="spinner-border spinner-border-sm text-secondary" role="status" />} />
+                <PageHeader title="Panel CEO" subtitle="Gestión de camiones, viajes y usuarios" actions={(
+                    <div className="d-flex align-items-center gap-2">
+                        {loading && <span className="spinner-border spinner-border-sm text-secondary" role="status" />}
+                        {user?.rol === 'ceo' && (
+                            <div className="position-relative">
+                                <button className={`btn btn-outline-secondary position-relative ${bellPulse ? 'notif-pulse' : ''}`} onClick={() => { setNotisOpen(v => !v); if (!notisOpen) fetchNotis(); }}>
+                                    <i className="bi bi-bell"></i>
+                                    {unreadCount > 0 && <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{unreadCount}</span>}
+                                </button>
+                                {notisOpen && (
+                                    <div className="card position-absolute end-0 mt-2 shadow" style={{ minWidth: 360, zIndex: 1000 }}>
+                                        <div className="card-header d-flex justify-content-between align-items-center py-2">
+                                            <strong>Notificaciones</strong>
+                                            <button className="btn btn-sm btn-light" onClick={fetchNotis}>{loadingNotis ? '...' : 'Refrescar'}</button>
+                                        </div>
+                                        <div className="list-group list-group-flush" style={{ maxHeight: 360, overflowY: 'auto' }}>
+                                            {(notis || []).length === 0 ? (
+                                                <div className="text-center text-body-secondary p-3">Sin notificaciones</div>
+                                            ) : (
+                                                (notis || []).map(n => (
+                                                    <div key={n.id} className={`list-group-item d-flex justify-content-between align-items-start ${n.leida ? '' : 'bg-warning-subtle'}`}>
+                                                        <div className="me-2">
+                                                            <div className="fw-semibold">{n.tipo}</div>
+                                                            <div className="small">{n.mensaje}</div>
+                                                            <div className="text-body-secondary small">{new Date(n.fecha).toLocaleString()}</div>
+                                                        </div>
+                                                        {!n.leida && (
+                                                            <button className="btn btn-sm btn-outline-primary" onClick={async () => { await api.patch(`/api/notificaciones/${n.id}/leida`); setNotis(prev => prev.map(x => x.id === n.id ? { ...x, leida: true } : x)); }}>Marcar leída</button>
+                                                        )}
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )} />
 
                 {/* KPIs rápidos */}
                 <div className="row g-3 mb-2">
@@ -547,9 +646,15 @@ export default function Admin() {
                                     {camiones.length === 0 ? (
                                         <EmptyState title="Sin camiones" description="Todavía no cargaste ningún camión" />
                                     ) : (
-                                        <table className={`table ${compact ? 'table-sm' : ''} table-hover align-middle mb-0 table-sticky`}>
+                                        <table className={`${compact ? 'table table-sm' : 'table'} table-hover align-middle mb-0 table-sticky`}>
                                             <thead>
-                                                <tr><th>Patente</th><th>Marca</th><th>Modelo</th><th>Año</th><th className="text-end">Acciones</th></tr>
+                                                <tr>
+                                                    <th>Patente</th>
+                                                    <th>Marca</th>
+                                                    <th>Modelo</th>
+                                                    <th>Año</th>
+                                                    <th className="text-end">Acciones</th>
+                                                </tr>
                                             </thead>
                                             <tbody>
                                                 {camiones.map(c => (
@@ -625,8 +730,8 @@ export default function Admin() {
                         <div className="d-flex flex-wrap gap-2 align-items-end mb-2">
                             <h3 className="h5 mb-0 me-auto">Viajes</h3>
                             <div className="form-check form-switch d-flex align-items-center gap-2">
-                                <input className="form-check-input" type="checkbox" role="switch" id="switchDensityAdmin" checked={compact} onChange={e => setDensity(e.target.checked ? 'compact' : 'comfortable')} />
-                                <label className="form-check-label" htmlFor="switchDensityAdmin">Compacto</label>
+                                <input className="form-check-input" type="checkbox" role="switch" id="switchDensityCeo" checked={compact} onChange={e => setDensity(e.target.checked ? 'compact' : 'comfortable')} />
+                                <label className="form-check-label" htmlFor="switchDensityCeo">Compacto</label>
                             </div>
                             <div>
                                 <label className="form-label mb-1">Estado</label>
@@ -727,7 +832,7 @@ export default function Admin() {
                             {viajesFiltrados.length === 0 ? (
                                 <EmptyState title="Sin viajes" description="No hay viajes que coincidan con el filtro" />
                             ) : (
-                                <table className={`table ${compact ? 'table-sm' : ''} table-striped table-hover table-sticky`}>
+                                <table className={`${compact ? 'table table-sm' : 'table'} table-striped table-hover table-sticky`}>
                                     <thead>
                                         <tr>
                                             {['fecha', 'estado', 'origen', 'destino', 'camion', 'camionero', 'tipo', 'cliente', 'km', 'combustible'].map((k) => (
@@ -898,11 +1003,10 @@ export default function Admin() {
                                     <div className="col-12">
                                         <div className="p-3 rounded border bg-body-tertiary">Por estado: {Object.entries(reporte.porEstado).map(([k, v]) => `${k}: ${v}`).join(' • ') || '-'}</div>
                                     </div>
-                                    {/* Resumenes adicionales */}
                                     <div className="col-12">
                                         <h4 className="h6 mt-2">Por camionero</h4>
                                         <div className="table-responsive">
-                                            <table className={`table ${compact ? 'table-sm' : ''} align-middle mb-0`}>
+                                            <table className={`${compact ? 'table table-sm' : 'table'} align-middle mb-0`}>
                                                 <thead><tr><th>Camionero</th><th className="text-end">Viajes</th><th className="text-end">Km</th><th className="text-end">Combustible</th></tr></thead>
                                                 <tbody>
                                                     {Object.entries(viajes.reduce((acc, v) => {
@@ -922,7 +1026,7 @@ export default function Admin() {
                                     <div className="col-12">
                                         <h4 className="h6 mt-2">Por camión</h4>
                                         <div className="table-responsive">
-                                            <table className={`table ${compact ? 'table-sm' : ''} align-middle mb-0`}>
+                                            <table className={`${compact ? 'table table-sm' : 'table'} align-middle mb-0`}>
                                                 <thead><tr><th>Camión</th><th className="text-end">Viajes</th><th className="text-end">Km</th><th className="text-end">Combustible</th></tr></thead>
                                                 <tbody>
                                                     {Object.entries(viajes.reduce((acc, v) => {
@@ -956,7 +1060,7 @@ export default function Admin() {
                                         <select className="form-select" value={nuevoUsuario.rol} onChange={e => setNuevoUsuario(v => ({ ...v, rol: e.target.value }))}>
                                             <option value="camionero">Camionero</option>
                                             <option value="administracion">Administración</option>
-                                            <option value="admin">Admin</option>
+                                            <option value="ceo">CEO</option>
                                         </select>
                                     </div>
                                     <div className="col-12"><button className="btn btn-primary" disabled={savingUsuario}>{savingUsuario ? 'Creando…' : 'Crear usuario'}</button></div>
@@ -965,7 +1069,7 @@ export default function Admin() {
                                     {usuarios.length === 0 ? (
                                         <EmptyState title="Sin usuarios" description="Todavía no cargaste usuarios" />
                                     ) : (
-                                        <table className={`table ${compact ? 'table-sm' : ''} table-hover align-middle mb-0 table-sticky`}>
+                                        <table className={`${compact ? 'table table-sm' : 'table'} table-hover align-middle mb-0 table-sticky`}>
                                             <thead>
                                                 <tr><th>Nombre</th><th>Email</th><th>Rol</th><th style={{ minWidth: 160 }} className="text-end">Acciones</th></tr>
                                             </thead>
@@ -987,10 +1091,10 @@ export default function Admin() {
                                                                 <select className="form-select form-select-sm" value={editUsuarioData.rol} onChange={e => setEditUsuarioData(v => ({ ...v, rol: e.target.value }))}>
                                                                     <option value="camionero">Camionero</option>
                                                                     <option value="administracion">Administración</option>
-                                                                    <option value="admin">Admin</option>
+                                                                    <option value="ceo">CEO</option>
                                                                 </select>
                                                             ) : (
-                                                                <span className={`badge ${u.rol === 'admin' ? 'badge-role-admin' : u.rol === 'administracion' ? 'badge-role-administracion' : 'badge-role-camionero'}`}>{u.rol}</span>
+                                                                <span className={`badge ${u.rol === 'ceo' ? 'badge-role-ceo' : u.rol === 'administracion' ? 'badge-role-administracion' : 'badge-role-camionero'}`}>{u.rol}</span>
                                                             )}
                                                         </td>
                                                         <td className="text-end">

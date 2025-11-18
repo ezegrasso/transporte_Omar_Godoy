@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-    const [email, setEmail] = useState('admin@example.com');
-    const [password, setPassword] = useState('admin123');
+    const [email, setEmail] = useState('ceo@example.com');
+    const [password, setPassword] = useState('ceo123');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
@@ -15,7 +15,9 @@ export default function Login() {
         setLoading(true);
         try {
             const u = await login(em, pw);
-            navigate(u.rol === 'admin' ? '/admin' : '/camionero');
+            if (u.rol === 'ceo') navigate('/ceo');
+            else if (u.rol === 'administracion') navigate('/administracion');
+            else navigate('/camionero');
         } catch (err) {
             setError(err?.response?.data?.error || err?.message || 'Error de login');
         } finally {
@@ -53,13 +55,13 @@ export default function Login() {
                         <div className="mt-3">
                             <div className="text-center text-body-secondary small mb-2">Accesos rápidos</div>
                             <div className="d-grid gap-2">
-                                <button type="button" className="btn btn-outline-secondary" disabled={loading} onClick={() => doLogin('admin@example.com', 'admin123')}>
-                                    Entrar como Admin demo
+                                <button type="button" className="btn btn-outline-secondary" disabled={loading} onClick={() => doLogin('ceo@example.com', 'ceo123')}>
+                                    Entrar como CEO demo
                                 </button>
                                 <button type="button" className="btn btn-outline-secondary" disabled={loading} onClick={() => doLogin('camionero@example.com', 'camion123')}>
                                     Entrar como Camionero demo
                                 </button>
-                                <div className="form-text text-center">Si el usuario camionero demo no existe, podés crearlo desde Admin.</div>
+                                <div className="form-text text-center">Si el usuario camionero demo no existe, podés crearlo desde CEO.</div>
                             </div>
                         </div>
                     </form>

@@ -32,10 +32,10 @@ router.get('/',
         }
     });
 
-// Crear un camión (solo admin)
+// Crear un camión (solo ceo)
 router.post('/',
     authMiddleware,
-    roleMiddleware(['admin']),
+    roleMiddleware(['ceo']),
     [
         body('patente')
             .isString().notEmpty()
@@ -60,10 +60,10 @@ router.post('/',
         }
     });
 
-// Actualizar un camión (solo admin)
+// Actualizar un camión (solo ceo)
 router.put('/:id',
     authMiddleware,
-    roleMiddleware(['admin']),
+    roleMiddleware(['ceo']),
     [
         param('id').isInt(),
         body('anio').optional().isInt({ min: 1900 }),
@@ -94,10 +94,10 @@ router.put('/:id',
         }
     });
 
-// Eliminar un camión (solo admin)
+// Eliminar un camión (solo ceo)
 router.delete('/:id',
     authMiddleware,
-    roleMiddleware(['admin']),
+    roleMiddleware(['ceo']),
     [param('id').isInt()],
     async (req, res) => {
         const errors = validationResult(req);

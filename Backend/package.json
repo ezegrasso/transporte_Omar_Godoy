@@ -1,33 +1,42 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "src/server.js",
-  "scripts": {
-    "start": "node ./src/server.js",
-    "dev": "nodemon ./src/server.js",
-    "test": "echo \"No hay tests por ahora\" && exit 0"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0",
-    "express-rate-limit": "^8.2.1",
-    "express-validator": "^7.3.0",
-    "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.1",
-    "mysql2": "^3.15.3",
-    "sequelize": "^6.37.7",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.10"
-  }
+    "name": "backend",
+    "version": "1.0.0",
+    "description": "",
+    "main": "src/server.js",
+    "scripts": {
+        "start": "node ./src/server.js",
+        "dev": "nodemon ./src/server.js",
+        "test": "echo \"No hay tests por ahora\" && exit 0",
+        "user:list": "node ./scripts/user-tools.js list-users",
+        "user:create-ceo": "node ./scripts/user-tools.js create-ceo --email %EMAIL% --password %PASSWORD%",
+        "user:resetpw": "node ./scripts/user-tools.js reset-password --email %EMAIL% --password %PASSWORD%",
+        "user:purge-admins": "node ./scripts/user-tools.js purge-admins",
+        "user:create-default-ceo": "node ./scripts/user-tools.js create-default-ceo",
+        "user:create-adm": "node ./scripts/user-tools.js create-user --email %EMAIL% --password %PASSWORD% --rol administracion --nombre Administracion",
+        "test:viajes": "node ./scripts/test-viajes-filtros.js"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "module",
+    "dependencies": {
+        "bcryptjs": "^3.0.3",
+        "cors": "^2.8.5",
+        "dotenv": "^17.2.3",
+        "express": "^5.1.0",
+        "express-rate-limit": "^8.2.1",
+        "express-validator": "^7.3.0",
+        "helmet": "^8.1.0",
+        "jsonwebtoken": "^9.0.2",
+        "morgan": "^1.10.1",
+        "multer": "^2.0.2",
+        "mysql2": "^3.15.3",
+        "sequelize": "^6.37.7",
+        "axios": "^1.7.7",
+        "swagger-jsdoc": "^6.2.8",
+        "swagger-ui-express": "^5.0.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.10"
+    }
 }
