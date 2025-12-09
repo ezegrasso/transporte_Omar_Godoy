@@ -15,12 +15,13 @@ router.post('/login',
     loginLimiter,
     [
         body('email').isEmail(),
-        body('password').isString().isLength({ min: 6 })
+        body('password').isString().isLength({ min: 1 })
     ],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-        const { email, password } = req.body;
+        const email = String(req.body.email || '').trim();
+        const password = String(req.body.password || '');
         try {
             const usuario = await Usuario.scope('withPassword').findOne({ where: { email } });
             if (!usuario) return res.status(401).json({ error: 'Credenciales inválidas' });

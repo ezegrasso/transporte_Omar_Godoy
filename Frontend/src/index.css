@@ -188,6 +188,26 @@ body {
   padding-bottom: .25rem;
 }
 
+/* Separadores verticales por columna para tablas */
+.table-cols-bordered tbody td {
+  border-right: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.table-cols-bordered tbody td:last-child {
+  border-right: 0;
+}
+
+/* Variante sutil para modo oscuro */
+[data-bs-theme="dark"] .table-cols-bordered tbody td {
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* Espaciado horizontal sutil para celdas en tablas compactas */
+.table-cols-bordered tbody td {
+  padding-left: .375rem;
+  padding-right: .375rem;
+}
+
 /* Badge con dot al inicio */
 .badge-dot::before {
   content: '';
@@ -345,6 +365,20 @@ body {
   color: #946200;
 }
 
+/* Nuevo estilo suave para PDF (danger) */
+.btn-soft-danger {
+  background: rgba(220, 53, 69, .14);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, .28);
+  transition: transform .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+
+.btn-soft-danger:hover {
+  background: rgba(220, 53, 69, .22);
+  color: #bb2d3b;
+  box-shadow: 0 .3rem .8rem rgba(220, 53, 69, .25);
+}
+
 [data-bs-theme="dark"] .btn-soft-primary {
   background: rgba(56, 189, 248, .14);
   color: #38bdf8;
@@ -369,4 +403,10 @@ body {
   /* amber-500 */
   color: #fbbf24;
   border-color: rgba(245, 158, 11, .32);
+}
+
+[data-bs-theme="dark"] .btn-soft-danger {
+  background: rgba(220, 53, 69, .25);
+  color: #f8d7da;
+  border-color: rgba(220, 53, 69, .45);
 }

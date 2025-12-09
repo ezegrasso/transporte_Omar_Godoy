@@ -10,9 +10,14 @@ export default function Camionero() {
     const [mios, setMios] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [finalizarData, setFinalizarData] = useState({ km: '', combustible: '' });
+    const [finalizarData, setFinalizarData] = useState({ km: '', combustible: '', kilosCargados: '' });
     const [takingId, setTakingId] = useState(null);
     const [finishingId, setFinishingId] = useState(null);
+    // Paso extra de confirmación antes de ejecutar la finalización
+    const [finalizarPasoConfirm, setFinalizarPasoConfirm] = useState(false);
+    const [confirmChecked, setConfirmChecked] = useState(false);
+    // Control de visibilidad del modal sin depender de Bootstrap JS
+    const [showFinalizarModal, setShowFinalizarModal] = useState(false);
     const [filtroPend, setFiltroPend] = useState('');
     const [filtroMios, setFiltroMios] = useState('');
     const [estadoMios, setEstadoMios] = useState('en curso'); // 'todos' | 'en curso' | 'finalizado'
@@ -29,14 +34,34 @@ export default function Camionero() {
     useEffect(() => { localStorage.setItem('tableDensity', density) }, [density]);
     const enCursoRef = useRef(null);
     const [flashCard, setFlashCard] = useState(false);
+    // Liquidación mensual
+    const [liqModal, setLiqModal] = useState(false);
+    const [liqMes, setLiqMes] = useState(() => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+    });
+    const [liqAdelanto, setLiqAdelanto] = useState('');
+    const [liqRes, setLiqRes] = useState(null);
+
+    // Helpers de fecha (DATEONLY -> local)
+    const parseDateOnlyLocal = (s) => {
+        if (!s) return 0;
+        try { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1).getTime(); } catch { return 0; }
+    };
+    const formatDateOnly = (s) => {
+        if (!s) return '-';
+        try { const [y, m, d] = String(s).split('-').map(Number); const dt = new Date(y, (m || 1) - 1, d || 1); return dt.toLocaleDateString(); } catch { return s; }
+    };
 
     const fetchPendientes = async () => {
-        const { data } = await api.get('/api/viajes?estado=pendiente&limit=100');
+        const { data } = await api.get('/viajes?estado=pendiente&limit=100');
         setPendientes(data.items || data.data || []);
     };
     const fetchMios = async () => {
         // No pasar estado para que el backend (no ceo/administracion) devuelva todos los viajes del camionero
-        const { data } = await api.get('/api/viajes?limit=100');
+        const { data } = await api.get('/viajes?limit=100');
         const list = data.items || data.data || [];
         setMios(list);
     };
@@ -51,6 +76,8 @@ export default function Camionero() {
         })();
     }, []);
 
+    // (Se mueve la inicialización de tooltips más abajo, luego de calcular las páginas)
+
     const pendientesFiltrados = useMemo(() => {
         const term = filtroPend.trim().toLowerCase();
         return pendientes.filter(v => !term || `${v.origen ?? ''} ${v.destino ?? ''} ${v.tipoMercaderia ?? ''} ${v.cliente ?? ''} ${v.camion?.patente ?? v.camionId ?? ''}`.toLowerCase().includes(term));
@@ -61,7 +88,7 @@ export default function Camionero() {
         arr.sort((a, b) => {
             const getVal = (v, k) => {
                 switch (k) {
-                    case 'fecha': return new Date(v.fecha || 0).getTime();
+                    case 'fecha': return parseDateOnlyLocal(v.fecha || 0);
                     case 'estado': return (v.estado || '').toLowerCase();
                     case 'origen': return (v.origen || '').toLowerCase();
                     case 'destino': return (v.destino || '').toLowerCase();
@@ -98,7 +125,7 @@ export default function Camionero() {
         arr.sort((a, b) => {
             const getVal = (v, k) => {
                 switch (k) {
-                    case 'fecha': return new Date(v.fecha || 0).getTime();
+                    case 'fecha': return parseDateOnlyLocal(v.fecha || 0);
                     case 'estado': return (v.estado || '').toLowerCase();
                     case 'origen': return (v.origen || '').toLowerCase();
                     case 'destino': return (v.destino || '').toLowerCase();
@@ -123,27 +150,58 @@ export default function Camionero() {
         return miosOrdenados.slice(start, start + pageSize);
     }, [miosOrdenados, curMios]);
 
+    // Inicialización de tooltips de Bootstrap para celdas con data-bs-toggle="tooltip"
+    // Ubicado después de calcular pendientesPagina/miosPagina para evitar TDZ
+    useEffect(() => {
+        try {
+            const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const instances = tooltipTriggerList
+                .map(el => {
+                    if (window.bootstrap?.Tooltip) {
+                        return window.bootstrap.Tooltip.getOrCreateInstance(el);
+                    }
+                    return null;
+                })
+                .filter(Boolean);
+            return () => {
+                instances.forEach(inst => {
+                    try { inst.hide(); } catch { }
+                    try { inst.dispose(); } catch { }
+                });
+            };
+        } catch {
+            // noop
+        }
+        // Re-ejecutar cuando cambien los datos/paginación/orden
+    }, [pendientesPagina, pendientesOrdenados, pendientesFiltrados, sortPend, curPend, miosPagina, miosOrdenados, miosFiltrados, sortMios, curMios]);
+
     // Viaje en curso actual (normalmente hay 1). Tomamos el más reciente por fecha.
     const viajeEnCursoActual = useMemo(() => {
         const enCurso = mios.filter(v => v.estado === 'en curso');
         if (enCurso.length === 0) return null;
-        return enCurso.sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0))[0];
+        return enCurso.sort((a, b) => parseDateOnlyLocal(b.fecha || 0) - parseDateOnlyLocal(a.fecha || 0))[0];
     }, [mios]);
 
     const viajeSeleccionado = useMemo(() => mios.find(v => v.id === modalId) || null, [mios, modalId]);
 
     const openFinalizarModal = (id) => {
         setModalId(id);
-        setFinalizarData({ km: '', combustible: '' });
-        // Abrir modal programáticamente (Bootstrap 5)
+        setFinalizarData({ km: '', combustible: '', kilosCargados: '' });
+        setFinalizarPasoConfirm(false);
+        setConfirmChecked(false);
+        // Abrir modal: si hay Bootstrap JS lo usa; si no, fallback por estado
         setTimeout(() => {
             try {
                 const el = document.getElementById('modalFinalizar');
                 if (el && window.bootstrap?.Modal) {
                     const modal = window.bootstrap.Modal.getOrCreateInstance(el);
                     modal.show();
+                } else {
+                    setShowFinalizarModal(true);
                 }
-            } catch { /* no-op */ }
+            } catch {
+                setShowFinalizarModal(true);
+            }
         }, 50);
     };
 
@@ -151,7 +209,7 @@ export default function Camionero() {
         setError('');
         setTakingId(id);
         try {
-            await api.patch(`/api/viajes/${id}/tomar`);
+            await api.patch(`/viajes/${id}/tomar`);
             await Promise.all([fetchPendientes(), fetchMios()]);
             showToast('Viaje tomado', 'success');
             setSavedMioId(id);
@@ -176,18 +234,39 @@ export default function Camionero() {
 
     const finalizar = async (id) => {
         setError('');
+        // Primera pulsación: pasar a paso confirmación y mostrar resumen
+        if (!finalizarPasoConfirm) {
+            // Bloquear si no ingresó datos
+            if (String(finalizarData.km).trim() === '' || String(finalizarData.combustible).trim() === '') {
+                showToast('Completá km y combustible', 'error');
+                return;
+            }
+            // Validar datos mínimos antes de pasar a confirmación
+            const kmNum = Number(finalizarData.km);
+            const combNum = Number(finalizarData.combustible);
+            if (isNaN(kmNum) || kmNum <= 0) {
+                showToast('Ingresá KM mayor a 0', 'error');
+                return;
+            }
+            if (isNaN(combNum) || combNum <= 0) {
+                showToast('Ingresá combustible mayor a 0', 'error');
+                return;
+            }
+            setFinalizarPasoConfirm(true);
+            return;
+        }
+        // Segunda pulsación: enviar
         setFinishingId(id);
         try {
             const body = { km: Number(finalizarData.km), combustible: Number(finalizarData.combustible) };
-            await api.patch(`/api/viajes/${id}/finalizar`, body);
-            setFinalizarData({ km: '', combustible: '' });
-            // Feedback visual antes de sacar la fila de la tabla
+            if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = Number(finalizarData.kilosCargados);
+            await api.patch(`/viajes/${id}/finalizar`, body);
+            setFinalizarData({ km: '', combustible: '', kilosCargados: '' });
             setSavedMioId(id);
             await new Promise(r => setTimeout(r, 400));
             await Promise.all([fetchPendientes(), fetchMios()]);
             setTimeout(() => setSavedMioId(null), 2000);
             showToast('Viaje finalizado', 'success');
-            // Cerrar modal solo tras éxito
             try {
                 const el = document.getElementById('modalFinalizar');
                 if (el && window.bootstrap?.Modal) {
@@ -195,6 +274,7 @@ export default function Camionero() {
                     modal.hide();
                 }
             } catch { /* no-op */ }
+            setShowFinalizarModal(false);
             setModalId(null);
         } catch (e) {
             const msg = e?.response?.data?.error || 'No se pudo finalizar';
@@ -209,7 +289,7 @@ export default function Camionero() {
         if (!confirm('¿Devolver este viaje a pendientes?')) return;
         setError('');
         try {
-            await api.patch(`/api/viajes/${id}/cancelar`);
+            await api.patch(`/viajes/${id}/cancelar`);
             await Promise.all([fetchPendientes(), fetchMios()]);
             showToast('Viaje devuelto a pendientes', 'success');
         } catch (e) {
@@ -238,7 +318,7 @@ export default function Camionero() {
                         </div>
                         <div className="row g-2 small mb-3">
                             <div className="col-12 col-sm-6">
-                                <div><strong>Fecha:</strong> {new Date(viajeEnCursoActual.fecha).toLocaleDateString()}</div>
+                                <div><strong>Fecha:</strong> {formatDateOnly(viajeEnCursoActual.fecha)}</div>
                                 <div><strong>Origen:</strong> {viajeEnCursoActual.origen}</div>
                                 <div><strong>Destino:</strong> {viajeEnCursoActual.destino}</div>
                             </div>
@@ -254,15 +334,19 @@ export default function Camionero() {
                             <div className="row g-2 align-items-end">
                                 <div className="col-12 col-sm-4">
                                     <label className="form-label mb-1">Km</label>
-                                    <input className="form-control form-control-sm" type="number" value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} placeholder="Ej: 120" />
+                                    <input className="form-control form-control-sm" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} placeholder="Ej: 120" />
                                 </div>
                                 <div className="col-12 col-sm-4">
                                     <label className="form-label mb-1">Combustible</label>
-                                    <input className="form-control form-control-sm" type="number" value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} placeholder="Litros" />
+                                    <input className="form-control form-control-sm" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} placeholder="Litros" />
+                                </div>
+                                <div className="col-12 col-sm-4">
+                                    <label className="form-label mb-1">Kilos cargados</label>
+                                    <input className="form-control form-control-sm" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} placeholder="Ej: 20000" />
                                 </div>
                                 <div className="col-12 col-sm-4 text-end d-flex gap-2 justify-content-end">
                                     <button className="btn btn-sm btn-outline-warning" onClick={() => cancelar(viajeEnCursoActual.id)}>Cancelar viaje</button>
-                                    <button className="btn btn-sm btn-success" disabled={finishingId === viajeEnCursoActual.id} onClick={() => finalizar(viajeEnCursoActual.id)}>
+                                    <button className="btn btn-sm btn-success" disabled={finishingId === viajeEnCursoActual.id} onClick={() => openFinalizarModal(viajeEnCursoActual.id)}>
                                         {finishingId === viajeEnCursoActual.id ? 'Finalizando…' : 'Finalizar viaje'}
                                     </button>
                                 </div>
@@ -289,7 +373,7 @@ export default function Camionero() {
                             <button className="btn btn-sm btn-outline-secondary" onClick={() => {
                                 const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión']
                                 const rows = pendientesOrdenados.map(v => [
-                                    new Date(v.fecha).toLocaleDateString(), v.estado || '', v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || ''
+                                    formatDateOnly(v.fecha), v.estado || '', v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || ''
                                 ])
                                 downloadCSV('pendientes.csv', headers, rows)
                                 showToast('Exportado pendientes', 'success')
@@ -324,7 +408,7 @@ export default function Camionero() {
                                     {pendientesPagina.map(v => (
                                         <tr key={v.id}>
                                             <td>
-                                                {new Date(v.fecha).toLocaleDateString()}
+                                                {formatDateOnly(v.fecha)}
                                                 {savedMioId === v.id && (
                                                     <span className="badge rounded-pill text-bg-info ms-2">Nuevo</span>
                                                 )}
@@ -371,6 +455,21 @@ export default function Camionero() {
                 <div className="card-body">
                     <div className="d-flex align-items-end gap-2 mb-3 flex-wrap">
                         <h3 className="h5 mb-0 me-auto">Mis viajes</h3>
+                        <button
+                            className="btn btn-primary btn-md rounded-pill d-flex align-items-center gap-2 px-3"
+                            style={{
+                                backgroundImage: 'linear-gradient(135deg, var(--bs-primary) 0%, #6ea8fe 100%)',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                            }}
+                            title="Calculá tu liquidación mensual (16%)"
+                            aria-label="Abrir liquidación final"
+                            onClick={() => setLiqModal(true)}
+                        >
+                            <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-primary" style={{ width: 24, height: 24 }}>
+                                <i className="bi bi-calculator"></i>
+                            </span>
+                            <span className="fw-semibold">Liquidación final</span>
+                        </button>
                         <div className="form-check form-switch d-flex align-items-center gap-2">
                             <input className="form-check-input" type="checkbox" role="switch" id="switchDensityCamionero2" checked={compact} onChange={e => setDensity(e.target.checked ? 'compact' : 'comfortable')} />
                             <label className="form-check-label" htmlFor="switchDensityCamionero2">Compacto</label>
@@ -391,7 +490,7 @@ export default function Camionero() {
                             <button className="btn btn-sm btn-outline-secondary" onClick={() => {
                                 const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión', 'Km', 'Combustible']
                                 const rows = miosOrdenados.map(v => [
-                                    new Date(v.fecha).toLocaleDateString(), v.estado || '', v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || '', v.km ?? '', v.combustible ?? ''
+                                    formatDateOnly(v.fecha), v.estado || '', v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || '', v.km ?? '', v.combustible ?? ''
                                 ])
                                 downloadCSV(`mis_viajes_${estadoMios}.csv`, headers, rows)
                                 showToast('Exportado mis viajes', 'success')
@@ -427,7 +526,7 @@ export default function Camionero() {
                                 <tbody>
                                     {miosPagina.map(v => (
                                         <tr key={v.id} className={savedMioId === v.id ? 'table-warning row-saved-anim' : ''}>
-                                            <td>{new Date(v.fecha).toLocaleDateString()}</td>
+                                            <td>{formatDateOnly(v.fecha)}</td>
                                             <td>
                                                 <span className={`badge badge-dot ${v.estado === 'finalizado'
                                                     ? 'badge-estado-finalizado'
@@ -468,19 +567,19 @@ export default function Camionero() {
             </div>
 
             {/* Modal Finalizar */}
-            <div className="modal fade" id="modalFinalizar" tabIndex="-1" aria-hidden="true">
+            <div className={`modal ${showFinalizarModal ? 'show d-block' : 'fade'}`} id="modalFinalizar" tabIndex="-1" aria-hidden={!showFinalizarModal}>
                 <div className="modal-dialog">
                     <div className="modal-content">
                         <div className="modal-header">
                             <h1 className="modal-title fs-5">Finalizar viaje</h1>
-                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={() => setShowFinalizarModal(false)}></button>
                         </div>
                         <div className="modal-body">
                             {viajeSeleccionado && (
                                 <div className="mb-3 small">
                                     <div className="row g-2">
                                         <div className="col-12 col-sm-6">
-                                            <div><strong>Fecha:</strong> {new Date(viajeSeleccionado.fecha).toLocaleDateString()}</div>
+                                            <div><strong>Fecha:</strong> {formatDateOnly(viajeSeleccionado.fecha)}</div>
                                             <div><strong>Origen:</strong> {viajeSeleccionado.origen}</div>
                                             <div><strong>Destino:</strong> {viajeSeleccionado.destino}</div>
                                         </div>
@@ -489,32 +588,159 @@ export default function Camionero() {
                                             <div><strong>Tipo:</strong> {viajeSeleccionado.tipoMercaderia || '-'}</div>
                                             <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
                                             <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
-                                            <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}</div>
+                                            <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}
+                                            </div>
+                                            <div><strong>Kilos cargados:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
                                         </div>
                                     </div>
                                     <hr />
                                 </div>
                             )}
-                            <div className="row g-2">
-                                <div className="col-6">
-                                    <label className="form-label">Km</label>
-                                    <input className="form-control" type="number" value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} />
+                            {!finalizarPasoConfirm ? (
+                                <div className="row g-2">
+                                    <div className="col-6">
+                                        <label className="form-label">Km</label>
+                                        <input className="form-control" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label">Combustible</label>
+                                        <input className="form-control" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} />
+                                    </div>
+                                    <div className="col-12">
+                                        <label className="form-label">Kilos cargados</label>
+
+                                        <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} />
+                                        <small className="text-body-secondary">Si el CEO definió precio por tonelada, se calculará automáticamente el importe del viaje.</small>
+                                    </div>
+                                    <div className="col-12 mt-2">
+                                        <div className="alert alert-warning py-2 mb-0 small">
+                                            Después de pulsar "Continuar" verás un resumen y deberás confirmar nuevamente.
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="col-6">
-                                    <label className="form-label">Combustible</label>
-                                    <input className="form-control" type="number" value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} />
+                            ) : (
+                                <div className="border rounded p-2 bg-body-tertiary">
+                                    <h6 className="mb-2">Confirmación final</h6>
+                                    <p className="small mb-2">Revisá los datos antes de finalizar definitivamente el viaje:</p>
+                                    <ul className="small mb-2">
+                                        <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
+                                        <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
+                                        <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
+                                        <li><strong>Kilos a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
+                                    </ul>
+                                    <div className="alert alert-danger py-2 small mb-2">
+                                        Una vez finalizado el viaje, no podrás volverlo a "en curso" (solo cancelar antes de confirmar).
+                                    </div>
+                                    <div className="form-check mb-0">
+                                        <input className="form-check-input" type="checkbox" id="chkConfirmFinalizar"
+                                            checked={confirmChecked}
+                                            onChange={(e) => setConfirmChecked(e.target.checked)} />
+                                        <label className="form-check-label small" htmlFor="chkConfirmFinalizar">Entiendo que esta acción es definitiva y confirmo finalizar el viaje</label>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                         <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" className="btn btn-success" disabled={!modalId || finishingId === modalId} onClick={() => modalId && finalizar(modalId)}>
-                                {finishingId === modalId ? 'Finalizando…' : 'Confirmar'}
-                            </button>
+                            {!finalizarPasoConfirm ? (
+                                <>
+                                    <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowFinalizarModal(false)}>Cerrar</button>
+                                    <button type="button" className="btn btn-primary" disabled={!modalId || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalId && finalizar(modalId)}>
+                                        Continuar
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button type="button" className="btn btn-outline-secondary" onClick={() => setFinalizarPasoConfirm(false)} disabled={finishingId === modalId}>Volver</button>
+                                    <button type="button" className="btn btn-danger" disabled={!modalId || finishingId === modalId || !confirmChecked || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalId && finalizar(modalId)}>
+                                        {finishingId === modalId ? 'Finalizando…' : 'Finalizar viaje'}
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
+            {showFinalizarModal && <div className="modal-backdrop show"></div>}
+
+            {/* Modal Liquidación */}
+            <div className={`modal ${liqModal ? 'show d-block' : 'fade'}`} id="modalLiquidacion" tabIndex="-1" aria-hidden={!liqModal}>
+                <div className="modal-dialog">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-5 d-flex align-items-center gap-2">
+                                <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary" style={{ width: 28, height: 28 }}>
+                                    <i className="bi bi-calculator"></i>
+                                </span>
+                                <span>Liquidación mensual</span>
+                            </h1>
+                            <button type="button" className="btn-close" onClick={() => { setLiqModal(false); setLiqRes(null); }}></button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="row g-2 mb-2">
+                                <div className="col-6">
+                                    <label className="form-label">Mes</label>
+                                    <input className="form-control" type="month" value={liqMes} onChange={e => setLiqMes(e.target.value)} />
+                                </div>
+                                <div className="col-6">
+                                    <label className="form-label">Adelanto</label>
+                                    <input className="form-control" type="number" min={0} step={0.01} value={liqAdelanto} onChange={e => setLiqAdelanto(e.target.value)} placeholder="Ej: 50000" />
+                                </div>
+                            </div>
+                            <button className="btn btn-primary" onClick={async () => {
+                                try {
+                                    const { data } = await api.get(`/viajes/liquidacion`, { params: { mes: liqMes, adelanto: liqAdelanto || 0 } });
+                                    setLiqRes(data);
+                                } catch (e) {
+                                    const msg = e?.response?.data?.error || 'Error calculando liquidación';
+                                    showToast(msg, 'error');
+                                }
+                            }}>Calcular</button>
+                            {liqRes && (
+                                <div className="mt-3">
+                                    <div className="alert alert-info">
+                                        <div><strong>Mes:</strong> {liqRes.mes}</div>
+                                        <div><strong>Bruto:</strong> ${'{'}liqRes.bruto?.toFixed ? liqRes.bruto.toFixed(2) : liqRes.bruto{'}'}</div>
+                                        <div><strong>% Camionero:</strong> 16%</div>
+                                        <div><strong>Sueldo:</strong> ${'{'}liqRes.sueldo?.toFixed ? liqRes.sueldo.toFixed(2) : liqRes.sueldo{'}'}</div>
+                                        <div><strong>Adelanto:</strong> ${'{'}Number(liqRes.adelanto || 0).toFixed(2){'}'}</div>
+                                        <div><strong>Neto:</strong> ${'{'}liqRes.neto?.toFixed ? liqRes.neto.toFixed(2) : liqRes.neto{'}'}</div>
+                                    </div>
+                                    <div className="table-responsive">
+                                        <table className="table table-sm table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha</th>
+                                                    <th>Origen</th>
+                                                    <th>Destino</th>
+                                                    <th>Kilos</th>
+                                                    <th>Precio/Tn</th>
+                                                    <th>Importe</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {liqRes.viajes?.map(v => (
+                                                    <tr key={v.id}>
+                                                        <td>{formatDateOnly(v.fecha)}</td>
+                                                        <td>{v.origen}</td>
+                                                        <td>{v.destino}</td>
+                                                        <td>{v.kilosCargados ?? '-'}</td>
+                                                        <td>{v.precioTonelada ?? '-'}</td>
+                                                        <td>{v.importe ?? '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => { setLiqModal(false); setLiqRes(null); }}>Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {liqModal && <div className="modal-backdrop show"></div>}
         </div>
     );
 }

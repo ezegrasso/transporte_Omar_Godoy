@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
                 if (!token) { setUser(null); return; }
                 // Usar endpoint de refresh del backend
                 const api = (await import('../services/api')).default;
-                const { data } = await api.get('/api/auth/refresh');
+                const { data } = await api.get('/auth/refresh');
                 const raw = data?.usuario || data || null;
                 const normalized = raw ? { ...raw, rol: String(raw.rol || '').toLowerCase().trim() } : null;
                 if (normalized) {
@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = async (email, password) => {
-        const { data } = await api.post('/api/auth/login', { email, password });
+        const { data } = await api.post('/auth/login', { email, password });
         const usuario = { ...data.usuario, rol: String(data?.usuario?.rol || '').toLowerCase().trim() };
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(usuario));
@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const refresh = async () => {
-        const { data } = await api.get('/api/auth/refresh');
+        const { data } = await api.get('/auth/refresh');
         const raw = data?.usuario || data || null;
         const normalized = raw ? { ...raw, rol: String(raw.rol || '').toLowerCase().trim() } : null;
         if (normalized) localStorage.setItem('user', JSON.stringify(normalized));

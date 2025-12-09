@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+// Base URL del backend: usa VITE_API_BASE_URL si está definida; por defecto http://localhost:8080
+const BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+    baseURL: `${BASE}/api`,
 });
 
 api.interceptors.request.use((config) => {

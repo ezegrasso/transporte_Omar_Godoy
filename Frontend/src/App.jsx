@@ -8,6 +8,7 @@ import Ceo from './views/Ceo'
 import Administracion from './views/Administracion'
 import Camionero from './views/Camionero'
 import { useAuth } from './context/AuthContext'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function NavBar() {
   const { user, logout } = useAuth()
@@ -30,8 +31,11 @@ function NavBar() {
     <nav className="navbar navbar-expand-lg bg-body-tertiary shadow-sm fixed-top">
       <div className="container">
         <Link className="navbar-brand d-flex align-items-center gap-2" to="/">
-          <img src="/logo.svg" alt="Logo" width="22" height="22" />
-          <span className="fw-semibold">Transporte</span>
+          <img src="/logo.svg" alt="Logo Omar Godoy" width="32" height="32" />
+          <div className="d-flex flex-column lh-sm">
+            <span className="fw-bold text-primary" style={{ fontSize: '1.1rem' }}>OMAR GODOY</span>
+            <span className="text-body-secondary small" style={{ marginTop: '-2px' }}>Transporte</span>
+          </div>
         </Link>
         <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
           <span className="navbar-toggler-icon"></span>
@@ -40,9 +44,14 @@ function NavBar() {
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item"><Link className="nav-link" to="/">Inicio</Link></li>
             {!user && <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>}
-            {user?.rol === 'ceo' && <li className="nav-item"><Link className="nav-link" to="/ceo">CEO</Link></li>}
-            {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion">Administración</Link></li>}
-            {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero">Camionero</Link></li>}
+            {user?.rol === 'ceo' && (
+              <>
+                <li className="nav-item"><Link className="nav-link" to="/ceo">Panel CEO</Link></li>
+                <li className="nav-item"><Link className="nav-link" to="/administracion">Administración</Link></li>
+              </>
+            )}
+            {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion">Panel Administración</Link></li>}
+            {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero">Mis Viajes</Link></li>}
           </ul>
           <div className="d-flex align-items-center gap-2">
             <button className="btn btn-outline-secondary" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="Tema">
@@ -129,7 +138,7 @@ export default function App() {
     }
   }, [])
   useEffect(() => {
-    const base = 'Transporte'
+    const base = 'Omar Godoy Transporte'
     const map = {
       '/': 'Inicio',
       '/login': 'Login',
@@ -165,17 +174,23 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/ceo" element={
             <ProtectedRoute roles={["ceo"]}>
-              <Ceo />
+              <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en el panel CEO.</div>}>
+                <Ceo />
+              </ErrorBoundary>
             </ProtectedRoute>
           } />
           <Route path="/administracion" element={
             <ProtectedRoute roles={["administracion"]}>
-              <Administracion />
+              <ErrorBoundary fallback={<div className="mt-2">Intenta recargar la página o revisar filtros.</div>}>
+                <Administracion />
+              </ErrorBoundary>
             </ProtectedRoute>
           } />
           <Route path="/camionero" element={
             <ProtectedRoute roles={["camionero"]}>
-              <Camionero />
+              <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Mis Viajes.</div>}>
+                <Camionero />
+              </ErrorBoundary>
             </ProtectedRoute>
           } />
         </Routes>

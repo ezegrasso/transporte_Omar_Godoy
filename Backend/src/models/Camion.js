@@ -24,6 +24,10 @@ const Camion = sequelize.define('Camion', {
     anio: {
         type: DataTypes.INTEGER,
         allowNull: false
+    },
+    camioneroId: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     }
 }, {
     tableName: 'camiones',

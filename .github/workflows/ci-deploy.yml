@@ -1,0 +1,51 @@
+name: CI and Deploy (Vercel / Render)
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Backend dependencies
+        working-directory: Backend
+        run: |
+          npm ci
+          # Install sequelize-cli for migrations
+          npm install --no-save --no-audit sequelize-cli
+
+      - name: Install & Build Frontend
+        working-directory: Frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to Vercel (optional)
+        if: secrets.VERCEL_TOKEN != ''
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Uses Vercel CLI to deploy the Frontend folder. Ensure you have set the VERCEL_TOKEN secret in the repo.
+          npx vercel --prod --token "$VERCEL_TOKEN" --cwd Frontend --confirm
+
+      - name: Trigger Render deploy (optional)
+        if: secrets.RENDER_API_KEY != '' && secrets.RENDER_SERVICE_ID != ''
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          # Trigger a new deploy for the Render service. Set RENDER_API_KEY and RENDER_SERVICE_ID as repo secrets.
+          curl -s -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":true}' || (echo "Render deploy trigger failed" && exit 1)

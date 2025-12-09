@@ -34,10 +34,12 @@ export default function Login() {
         <div className="auth-hero d-flex justify-content-center align-items-center py-5">
             <div className="card shadow-lg w-100 card-hover" style={{ maxWidth: 440, opacity: loading ? 0.9 : 1 }}>
                 <div className="card-body p-4">
-                    <div className="d-flex align-items-center gap-2 mb-2">
-                        <i className="bi bi-truck-front-fill text-primary fs-4"></i>
-                        <h2 className="card-title mb-0">Iniciar sesión</h2>
+                    <div className="text-center mb-4">
+                        <img src="/logo.svg" alt="Omar Godoy" width="72" height="72" className="mb-2" />
+                        <h1 className="h4 fw-bold text-primary mb-0">OMAR GODOY</h1>
+                        <p className="text-body-secondary small">Transporte</p>
                     </div>
+                    <h2 className="h5 mb-2">Iniciar sesión</h2>
                     <p className="text-body-secondary small mb-4">Accedé al panel con tu cuenta</p>
                     <form onSubmit={onSubmit} className="space-y-3">
                         <div className="mb-3">

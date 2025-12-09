@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import Usuario from '../models/Usuario.js';
+// (Eliminado soporte WhatsApp)
 import { authMiddleware, roleMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
@@ -21,6 +22,13 @@ router.post('/',
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
+            // Impedir múltiples usuarios CEO
+            if (req.body.rol === 'ceo') {
+                const ceoCount = await Usuario.count({ where: { rol: 'ceo' } });
+                if (ceoCount > 0) {
+                    return res.status(400).json({ error: 'Ya existe un usuario con rol CEO. No se permite crear otro.' });
+                }
+            }
             const nuevoUsuario = await Usuario.create(req.body);
             res.status(201).json(nuevoUsuario);
         } catch (error) {
@@ -102,6 +110,14 @@ router.put('/:id',
                 return res.status(400).json({ error: 'El rol del CEO no puede modificarse' });
             }
 
+            // Si se intenta convertir a este usuario en CEO y ya existe uno, impedirlo
+            if (req.body.rol === 'ceo' && usuario.rol !== 'ceo') {
+                const ceoCount = await Usuario.count({ where: { rol: 'ceo' } });
+                if (ceoCount > 0) {
+                    return res.status(400).json({ error: 'Ya existe un usuario con rol CEO. No se permite asignar otro.' });
+                }
+            }
+
             const updatable = ['nombre', 'email', 'password', 'rol', 'avatarUrl'];
             updatable.forEach((k) => {
                 if (req.body[k] !== undefined) usuario[k] = req.body[k];
@@ -131,7 +147,11 @@ router.delete('/:id',
             const usuario = await Usuario.findByPk(id);
             if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
             if (usuario.rol === 'ceo') {
-                return res.status(400).json({ error: 'El usuario CEO no puede eliminarse' });
+                // Permitir borrar CEO solo si hay más de uno registrado
+                const ceoCount = await Usuario.count({ where: { rol: 'ceo' } });
+                if (ceoCount <= 1) {
+                    return res.status(400).json({ error: 'No se puede eliminar el único usuario CEO del sistema' });
+                }
             }
             await Usuario.destroy({ where: { id } });
             return res.json({ mensaje: 'Usuario eliminado' });
@@ -142,3 +162,5 @@ router.delete('/:id',
 );
 
 export default router;
+
+// Probar envío de WhatsApp a un usuario (solo CEO)

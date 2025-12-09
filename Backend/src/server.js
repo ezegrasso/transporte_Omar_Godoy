@@ -13,7 +13,9 @@ import viajesRouter from './routes/rutaViajes.js';
 import usuariosRouter from './routes/rutaUsuario.js';
 import authRouter from './routes/auth.js';
 import notificacionesRouter from './routes/notificaciones.js';
+import iaRouter from './routes/rutaIA.js';
 import { errorHandler } from './middlewares/errorHandler.js';
+import rutaAcoplados from './routes/rutaAcoplados.js';
 import Usuario from './models/Usuario.js';
 import './models/Camion.js';
 import Viaje from './models/Viajes.js';
@@ -67,12 +69,44 @@ setupSwagger(app);
 app.use('/api/auth', authRouter);
 app.use('/api/camiones', camionesRouter);
 app.use('/api/viajes', viajesRouter);
+app.use('/api/acoplados', rutaAcoplados);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/notificaciones', notificacionesRouter);
+app.use('/api/ia', iaRouter);
 
 // Healthcheck simple
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
+});
+
+// Métricas simples de rendimiento y volumen de viajes
+app.get('/health/metrics', async (req, res) => {
+    const start = Date.now();
+    try {
+        const totalViajes = await Viaje.count();
+        const pendientes = await Viaje.count({ where: { estado: 'pendiente' } });
+        const enCurso = await Viaje.count({ where: { estado: 'en curso' } });
+        const finalizados = await Viaje.count({ where: { estado: 'finalizado' } });
+
+        // Conteo de viajes del último mes
+        const desde = new Date();
+        desde.setMonth(desde.getMonth() - 1);
+        const yyyy = desde.getFullYear();
+        const mm = String(desde.getMonth() + 1).padStart(2, '0');
+        const dd = String(desde.getDate()).padStart(2, '0');
+        const desdeStr = `${yyyy}-${mm}-${dd}`; // DATEONLY
+
+        const recientes = await Viaje.count({ where: { fecha: { [sequelize.Op.gte]: desdeStr } } });
+
+        const durationMs = Date.now() - start;
+        res.json({
+            status: 'ok',
+            durationMs,
+            viajes: { total: totalViajes, pendientes, enCurso, finalizados, ultimos30Dias: recientes }
+        });
+    } catch (e) {
+        res.status(500).json({ status: 'error', error: e?.message || String(e) });
+    }
 });
 
 // Error handler al final
