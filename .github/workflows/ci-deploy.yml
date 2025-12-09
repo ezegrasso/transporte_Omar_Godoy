@@ -27,7 +27,7 @@ jobs:
       - name: Install & Build Frontend
         working-directory: Frontend
         env:
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'http://localhost:3000' }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
         run: |
           npm ci || npm install
           npm run build
@@ -48,7 +48,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'http://localhost:3000' }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
         run: |
           echo "VERCEL_TOKEN set: ${VERCEL_TOKEN:+yes}"
           echo "RENDER_API_KEY set: ${RENDER_API_KEY:+yes}"
