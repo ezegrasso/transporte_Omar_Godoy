@@ -2,7 +2,7 @@ name: CI and Deploy (Vercel / Render)
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, prod-ready ]
 
 jobs:
   build-and-deploy:
@@ -30,7 +30,7 @@ jobs:
           npm run build
 
       - name: Deploy to Vercel (optional)
-        if: secrets.VERCEL_TOKEN != ''
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
@@ -38,7 +38,7 @@ jobs:
           npx vercel --prod --token "$VERCEL_TOKEN" --cwd Frontend --confirm
 
       - name: Trigger Render deploy (optional)
-        if: secrets.RENDER_API_KEY != '' && secrets.RENDER_SERVICE_ID != ''
+        if: ${{ secrets.RENDER_API_KEY != '' && secrets.RENDER_SERVICE_ID != '' }}
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
