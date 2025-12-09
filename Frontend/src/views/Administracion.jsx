@@ -501,9 +501,6 @@ export default function Administracion() {
                 </div>
             </div>
 
-            {/* Gráficos */}
-            <DashboardCharts viajes={viajesSoloFinalizados} />
-
             {/* Tabla de viajes */}
             <div className="card shadow-sm">
                 <div className="card-body">
@@ -619,6 +616,13 @@ export default function Administracion() {
                             </div>
                         </div>
                     )}
+                </div>
+            </div>
+
+            {/* Gráficos (debajo de la tabla) */}
+            <div className="row g-3 mt-3">
+                <div className="col-12">
+                    <DashboardCharts viajes={viajesSoloFinalizados} />
                 </div>
             </div>
 
