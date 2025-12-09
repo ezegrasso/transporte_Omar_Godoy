@@ -38,11 +38,11 @@ jobs:
         run: |
           node -v || true
           npm -v || true
-          echo "VITE_API_BASE_URL=${VITE_API_BASE_URL:-not_set}"
+          echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"
           echo 'Listing Frontend folder:'
           ls -la || true
-          if [ -d dist ]; then ls -la dist || true; fi
-          if [ -d build ]; then ls -la build || true; fi
+          [ -d dist ] && ls -la dist || true
+          [ -d build ] && ls -la build || true
 
       - name: Check deploy secrets presence
         env:
