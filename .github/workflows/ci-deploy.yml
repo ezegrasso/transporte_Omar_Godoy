@@ -35,33 +35,13 @@ jobs:
 
       - name: Debug: environment and build output
         working-directory: Frontend
-        run: |
-          node -v || true
-          npm -v || true
-          echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"
-          echo 'Listing Frontend folder:'
-          ls -la || true
-          [ -d dist ] && ls -la dist || true
-          [ -d build ] && ls -la build || true
-
-      - name: Check deploy secrets presence
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-        run: |
-          echo "VERCEL_TOKEN set: ${VERCEL_TOKEN:+yes}"
-          echo "RENDER_API_KEY set: ${RENDER_API_KEY:+yes}"
-          echo "RENDER_SERVICE_ID set: ${RENDER_SERVICE_ID:+yes}"
-          echo "VITE_API_BASE_URL: $VITE_API_BASE_URL"
+        run: echo "Build completed at $(date)"
 
       - name: Deploy to Vercel (optional)
         if: ${{ secrets.VERCEL_TOKEN != '' }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          # Uses Vercel CLI to deploy the Frontend folder. Ensure you have set the VERCEL_TOKEN secret in the repo.
           npx vercel --prod --token "$VERCEL_TOKEN" --cwd Frontend --confirm
 
       - name: Trigger Render deploy (optional)
@@ -70,7 +50,6 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
-          # Trigger a new deploy for the Render service. Set RENDER_API_KEY and RENDER_SERVICE_ID as repo secrets.
           curl -s -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
             -H "Accept: application/json" \
             -H "Authorization: Bearer $RENDER_API_KEY" \
