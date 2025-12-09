@@ -3,6 +3,7 @@ name: CI and Deploy (Vercel / Render)
 on:
   push:
     branches: [ master, prod-ready ]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -19,15 +20,28 @@ jobs:
       - name: Install Backend dependencies
         working-directory: Backend
         run: |
-          npm ci
+          npm ci || npm install
           # Install sequelize-cli for migrations
           npm install --no-save --no-audit sequelize-cli
 
       - name: Install & Build Frontend
         working-directory: Frontend
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
         run: |
-          npm ci
+          npm ci || npm install
           npm run build
+
+      - name: Debug: environment and build output
+        working-directory: Frontend
+        run: |
+          node -v || true
+          npm -v || true
+          echo "VITE_API_BASE_URL=${VITE_API_BASE_URL:-<not set>}"
+          echo 'Listing Frontend folder:'
+          ls -la || true
+          if [ -d dist ]; then ls -la dist || true; fi
+          if [ -d build ]; then ls -la build || true; fi
 
       - name: Deploy to Vercel (optional)
         if: ${{ secrets.VERCEL_TOKEN != '' }}
