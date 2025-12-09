@@ -39,14 +39,7 @@ const Usuario = sequelize.define('Usuario', {
     },
     scopes: {
         withPassword: {}
-    },
-    indexes: [
-        {
-            name: 'ux_usuarios_email',
-            unique: true,
-            fields: ['email']
-        }
-    ]
+    }
 });
 
 // Hooks para hashear password

@@ -3,6 +3,7 @@
 import { Router } from 'express';
 import { body, param, validationResult, query } from 'express-validator';
 import Camion from '../models/Camion.js';
+import Usuario from '../models/Usuario.js';
 import { authMiddleware, roleMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
@@ -116,3 +117,42 @@ router.delete('/:id',
     });
 
 export default router;
+
+// Asignar/un asignar camionero a un camión (solo ceo)
+router.post('/:id/asignarCamionero',
+    authMiddleware,
+    roleMiddleware(['ceo']),
+    [
+        param('id').isInt(),
+        body('camioneroId').optional({ nullable: true }).isInt().withMessage('camioneroId debe ser entero')
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+        const { id } = req.params;
+        const { camioneroId } = req.body;
+        try {
+            const camion = await Camion.findByPk(id);
+            if (!camion) return res.status(404).json({ error: 'Camión no encontrado' });
+
+            // Permitir desasignar si viene null/undefined
+            if (camioneroId === null || camioneroId === undefined) {
+                camion.camioneroId = null;
+                await camion.save();
+                return res.json({ mensaje: 'Camionero desasignado', camion });
+            }
+
+            // Validar que el usuario exista y sea camionero
+            const usuario = await Usuario.scope('withPassword').findByPk(camioneroId);
+            if (!usuario || usuario.rol !== 'camionero') {
+                return res.status(400).json({ error: 'camioneroId inválido o usuario no es camionero' });
+            }
+
+            camion.camioneroId = camioneroId;
+            await camion.save();
+            res.json({ mensaje: 'Camionero asignado', camion });
+        } catch (error) {
+            res.status(500).json({ error: 'Error al asignar camionero' });
+        }
+    }
+);

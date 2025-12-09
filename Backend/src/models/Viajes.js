@@ -17,7 +17,7 @@ const Viaje = sequelize.define('Viaje', {
         allowNull: false
     },
     fecha: {
-        type: DataTypes.DATE,
+        type: DataTypes.DATEONLY, // almacena solo la fecha (YYYY-MM-DD) sin zona horaria
         allowNull: false
     },
     estado: {
@@ -30,6 +30,19 @@ const Viaje = sequelize.define('Viaje', {
         allowNull: true
     },
     combustible: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
+    // Cálculo económico
+    precioTonelada: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
+    kilosCargados: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
+    importe: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true
     },
@@ -47,7 +60,7 @@ const Viaje = sequelize.define('Viaje', {
         allowNull: true
     },
     fechaFactura: {
-        type: DataTypes.DATE,
+        type: DataTypes.DATEONLY, // solo fecha para evitar desfases por timezone
         allowNull: true
     },
     facturaNotificadaVencida: {
@@ -76,6 +89,14 @@ const Viaje = sequelize.define('Viaje', {
         allowNull: true,
         references: {
             model: 'usuarios',
+            key: 'id'
+        }
+    },
+    acopladoId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'acoplados',
             key: 'id'
         }
     },

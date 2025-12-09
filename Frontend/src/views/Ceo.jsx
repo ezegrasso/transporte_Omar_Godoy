@@ -3,12 +3,131 @@ import PageHeader from '../components/UI/PageHeader';
 import api from '../services/api';
 import EmptyState from '../components/UI/EmptyState';
 import { useToast } from '../context/ToastContext';
-import { downloadCSV } from '../utils/csv';
 import { useAuth } from '../context/AuthContext';
+import { generarListadoViajesPDF, generarDetalleViajePDF, generarFacturaViajePDF } from '../utils/pdf';
+import { ConfirmModal } from '../components/UI/ConfirmModal';
+import React from 'react';
+import DashboardCharts from '../components/UI/DashboardCharts';
+
+function AcopladosCrud({ acoplados, onCreated, onUpdated, onDeleted }) {
+    const [nuevo, setNuevo] = useState({ patente: '' });
+    const [saving, setSaving] = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [editData, setEditData] = useState({ patente: '' });
+    const { showToast } = useToast();
+    const [error, setError] = useState('');
+
+    const normalizarPatente = (pat) => String(pat || '').toUpperCase().replace(/\s+/g, '').trim();
+    const validarPatente = (pat) => {
+        if (!pat) return 'La patente es requerida';
+        const p = normalizarPatente(pat);
+        const ok = /^([A-Z]{3}\d{3}|[A-Z]{2}\d{3}[A-Z]{2})$/.test(p);
+        return ok ? '' : 'Formato inválido (AAA123 o AB123CD)';
+    };
+
+    const crear = async (e) => {
+        e.preventDefault();
+        setError('');
+        const p = String(nuevo.patente || '').toUpperCase().trim();
+        const err = validarPatente(p);
+        if (err) { showToast(err, 'error'); return; }
+        setSaving(true);
+        try {
+            await api.post('/acoplados', { patente: normalizarPatente(p) });
+            setNuevo({ patente: '' });
+            onCreated && onCreated();
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error creando acoplado';
+            setError(msg);
+            showToast(msg, 'error');
+        } finally { setSaving(false); }
+    };
+
+    const saveEdit = async (id) => {
+        setError('');
+        const p = normalizarPatente(editData.patente);
+        const err = validarPatente(p);
+        if (err) { showToast(err, 'error'); return; }
+        try {
+            await api.patch(`/acoplados/${id}`, { patente: p });
+            setEditId(null);
+            onUpdated && onUpdated();
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error actualizando acoplado';
+            setError(msg);
+            showToast(msg, 'error');
+        }
+    };
+
+    const eliminar = async (id) => {
+        if (!confirm('¿Eliminar acoplado?')) return;
+        try {
+            await api.delete(`/acoplados/${id}`);
+            onDeleted && onDeleted();
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error eliminando acoplado';
+            setError(msg);
+            showToast(msg, 'error');
+        }
+    };
+
+    return (
+        <div>
+            {error && <div className="alert alert-danger" role="alert">{error}</div>}
+            <form onSubmit={crear} className="row g-2 mt-2" style={{ opacity: saving ? 0.85 : 1 }}>
+                <div className="col-6">
+                    <input className="form-control" placeholder="Patente acoplado" value={nuevo.patente}
+                        onChange={e => setNuevo(v => ({ ...v, patente: e.target.value.toUpperCase() }))} />
+                </div>
+                <div className="col-12"><button className="btn btn-primary" disabled={saving}>{saving ? 'Guardando…' : 'Crear acoplado'}</button></div>
+            </form>
+            <div className="table-responsive mt-3">
+                {acoplados.length === 0 ? (
+                    <EmptyState title="Sin acoplados" description="Todavía no cargaste acoplados" />
+                ) : (
+                    <table className={`table table-hover align-middle mb-0 table-sticky`}>
+                        <thead>
+                            <tr>
+                                <th>Patente</th>
+                                <th className="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {acoplados.map(a => (
+                                <tr key={a.id}>
+                                    <td>
+                                        {editId === a.id ? (
+                                            <input className="form-control form-control-sm" value={editData.patente}
+                                                onChange={e => setEditData(v => ({ ...v, patente: e.target.value }))} />
+                                        ) : a.patente}
+                                    </td>
+                                    <td className="text-end">
+                                        {editId === a.id ? (
+                                            <div className="btn-group btn-group-sm">
+                                                <button className="btn btn-success" onClick={() => saveEdit(a.id)}><i className="bi bi-check-lg"></i></button>
+                                                <button className="btn btn-outline-secondary" onClick={() => setEditId(null)}><i className="bi bi-x-lg"></i></button>
+                                            </div>
+                                        ) : (
+                                            <div className="btn-group btn-group-sm">
+                                                <button className="btn btn-outline-primary" onClick={() => { setEditId(a.id); setEditData({ patente: a.patente || '' }); }} title="Editar"><i className="bi bi-pencil"></i></button>
+                                                <button className="btn btn-outline-danger" onClick={() => eliminar(a.id)} title="Eliminar"><i className="bi bi-trash"></i></button>
+                                            </div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+    );
+}
 
 export default function Ceo() {
     const { user } = useAuth();
     const [camiones, setCamiones] = useState([]);
+    const [acoplados, setAcoplados] = useState([]);
     const [viajes, setViajes] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -16,7 +135,7 @@ export default function Ceo() {
 
     const [nuevoCamion, setNuevoCamion] = useState({ patente: '', marca: '', modelo: '', anio: '' });
     const [camionErrors, setCamionErrors] = useState({});
-    const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '', tipoMercaderia: '', cliente: '' });
+    const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '', tipoMercaderia: '', cliente: '', precioTonelada: '' });
     const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '', rol: 'camionero' });
     const [savingCamion, setSavingCamion] = useState(false);
     const [savingViaje, setSavingViaje] = useState(false);
@@ -28,18 +147,24 @@ export default function Ceo() {
     const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(1);
     const pageSize = 10;
-    const [density, setDensity] = useState(() => localStorage.getItem('tableDensity') || 'comfortable');
-    const compact = density === 'compact';
-    useEffect(() => { localStorage.setItem('tableDensity', density) }, [density]);
+    const compact = true;
+
+    const viajesFinalizados = useMemo(() => (viajes || []).filter(v => (v.estado || '').toLowerCase() === 'finalizado'), [viajes]);
+    // Filtros para gráficos
+    const [chartFrom, setChartFrom] = useState('');
+    const [chartTo, setChartTo] = useState('');
+    const [chartCliente, setChartCliente] = useState('');
+    const [chartTipo, setChartTipo] = useState('');
 
     // Detalle de viaje
     const [detalle, setDetalle] = useState(null);
     const [detalleLoading, setDetalleLoading] = useState(false);
+    const [showDetalleModal, setShowDetalleModal] = useState(false);
     const abrirDetalle = async (id) => {
         setDetalle(null);
         setDetalleLoading(true);
         try {
-            const { data } = await api.get(`/api/viajes/${id}`);
+            const { data } = await api.get(`/viajes/${id}`);
             setDetalle(data);
             // abrir modal
             setTimeout(() => {
@@ -48,8 +173,10 @@ export default function Ceo() {
                     if (el && window.bootstrap?.Modal) {
                         const modal = window.bootstrap.Modal.getOrCreateInstance(el);
                         modal.show();
+                    } else {
+                        setShowDetalleModal(true);
                     }
-                } catch { }
+                } catch { setShowDetalleModal(true); }
             }, 10);
         } catch (e) {
             const msg = e?.response?.data?.error || 'Error cargando detalle';
@@ -60,46 +187,93 @@ export default function Ceo() {
         }
     };
 
+    // Edición de viaje (solo pendientes)
+    const [editViajeModal, setEditViajeModal] = useState({ open: false, id: null, data: { origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '' }, loading: false, error: '' });
+    const openEditViaje = (v) => {
+        setEditViajeModal({
+            open: true,
+            id: v.id,
+            data: {
+                origen: v.origen || '',
+                destino: v.destino || '',
+                fecha: v.fecha ? new Date(v.fecha).toISOString().slice(0, 10) : '',
+                camionId: v.camion?.id || v.camionId || '',
+                acopladoId: v.acoplado?.id || v.acopladoId || '',
+                tipoMercaderia: v.tipoMercaderia || '',
+                cliente: v.cliente || ''
+            },
+            loading: false,
+            error: ''
+        });
+    };
+    const closeEditViaje = () => setEditViajeModal({ open: false, id: null, data: { origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '' }, loading: false, error: '' });
+    const saveEditViaje = async () => {
+        if (!editViajeModal.id) return;
+        setEditViajeModal(m => ({ ...m, loading: true, error: '' }));
+        try {
+            const body = {
+                ...editViajeModal.data,
+                camionId: editViajeModal.data.camionId ? Number(editViajeModal.data.camionId) : undefined,
+                acopladoId: editViajeModal.data.acopladoId ? Number(editViajeModal.data.acopladoId) : null,
+                tipoMercaderia: editViajeModal.data.tipoMercaderia?.trim() || null,
+                cliente: editViajeModal.data.cliente?.trim() || null
+            };
+            await api.patch(`/viajes/${editViajeModal.id}`, body);
+            showToast('Viaje actualizado', 'success');
+            closeEditViaje();
+            await fetchViajes();
+        } catch (e) {
+            setEditViajeModal(m => ({ ...m, loading: false, error: e?.response?.data?.error || 'Error actualizando viaje' }));
+        }
+    };
+
     const fetchCamiones = async () => {
-        const { data } = await api.get('/api/camiones?limit=100');
+        const { data } = await api.get('/camiones?limit=100');
         const list = (data.items || data.data || []);
         setCamiones(list);
         return list;
     };
     const fetchViajes = async () => {
-        const { data } = await api.get('/api/viajes?limit=100');
+        const { data } = await api.get('/viajes?limit=100');
         const list = data.items || data.data || [];
         setViajes(list);
         return list;
     };
+    const fetchAcoplados = async () => {
+        const { data } = await api.get('/acoplados');
+        const list = Array.isArray(data) ? data : (data.items || data.data || []);
+        setAcoplados(list);
+        return list;
+    };
     const fetchUsuarios = async () => {
-        const { data } = await api.get('/api/usuarios');
+        const { data } = await api.get('/usuarios');
         const list = Array.isArray(data) ? data : (data.items || []);
         setUsuarios(list);
         return list;
     };
 
-    // Utilidad: descargar CSV simple
-    const downloadCSVLocal = (filename, headers, rows) => {
-        try {
-            const csvRows = [];
-            if (headers && headers.length) csvRows.push(headers.map(h => `"${String(h).replaceAll('"', '""')}"`).join(','));
-            (rows || []).forEach(r => {
-                csvRows.push(r.map(v => `"${String(v ?? '').replaceAll('"', '""')}"`).join(','));
-            });
-            const csvContent = csvRows.join('\r\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (e) {
-            console.error('Error exportando CSV', e);
-        }
+    // Exportar listado a PDF
+    const exportViajesPDF = (scope = 'filtro') => {
+        const set = scope === 'pagina' ? viajesPagina : viajesOrdenados;
+        const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible', 'Kilos', 'Precio/Tn', 'Importe'];
+        const rows = set.map(v => [
+            formatDateOnly(v.fecha),
+            v.estado || '',
+            v.origen || '',
+            v.destino || '',
+            v.camion?.patente || v.camionId || '',
+            v.acoplado?.patente || v.acopladoPatente || '',
+            v.camionero?.nombre || '',
+            v.tipoMercaderia || '',
+            v.cliente || '',
+            v.km ?? '',
+            v.combustible ?? '',
+            v.kilosCargados ?? '',
+            v.precioTonelada ?? '',
+            v.importe ?? ''
+        ]);
+        generarListadoViajesPDF(`Listado de viajes (${scope})`, headers, rows, `viajes_${scope}.pdf`);
+        showToast(`Exportado PDF (${scope})`, 'success');
     };
 
     // Filtros adicionales
@@ -132,11 +306,13 @@ export default function Ceo() {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchCamiones(), fetchViajes(), fetchUsuarios()]); }
+            try { await Promise.all([fetchCamiones(), fetchAcoplados(), fetchViajes(), fetchUsuarios()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando datos'); }
             finally { setLoading(false); }
         })();
     }, []);
+
+    // Inicialización de tooltips de Bootstrap: se coloca más abajo, después de calcular viajesPagina
 
     const validarPatente = (pat) => {
         if (!pat) return 'La patente es requerida';
@@ -174,7 +350,7 @@ export default function Ceo() {
         setSavingCamion(true);
         try {
             const body = { ...normalized, anio: Number(normalized.anio) || null };
-            const { data: created } = await api.post('/api/camiones', body);
+            const { data: created } = await api.post('/camiones', body);
             setNuevoCamion({ patente: '', marca: '', modelo: '', anio: '' });
             setCamionErrors({});
             const list = await fetchCamiones();
@@ -201,11 +377,13 @@ export default function Ceo() {
             const body = {
                 ...nuevoViaje,
                 camionId: Number(nuevoViaje.camionId) || 0,
+                acopladoId: nuevoViaje.acopladoId ? Number(nuevoViaje.acopladoId) : null,
                 tipoMercaderia: nuevoViaje.tipoMercaderia?.trim() || null,
-                cliente: nuevoViaje.cliente?.trim() || null
+                cliente: nuevoViaje.cliente?.trim() || null,
+                precioTonelada: nuevoViaje.precioTonelada ? Number(nuevoViaje.precioTonelada) : undefined
             };
-            await api.post('/api/viajes', body);
-            setNuevoViaje({ origen: '', destino: '', fecha: '', camionId: '', tipoMercaderia: '', cliente: '' });
+            await api.post('/viajes', body);
+            setNuevoViaje({ origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', precioTonelada: '' });
             await fetchViajes();
             showToast('Viaje creado', 'success');
         } catch (e) {
@@ -222,7 +400,13 @@ export default function Ceo() {
         setError('');
         setSavingUsuario(true);
         try {
-            const { data: created } = await api.post('/api/usuarios', nuevoUsuario);
+            const body = {
+                nombre: (nuevoUsuario.nombre || '').trim(),
+                email: (nuevoUsuario.email || '').trim(),
+                password: nuevoUsuario.password || '',
+                rol: nuevoUsuario.rol
+            };
+            const { data: created } = await api.post('/usuarios', body);
             setNuevoUsuario({ nombre: '', email: '', password: '', rol: 'camionero' });
             const list = await fetchUsuarios();
             const newId = created?.id ?? (list.find(u => u.email === created?.email || u.email === nuevoUsuario.email)?.id);
@@ -289,17 +473,40 @@ export default function Ceo() {
 
     const viajesFiltrados = useMemo(() => {
         const term = busqueda.trim().toLowerCase();
+        // Aplica filtros de tabla + filtros de gráficos (fecha, cliente, tipo)
         return viajes.filter(v => {
             const okEstado = !filtroEstado || v.estado === filtroEstado;
-            const text = `${v.origen ?? ''} ${v.destino ?? ''} ${v.tipoMercaderia ?? ''} ${v.cliente ?? ''} ${v.camion?.patente ?? v.camionId ?? ''} ${v.camionero?.nombre ?? ''}`.toLowerCase();
+            const text = `${v.origen ?? ''} ${v.destino ?? ''} ${v.tipoMercaderia ?? ''} ${v.cliente ?? ''} ${v.camion?.patente ?? v.camionId ?? ''} ${v.acoplado?.patente ?? v.acopladoPatente ?? ''} ${v.camionero?.nombre ?? ''}`.toLowerCase();
             const okTexto = !term || text.includes(term);
             const okCamion = !filtroCamion || (v.camion?.patente || v.camionId || '') === filtroCamion;
             const okCamionero = !filtroCamionero || (v.camionero?.nombre || '') === filtroCamionero;
             const okTipo = !filtroTipo || (v.tipoMercaderia || '') === filtroTipo;
             const okCliente = !filtroCliente || (v.cliente || '') === filtroCliente;
-            return okEstado && okTexto && okCamion && okCamionero && okTipo && okCliente;
+            // Filtros del panel de gráficos
+            const okTipoChart = !chartTipo || (v.tipoMercaderia || '') === chartTipo;
+            const okClienteChart = !chartCliente || (v.cliente || '') === chartCliente;
+            const okFechaChart = (() => {
+                if (!chartFrom && !chartTo) return true;
+                const ts = parseDateOnlyLocal(v.fecha);
+                const fromTs = chartFrom ? parseDateOnlyLocal(chartFrom) : null;
+                const toTs = chartTo ? parseDateOnlyLocal(chartTo) : null;
+                if (fromTs && ts < fromTs) return false;
+                if (toTs && ts > toTs) return false;
+                return true;
+            })();
+            return okEstado && okTexto && okCamion && okCamionero && okTipo && okCliente && okTipoChart && okClienteChart && okFechaChart;
         });
-    }, [viajes, filtroEstado, busqueda, filtroCamion, filtroCamionero, filtroTipo, filtroCliente]);
+    }, [viajes, filtroEstado, busqueda, filtroCamion, filtroCamionero, filtroTipo, filtroCliente, chartFrom, chartTo, chartCliente, chartTipo]);
+
+    // Helpers de fecha (DATEONLY -> local)
+    const parseDateOnlyLocal = (s) => {
+        if (!s) return 0;
+        try { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1).getTime(); } catch { return 0; }
+    };
+    const formatDateOnly = (s) => {
+        if (!s) return '';
+        try { const [y, m, d] = String(s).split('-').map(Number); const dt = new Date(y, (m || 1) - 1, d || 1); return dt.toLocaleDateString(); } catch { return s; }
+    };
 
     const viajesOrdenados = useMemo(() => {
         const arr = [...viajesFiltrados];
@@ -307,11 +514,12 @@ export default function Ceo() {
         arr.sort((a, b) => {
             const getVal = (v, k) => {
                 switch (k) {
-                    case 'fecha': return new Date(v.fecha || 0).getTime();
+                    case 'fecha': return parseDateOnlyLocal(v.fecha || 0);
                     case 'origen': return (v.origen || '').toLowerCase();
                     case 'destino': return (v.destino || '').toLowerCase();
                     case 'estado': return (v.estado || '').toLowerCase();
                     case 'camion': return ((v.camion?.patente || v.camionId || '') + '').toString().toLowerCase();
+                    case 'acoplado': return ((v.acoplado?.patente || v.acopladoPatente || '') + '').toString().toLowerCase();
                     case 'camionero': return (v.camionero?.nombre || '').toLowerCase();
                     case 'tipo': return (v.tipoMercaderia || '').toLowerCase();
                     case 'cliente': return (v.cliente || '').toLowerCase();
@@ -336,24 +544,30 @@ export default function Ceo() {
         return viajesOrdenados.slice(start, start + pageSize);
     }, [viajesOrdenados, currentPage]);
 
-    const exportViajes = (scope = 'filtro') => {
-        const set = scope === 'pagina' ? viajesPagina : viajesOrdenados;
-        const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible'];
-        const rows = set.map(v => [
-            new Date(v.fecha).toLocaleDateString(),
-            v.estado || '',
-            v.origen || '',
-            v.destino || '',
-            v.camion?.patente || v.camionId || '',
-            v.camionero?.nombre || '',
-            v.tipoMercaderia || '',
-            v.cliente || '',
-            v.km ?? '',
-            v.combustible ?? ''
-        ]);
-        downloadCSVLocal(`viajes_${scope}.csv`, headers, rows);
-        showToast(`Exportado CSV (${scope})`, 'success');
-    };
+    // (Se reemplaza CSV por PDF)
+
+    // Inicialización de tooltips de Bootstrap para elementos con data-bs-toggle="tooltip"
+    useEffect(() => {
+        try {
+            const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const instances = tooltipTriggerList
+                .map(el => {
+                    if (window.bootstrap?.Tooltip) {
+                        return window.bootstrap.Tooltip.getOrCreateInstance(el);
+                    }
+                    return null;
+                })
+                .filter(Boolean);
+            return () => {
+                instances.forEach(inst => {
+                    try { inst.hide(); } catch { }
+                    try { inst.dispose(); } catch { }
+                });
+            };
+        } catch {
+            // noop
+        }
+    }, [viajesPagina, viajesOrdenados, viajesFiltrados, sortKey, sortDir, currentPage]);
 
     // Edición inline de camiones
     const [editCamionId, setEditCamionId] = useState(null);
@@ -373,7 +587,7 @@ export default function Ceo() {
                 const pErr = validarPatente(body.patente);
                 if (pErr) { showToast(pErr, 'error'); return; }
             }
-            await api.put(`/api/camiones/${id}`, body);
+            await api.put(`/camiones/${id}`, body);
             showToast('Camión actualizado', 'success');
             setEditCamionId(null);
             await fetchCamiones();
@@ -387,19 +601,29 @@ export default function Ceo() {
     };
 
     const deleteCamion = async (id) => {
-        if (!confirm('¿Eliminar camión? Esta acción no se puede deshacer.')) return;
-        try {
-            await api.delete(`/api/camiones/${id}`);
-            showToast('Camión eliminado', 'success');
-            await fetchCamiones();
-        } catch (e) {
-            const msg = e?.response?.data?.error || 'Error eliminando camión';
-            setError(msg);
-            showToast(msg, 'error');
-        }
+        setConfirmModal({
+            show: true,
+            title: 'Eliminar camión',
+            message: '¿Estás seguro que deseas eliminar este camión? Esta acción no se puede deshacer.',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/camiones/${id}`);
+                    showToast('Camión eliminado', 'success');
+                    await fetchCamiones();
+                } catch (e) {
+                    const msg = e?.response?.data?.error || 'Error eliminando camión';
+                    setError(msg);
+                    showToast(msg, 'error');
+                } finally {
+                    setConfirmModal({ show: false });
+                }
+            },
+            onCancel: () => setConfirmModal({ show: false })
+        });
     };
 
     // Edición inline de usuarios
+    const [confirmModal, setConfirmModal] = useState({ show: false });
     const [editUsuarioId, setEditUsuarioId] = useState(null);
     const [editUsuarioData, setEditUsuarioData] = useState({ nombre: '', email: '', rol: 'camionero', password: '', changePassword: false });
     const [savedUsuarioId, setSavedUsuarioId] = useState(null);
@@ -411,11 +635,16 @@ export default function Ceo() {
     const cancelEditUsuario = () => { setEditUsuarioId(null); };
     const saveEditUsuario = async (id) => {
         try {
-            const body = { nombre: editUsuarioData.nombre, email: editUsuarioData.email, rol: editUsuarioData.rol };
+            // Evitar enviar cambio de rol si el usuario editado es CEO
+            const current = usuarios.find(u => u.id === id);
+            const body = { nombre: editUsuarioData.nombre, email: editUsuarioData.email };
+            if (current?.rol !== 'ceo') {
+                body.rol = editUsuarioData.rol;
+            }
             if (editUsuarioData.changePassword && editUsuarioData.password && editUsuarioData.password.trim().length > 0) {
                 body.password = editUsuarioData.password.trim();
             }
-            await api.put(`/api/usuarios/${id}`, body);
+            await api.put(`/usuarios/${id}`, body);
             showToast('Usuario actualizado', 'success');
             setEditUsuarioId(null);
             await fetchUsuarios();
@@ -430,7 +659,7 @@ export default function Ceo() {
     const deleteUsuario = async (id) => {
         if (!confirm('¿Eliminar usuario? Esta acción no se puede deshacer.')) return;
         try {
-            await api.delete(`/api/usuarios/${id}`);
+            await api.delete(`/usuarios/${id}`);
             showToast('Usuario eliminado', 'success');
             await fetchUsuarios();
         } catch (e) {
@@ -449,50 +678,52 @@ export default function Ceo() {
     const [prevUnread, setPrevUnread] = useState(0);
     const AUTO_OPEN_THRESHOLD = Number(import.meta?.env?.VITE_NOTIS_AUTO_OPEN_THRESHOLD ?? 3);
 
-    const playBeep = () => {
-        try {
-            const Ctx = window.AudioContext || window.webkitAudioContext;
-            if (!Ctx) return;
-            const ctx = new Ctx();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = 880;
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            gain.gain.setValueAtTime(0.001, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.21);
-            setTimeout(() => ctx.close().catch(() => { }), 300);
-        } catch { }
+    // Helpers de presentación para notificaciones
+    const tipoConfig = {
+        viaje_tomado: { icon: 'bi-truck', bg: 'bg-primary-subtle', dot: 'bg-primary' },
+        factura_vencida: { icon: 'bi-exclamation-triangle', bg: 'bg-warning-subtle', dot: 'bg-warning' },
+        por_defecto: { icon: 'bi-bell', bg: 'bg-secondary-subtle', dot: 'bg-secondary' }
     };
-
-    const fetchNotis = async () => {
-        if (user?.rol !== 'ceo') return;
-        setLoadingNotis(true);
+    const getTipoCfg = (tipo) => tipoConfig[tipo] || tipoConfig.por_defecto;
+    const relTime = (d) => {
         try {
-            const { data } = await api.get('/api/notificaciones');
-            const list = data || [];
+            const ts = typeof d === 'string' || typeof d === 'number' ? new Date(d).getTime() : d?.getTime?.();
+            if (!ts) return '';
+            const diff = Math.floor((Date.now() - ts) / 1000);
+            if (diff < 60) return 'hace unos segundos';
+            if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
+            if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
+            return `hace ${Math.floor(diff / 86400)} d`;
+        } catch { return ''; }
+    };
+    // Cargar/actualizar notificaciones
+    const fetchNotis = async () => {
+        try {
+            setLoadingNotis(true);
+            const { data } = await api.get('/notificaciones');
+            const list = Array.isArray(data) ? data : (data.items || []);
             setNotis(list);
-            const nextUnread = (list || []).filter(n => !n.leida).length;
-            if (nextUnread > prevUnread) {
+            const newUnread = (list || []).filter(n => !n.leida).length;
+            if (newUnread > prevUnread) {
                 setBellPulse(true);
                 setTimeout(() => setBellPulse(false), 1200);
-                const delta = nextUnread - prevUnread;
-                showToast(`+${delta} notificaciones nuevas`, 'info');
-                playBeep();
-                if (delta >= AUTO_OPEN_THRESHOLD && !notisOpen) {
-                    setNotisOpen(true);
-                }
+                if (!notisOpen && newUnread >= AUTO_OPEN_THRESHOLD) setNotisOpen(true);
             }
-            setPrevUnread(nextUnread);
-        } catch { }
-        finally { setLoadingNotis(false); }
+            setPrevUnread(newUnread);
+        } catch {
+            // noop
+        } finally {
+            setLoadingNotis(false);
+        }
     };
 
-    useEffect(() => { fetchNotis(); /* eslint-disable-next-line */ }, [user?.rol]);
+    // Auto-cargar cuando el usuario sea CEO
+    useEffect(() => {
+        if (user?.rol === 'ceo') fetchNotis();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.rol]);
+
+    // Polling cada 60s sólo si el usuario es CEO
     useEffect(() => {
         if (user?.rol !== 'ceo') return;
         const id = setInterval(() => { fetchNotis(); }, 60000);
@@ -502,6 +733,13 @@ export default function Ceo() {
 
     return (
         <>
+            <ConfirmModal
+                show={confirmModal.show}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={confirmModal.onCancel}
+            />
             <div className="container py-3 space-y-4">
                 <PageHeader title="Panel CEO" subtitle="Gestión de camiones, viajes y usuarios" actions={(
                     <div className="d-flex align-items-center gap-2">
@@ -513,27 +751,56 @@ export default function Ceo() {
                                     {unreadCount > 0 && <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{unreadCount}</span>}
                                 </button>
                                 {notisOpen && (
-                                    <div className="card position-absolute end-0 mt-2 shadow" style={{ minWidth: 360, zIndex: 1000 }}>
-                                        <div className="card-header d-flex justify-content-between align-items-center py-2">
+                                    <div className="card position-absolute end-0 mt-2 shadow" style={{ minWidth: 420, zIndex: 1000 }}>
+                                        <div className="card-header d-flex align-items-center py-2 gap-2">
                                             <strong>Notificaciones</strong>
-                                            <button className="btn btn-sm btn-light" onClick={fetchNotis}>{loadingNotis ? '...' : 'Refrescar'}</button>
+                                            <span className={`badge ${unreadCount > 0 ? 'text-bg-danger' : 'text-bg-secondary'} ms-1`}>{unreadCount} sin leer</span>
+                                            <div className="ms-auto d-flex gap-1">
+                                                <button className="btn btn-sm btn-outline-warning" title="Borrar leídas" onClick={async () => {
+                                                    if (!confirm('¿Borrar todas las notificaciones leídas?')) return;
+                                                    try { await api.delete('/notificaciones/leidas/all'); } catch { }
+                                                    finally { fetchNotis(); }
+                                                }}>
+                                                    <i className="bi bi-check2-square me-1"></i> Borrar leídas
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="list-group list-group-flush" style={{ maxHeight: 360, overflowY: 'auto' }}>
+                                        <div className="list-group list-group-flush" style={{ maxHeight: 380, overflowY: 'auto' }}>
                                             {(notis || []).length === 0 ? (
                                                 <div className="text-center text-body-secondary p-3">Sin notificaciones</div>
                                             ) : (
-                                                (notis || []).map(n => (
-                                                    <div key={n.id} className={`list-group-item d-flex justify-content-between align-items-start ${n.leida ? '' : 'bg-warning-subtle'}`}>
-                                                        <div className="me-2">
-                                                            <div className="fw-semibold">{n.tipo}</div>
-                                                            <div className="small">{n.mensaje}</div>
-                                                            <div className="text-body-secondary small">{new Date(n.fecha).toLocaleString()}</div>
+                                                (notis || []).map(n => {
+                                                    const cfg = getTipoCfg(n.tipo);
+                                                    return (
+                                                        <div key={n.id} className={`list-group-item d-flex align-items-start gap-2`}>
+                                                            <div className={`rounded-circle d-flex align-items-center justify-content-center ${cfg.bg}`} style={{ width: 36, height: 36, position: 'relative' }}>
+                                                                <i className={`bi ${cfg.icon}`}></i>
+                                                                {!n.leida && <span className={`position-absolute top-0 end-0 translate-middle p-1 border border-light rounded-circle ${cfg.dot}`}></span>}
+                                                            </div>
+                                                            <div className="flex-grow-1">
+                                                                <div className="d-flex align-items-center gap-2 mb-1">
+                                                                    <span className="badge text-bg-light text-capitalize border">{n.tipo.replaceAll('_', ' ')}</span>
+                                                                    {!n.leida && <span className="badge text-bg-warning">Nuevo</span>}
+                                                                    <span className="text-body-secondary small ms-auto">{relTime(n.fecha)} · {new Date(n.fecha).toLocaleString()}</span>
+                                                                </div>
+                                                                <div className="small">{n.mensaje}</div>
+                                                            </div>
+                                                            <div className="d-flex flex-column gap-1 align-items-end">
+                                                                {!n.leida && (
+                                                                    <button className="btn btn-sm btn-outline-primary" onClick={async () => { await api.patch(`/notificaciones/${n.id}/leida`); setNotis(prev => prev.map(x => x.id === n.id ? { ...x, leida: true } : x)); }}>
+                                                                        <i className="bi bi-check2 me-1"></i> Leída
+                                                                    </button>
+                                                                )}
+                                                                <button className="btn btn-sm btn-outline-danger" title="Eliminar" onClick={async () => {
+                                                                    if (!confirm('¿Eliminar esta notificación?')) return;
+                                                                    try { await api.delete(`/notificaciones/${n.id}`); setNotis(prev => prev.filter(x => x.id !== n.id)); } catch { }
+                                                                }}>
+                                                                    <i className="bi bi-trash"></i>
+                                                                </button>
+                                                            </div>
                                                         </div>
-                                                        {!n.leida && (
-                                                            <button className="btn btn-sm btn-outline-primary" onClick={async () => { await api.patch(`/api/notificaciones/${n.id}/leida`); setNotis(prev => prev.map(x => x.id === n.id ? { ...x, leida: true } : x)); }}>Marcar leída</button>
-                                                        )}
-                                                    </div>
-                                                ))
+                                                    );
+                                                })
                                             )}
                                         </div>
                                     </div>
@@ -646,14 +913,15 @@ export default function Ceo() {
                                     {camiones.length === 0 ? (
                                         <EmptyState title="Sin camiones" description="Todavía no cargaste ningún camión" />
                                     ) : (
-                                        <table className={`${compact ? 'table table-sm' : 'table'} table-hover align-middle mb-0 table-sticky`}>
+                                        <table className={`table table-sm table-hover align-middle mb-0 table-sticky table-cols-bordered`}>
                                             <thead>
                                                 <tr>
-                                                    <th>Patente</th>
-                                                    <th>Marca</th>
-                                                    <th>Modelo</th>
-                                                    <th>Año</th>
-                                                    <th className="text-end">Acciones</th>
+                                                    {['Patente', 'Marca', 'Modelo', 'Año'].map(label => (
+                                                        <th key={label} className="text-uppercase small" style={{ verticalAlign: 'middle', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+                                                            <div className="d-inline-flex align-items-center gap-1"><span>{label}</span></div>
+                                                        </th>
+                                                    ))}
+                                                    <th className="text-end text-uppercase small" style={{ verticalAlign: 'middle', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -712,14 +980,34 @@ export default function Ceo() {
                                     <div className="col-6"><input className="form-control" placeholder="Tipo de mercadería" value={nuevoViaje.tipoMercaderia} onChange={e => setNuevoViaje(v => ({ ...v, tipoMercaderia: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" placeholder="Cliente" value={nuevoViaje.cliente} onChange={e => setNuevoViaje(v => ({ ...v, cliente: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" type="date" placeholder="Fecha" value={nuevoViaje.fecha} onChange={e => setNuevoViaje(v => ({ ...v, fecha: e.target.value }))} /></div>
+                                    <div className="col-6"><input className="form-control" type="number" min={0} step={0.01} placeholder="Precio por tonelada" value={nuevoViaje.precioTonelada} onChange={e => setNuevoViaje(v => ({ ...v, precioTonelada: e.target.value }))} /></div>
                                     <div className="col-6">
                                         <select className="form-select" value={nuevoViaje.camionId} onChange={e => setNuevoViaje(v => ({ ...v, camionId: e.target.value }))}>
                                             <option value="">Seleccioná camión</option>
                                             {camiones.map(c => <option key={c.id} value={c.id}>{c.patente}</option>)}
                                         </select>
                                     </div>
+                                    <div className="col-6">
+                                        <select className="form-select" value={nuevoViaje.acopladoId || ''} onChange={e => setNuevoViaje(v => ({ ...v, acopladoId: e.target.value }))}>
+                                            <option value="">Seleccioná acoplado</option>
+                                            {acoplados.map(a => <option key={a.id} value={a.id}>{a.patente}</option>)}
+                                        </select>
+                                    </div>
                                     <div className="col-12"><button className="btn btn-primary" disabled={savingViaje}>{savingViaje ? 'Guardando…' : 'Guardar'}</button></div>
                                 </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-lg-6">
+                        <div className="card shadow-sm">
+                            <div className="card-body">
+                                <h3 className="h5">Acoplados</h3>
+                                <AcopladosCrud
+                                    acoplados={acoplados}
+                                    onCreated={async () => { await fetchAcoplados(); showToast('Acoplado creado', 'success'); }}
+                                    onUpdated={async () => { await fetchAcoplados(); showToast('Acoplado actualizado', 'success'); }}
+                                    onDeleted={async () => { await fetchAcoplados(); showToast('Acoplado eliminado', 'success'); }}
+                                />
                             </div>
                         </div>
                     </div>
@@ -729,10 +1017,6 @@ export default function Ceo() {
                     <div className="card-body">
                         <div className="d-flex flex-wrap gap-2 align-items-end mb-2">
                             <h3 className="h5 mb-0 me-auto">Viajes</h3>
-                            <div className="form-check form-switch d-flex align-items-center gap-2">
-                                <input className="form-check-input" type="checkbox" role="switch" id="switchDensityCeo" checked={compact} onChange={e => setDensity(e.target.checked ? 'compact' : 'comfortable')} />
-                                <label className="form-check-label" htmlFor="switchDensityCeo">Compacto</label>
-                            </div>
                             <div>
                                 <label className="form-label mb-1">Estado</label>
                                 <select className="form-select form-select-sm" value={filtroEstado} onChange={e => { setFiltroEstado(e.target.value); setPage(1); }}>
@@ -762,7 +1046,7 @@ export default function Ceo() {
                             </div>
                             <div>
                                 <label className="form-label mb-1">Tipo</label>
-                                <select className="form-select form-select-sm" value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setPage(1); }}>
+                                <select className="form-select form-select-sm" value={filtroTipo} onChange={e => { const val = e.target.value; setFiltroTipo(val); setChartTipo(val); setPage(1); }}>
                                     <option value="">Todos</option>
                                     {tiposOpciones.map(t => (
                                         <option key={t} value={t}>{t}</option>
@@ -771,7 +1055,7 @@ export default function Ceo() {
                             </div>
                             <div>
                                 <label className="form-label mb-1">Cliente</label>
-                                <select className="form-select form-select-sm" value={filtroCliente} onChange={e => { setFiltroCliente(e.target.value); setPage(1); }}>
+                                <select className="form-select form-select-sm" value={filtroCliente} onChange={e => { const val = e.target.value; setFiltroCliente(val); setChartCliente(val); setPage(1); }}>
                                     <option value="">Todos</option>
                                     {clientesOpciones.map(c => (
                                         <option key={c} value={c}>{c}</option>
@@ -821,40 +1105,51 @@ export default function Ceo() {
                             </div>
                         )}
                         <div className="d-flex flex-wrap gap-2 mb-2">
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => exportViajes('filtro')} title="Exportar viajes filtrados">
-                                <i className="bi bi-filetype-csv me-1"></i> Exportar (filtro)
+                            <button className="btn btn-sm btn-soft-danger" onClick={() => exportViajesPDF('filtro')} title="Exportar PDF (viajes filtrados)">
+                                <i className="bi bi-file-earmark-pdf me-1"></i> PDF listado (filtro)
                             </button>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => exportViajes('pagina')} title="Exportar viajes de esta página">
-                                <i className="bi bi-file-earmark-spreadsheet me-1"></i> Exportar (página)
+                            <button className="btn btn-sm btn-soft-danger" onClick={() => exportViajesPDF('pagina')} title="Exportar PDF (esta página)">
+                                <i className="bi bi-file-earmark-pdf me-1"></i> PDF listado (página)
                             </button>
                         </div>
                         <div className="table-responsive">
                             {viajesFiltrados.length === 0 ? (
                                 <EmptyState title="Sin viajes" description="No hay viajes que coincidan con el filtro" />
                             ) : (
-                                <table className={`${compact ? 'table table-sm' : 'table'} table-striped table-hover table-sticky`}>
+                                <table className={`table table-sm table-striped table-hover table-sticky table-cols-bordered`}>
                                     <thead>
                                         <tr>
-                                            {['fecha', 'estado', 'origen', 'destino', 'camion', 'camionero', 'tipo', 'cliente', 'km', 'combustible'].map((k) => (
-                                                <th key={k} role="button" onClick={() => {
-                                                    if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-                                                    else { setSortKey(k); setSortDir('asc'); }
-                                                }}>
-                                                    <span className="me-1 text-capitalize">{k}</span>
-                                                    {sortKey === k ? (
-                                                        <i className={`bi ${sortDir === 'asc' ? 'bi-sort-up' : 'bi-sort-down'}`}></i>
-                                                    ) : (
-                                                        <i className="bi bi-arrow-down-up opacity-75"></i>
-                                                    )}
+                                            {['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible', 'Kilos', 'Precio/Tn', 'Importe'].map((label) => (
+                                                <th
+                                                    key={label.toLowerCase()}
+                                                    role="button"
+                                                    onClick={() => {
+                                                        const k = label.toLowerCase();
+                                                        if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                                                        else { setSortKey(k); setSortDir('asc'); }
+                                                    }}
+                                                    className="text-uppercase small"
+                                                    style={{ verticalAlign: 'middle', paddingTop: '0.35rem', paddingBottom: '0.35rem' }}
+                                                >
+                                                    <div className="d-inline-flex flex-column align-items-center" style={{ lineHeight: 1 }}>
+                                                        <span>{label}</span>
+                                                        <span className="opacity-75" style={{ fontSize: '0.85em' }}>
+                                                            {sortKey === label.toLowerCase() ? (
+                                                                <i className={`bi ${sortDir === 'asc' ? 'bi-sort-up' : 'bi-sort-down'}`}></i>
+                                                            ) : (
+                                                                <i className="bi bi-arrow-down-up"></i>
+                                                            )}
+                                                        </span>
+                                                    </div>
                                                 </th>
                                             ))}
-                                            <th>Acciones</th>
+                                            <th className="text-uppercase small" style={{ verticalAlign: 'middle', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {viajesPagina.map(v => (
                                             <tr key={v.id}>
-                                                <td>{new Date(v.fecha).toLocaleDateString()}</td>
+                                                <td>{formatDateOnly(v.fecha)}</td>
                                                 <td>
                                                     <span className={`badge badge-dot ${v.estado === 'finalizado'
                                                         ? 'badge-estado-finalizado'
@@ -870,21 +1165,47 @@ export default function Ceo() {
                                                         <span>{v.camion.patente} <small className="text-body-secondary">({v.camion.marca})</small></span>
                                                     ) : v.camionId}
                                                 </td>
+                                                <td title={v.acoplado ? v.acoplado.patente : (v.acopladoPatente || '-')} data-bs-toggle="tooltip">{v.acoplado ? v.acoplado.patente : (v.acopladoPatente || '-')}</td>
                                                 <td title={v.camionero?.nombre || '-'} data-bs-toggle="tooltip">{v.camionero?.nombre || '-'}</td>
                                                 <td title={v.tipoMercaderia || '-'} data-bs-toggle="tooltip">{v.tipoMercaderia || '-'}</td>
                                                 <td title={v.cliente || '-'} data-bs-toggle="tooltip">{v.cliente || '-'}</td>
                                                 <td className="text-end">{v.km ?? '-'}</td>
                                                 <td className="text-end">{v.combustible ?? '-'}</td>
+                                                <td className="text-end">{v.kilosCargados ?? '-'}</td>
+                                                <td className="text-end">{v.precioTonelada ?? '-'}</td>
+                                                <td className="text-end">{v.importe ?? '-'}</td>
                                                 <td className="text-end" style={{ width: 180 }}>
                                                     <div className="btn-group btn-group-sm">
                                                         <button className="btn btn-outline-secondary" onClick={() => abrirDetalle(v.id)} title="Ver detalle">
                                                             <i className="bi bi-eye"></i>
                                                         </button>
+                                                        {v.estado === 'pendiente' && (
+                                                            <>
+                                                                <button className="btn btn-outline-primary" onClick={() => openEditViaje(v)} title="Editar">
+                                                                    <i className="bi bi-pencil"></i>
+                                                                </button>
+                                                                <button className="btn btn-outline-danger" title="Eliminar" onClick={() => {
+                                                                    setConfirmModal({
+                                                                        show: true,
+                                                                        title: 'Eliminar viaje',
+                                                                        message: '¿Estás seguro de eliminar este viaje pendiente? Esta acción no se puede deshacer.',
+                                                                        onConfirm: async () => {
+                                                                            try { await api.delete(`/viajes/${v.id}`); showToast('Viaje eliminado', 'success'); await fetchViajes(); }
+                                                                            catch (e) { const msg = e?.response?.data?.error || 'Error eliminando viaje'; setError(msg); showToast(msg, 'error'); }
+                                                                            finally { setConfirmModal({ show: false }); }
+                                                                        },
+                                                                        onCancel: () => setConfirmModal({ show: false })
+                                                                    });
+                                                                }}>
+                                                                    <i className="bi bi-trash"></i>
+                                                                </button>
+                                                            </>
+                                                        )}
                                                         {v.estado === 'en curso' && (
                                                             <button className="btn btn-danger" onClick={async () => {
                                                                 if (!confirm('¿Liberar este viaje? Volverá a pendientes.')) return;
                                                                 try {
-                                                                    await api.patch(`/api/viajes/${v.id}/liberar`);
+                                                                    await api.patch(`/viajes/${v.id}/liberar`);
                                                                     showToast('Viaje liberado', 'success');
                                                                     await fetchViajes();
                                                                 } catch (e) {
@@ -1006,7 +1327,7 @@ export default function Ceo() {
                                     <div className="col-12">
                                         <h4 className="h6 mt-2">Por camionero</h4>
                                         <div className="table-responsive">
-                                            <table className={`${compact ? 'table table-sm' : 'table'} align-middle mb-0`}>
+                                            <table className={`table table-sm align-middle mb-0 table-cols-bordered`}>
                                                 <thead><tr><th>Camionero</th><th className="text-end">Viajes</th><th className="text-end">Km</th><th className="text-end">Combustible</th></tr></thead>
                                                 <tbody>
                                                     {Object.entries(viajes.reduce((acc, v) => {
@@ -1026,7 +1347,7 @@ export default function Ceo() {
                                     <div className="col-12">
                                         <h4 className="h6 mt-2">Por camión</h4>
                                         <div className="table-responsive">
-                                            <table className={`${compact ? 'table table-sm' : 'table'} align-middle mb-0`}>
+                                            <table className={`table table-sm align-middle mb-0 table-cols-bordered`}>
                                                 <thead><tr><th>Camión</th><th className="text-end">Viajes</th><th className="text-end">Km</th><th className="text-end">Combustible</th></tr></thead>
                                                 <tbody>
                                                     {Object.entries(viajes.reduce((acc, v) => {
@@ -1056,6 +1377,7 @@ export default function Ceo() {
                                     <div className="col-6"><input className="form-control" placeholder="Nombre" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(v => ({ ...v, nombre: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" placeholder="Email" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(v => ({ ...v, email: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" type="password" placeholder="Password" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(v => ({ ...v, password: e.target.value }))} /></div>
+                                    <div className="col-6"></div>
                                     <div className="col-6">
                                         <select className="form-select" value={nuevoUsuario.rol} onChange={e => setNuevoUsuario(v => ({ ...v, rol: e.target.value }))}>
                                             <option value="camionero">Camionero</option>
@@ -1069,9 +1391,16 @@ export default function Ceo() {
                                     {usuarios.length === 0 ? (
                                         <EmptyState title="Sin usuarios" description="Todavía no cargaste usuarios" />
                                     ) : (
-                                        <table className={`${compact ? 'table table-sm' : 'table'} table-hover align-middle mb-0 table-sticky`}>
+                                        <table className={`table table-sm table-hover align-middle mb-0 table-sticky table-cols-bordered`}>
                                             <thead>
-                                                <tr><th>Nombre</th><th>Email</th><th>Rol</th><th style={{ minWidth: 160 }} className="text-end">Acciones</th></tr>
+                                                <tr>
+                                                    {['Nombre', 'Email', 'Rol'].map(label => (
+                                                        <th key={label} className="text-uppercase small" style={{ verticalAlign: 'middle', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+                                                            <div className="d-inline-flex align-items-center gap-1"><span>{label}</span></div>
+                                                        </th>
+                                                    ))}
+                                                    <th className="text-end text-uppercase small" style={{ minWidth: 160, verticalAlign: 'middle', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>Acciones</th>
+                                                </tr>
                                             </thead>
                                             <tbody>
                                                 {usuarios.map(u => (
@@ -1088,11 +1417,15 @@ export default function Ceo() {
                                                         </td>
                                                         <td style={{ maxWidth: 160 }}>
                                                             {editUsuarioId === u.id ? (
-                                                                <select className="form-select form-select-sm" value={editUsuarioData.rol} onChange={e => setEditUsuarioData(v => ({ ...v, rol: e.target.value }))}>
-                                                                    <option value="camionero">Camionero</option>
-                                                                    <option value="administracion">Administración</option>
-                                                                    <option value="ceo">CEO</option>
-                                                                </select>
+                                                                u.rol === 'ceo' ? (
+                                                                    <span className={`badge badge-role-ceo`}>ceo</span>
+                                                                ) : (
+                                                                    <select className="form-select form-select-sm" value={editUsuarioData.rol} onChange={e => setEditUsuarioData(v => ({ ...v, rol: e.target.value }))}>
+                                                                        <option value="camionero">Camionero</option>
+                                                                        <option value="administracion">Administración</option>
+                                                                        <option value="ceo">CEO</option>
+                                                                    </select>
+                                                                )
                                                             ) : (
                                                                 <span className={`badge ${u.rol === 'ceo' ? 'badge-role-ceo' : u.rol === 'administracion' ? 'badge-role-administracion' : 'badge-role-camionero'}`}>{u.rol}</span>
                                                             )}
@@ -1134,71 +1467,161 @@ export default function Ceo() {
                         </div>
                     </div>
                 </div>
+            </div >
+            {/* Gráficos del CEO */}
+            <div className="mb-3">
+                <div className="card shadow-sm mb-2">
+                    <div className="card-body d-flex flex-wrap align-items-end gap-2">
+                        <div>
+                            <label className="form-label mb-1">Desde</label>
+                            <input type="date" className="form-control" value={chartFrom} onChange={e => setChartFrom(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="form-label mb-1">Hasta</label>
+                            <input type="date" className="form-control" value={chartTo} onChange={e => setChartTo(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="form-label mb-1">Cliente</label>
+                            <select className="form-select" value={chartCliente} onChange={e => setChartCliente(e.target.value)}>
+                                <option value="">Todos</option>
+                                {clientesOpciones.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="form-label mb-1">Tipo</label>
+                            <select className="form-select" value={chartTipo} onChange={e => setChartTipo(e.target.value)}>
+                                <option value="">Todos</option>
+                                {tiposOpciones.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
+                        <button className="btn btn-outline-secondary ms-auto" onClick={() => { setChartFrom(''); setChartTo(''); setChartCliente(''); setChartTipo(''); }}>Limpiar</button>
+                    </div>
+                </div>
+                <DashboardCharts viajes={viajesFinalizados} filtros={{ from: chartFrom, to: chartTo, cliente: chartCliente, tipo: chartTipo }} />
             </div>
             {/* Modal detalle viaje */}
-            <div className="modal fade" id="modalDetalleViaje" tabIndex="-1" aria-hidden="true">
+            <div className={`modal ${showDetalleModal ? 'show d-block' : 'fade'}`} id="modalDetalleViaje" tabIndex="-1" aria-hidden={!showDetalleModal}>
                 <div className="modal-dialog modal-lg">
                     <div className="modal-content">
                         <div className="modal-header">
                             <h1 className="modal-title fs-5">Detalle de viaje</h1>
-                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={() => setShowDetalleModal(false)}></button>
                         </div>
                         <div className="modal-body">
                             {detalleLoading && <div className="text-center py-3"><span className="spinner-border"></span></div>}
                             {detalle && (
                                 <div className="row g-3">
                                     <div className="col-12 col-md-6">
-                                        <div><strong>Fecha:</strong> {new Date(detalle.fecha).toLocaleDateString()}</div>
+                                        <div><strong>Fecha:</strong> {formatDateOnly(detalle.fecha)}</div>
                                         <div><strong>Estado:</strong> <span className={`badge badge-dot ${detalle.estado === 'finalizado' ? 'badge-estado-finalizado' : detalle.estado === 'en curso' ? 'badge-estado-en_curso' : 'badge-estado-pendiente'} text-capitalize`}>{detalle.estado}</span></div>
                                         <div><strong>Origen:</strong> {detalle.origen}</div>
                                         <div><strong>Destino:</strong> {detalle.destino}</div>
+                                        <div>
+                                            <strong>Factura:</strong>{' '}
+                                            {detalle.facturaUrl ? (
+                                                <a href={(() => { try { const base = api?.defaults?.baseURL || window.location.origin; return new URL(detalle.facturaUrl, base).toString(); } catch { return detalle.facturaUrl; } })()} target="_blank" rel="noreferrer">
+                                                    Ver factura
+                                                </a>
+                                            ) : (
+                                                <span className="text-body-secondary">No subida</span>
+                                            )}
+                                        </div>
+                                        <div><strong>Estado factura:</strong> {detalle.facturaEstado || '-'}</div>
+                                        <div><strong>Fecha factura:</strong> {detalle.fechaFactura ? formatDateOnly(detalle.fechaFactura) : '-'}</div>
                                     </div>
                                     <div className="col-12 col-md-6">
                                         <div><strong>Camión:</strong> {detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca} ${detalle.camion.modelo}, ${detalle.camion.anio})` : detalle.camionId}</div>
+                                        <div><strong>Acoplado:</strong> {detalle.acoplado ? detalle.acoplado.patente : (detalle.acopladoPatente || '-')}</div>
                                         <div><strong>Camionero:</strong> {detalle.camionero?.nombre || '-'}</div>
                                         <div><strong>Tipo mercadería:</strong> {detalle.tipoMercaderia ?? '-'}</div>
                                         <div><strong>Cliente:</strong> {detalle.cliente ?? '-'}</div>
                                         <div><strong>Kilómetros:</strong> {detalle.km ?? '-'}</div>
                                         <div><strong>Combustible:</strong> {detalle.combustible ?? '-'}</div>
+                                        <div><strong>Kilos cargados:</strong> {detalle.kilosCargados ?? '-'}</div>
+                                        <div><strong>Precio por tonelada:</strong> {detalle.precioTonelada ?? '-'}</div>
+                                        <div><strong>Importe:</strong> {detalle.importe ?? '-'}</div>
                                     </div>
                                 </div>
                             )}
                         </div>
                         <div className="modal-footer">
-                            <button type="button" className="btn btn-outline-secondary" onClick={() => {
-                                if (!detalle) return;
-                                const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Camionero', 'Km', 'Combustible'];
-                                const row = [
-                                    new Date(detalle.fecha).toLocaleDateString(),
-                                    detalle.estado || '',
-                                    detalle.origen || '',
-                                    detalle.destino || '',
-                                    detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca})` : (detalle.camionId || ''),
-                                    detalle.camionero?.nombre || '',
-                                    detalle.km ?? '',
-                                    detalle.combustible ?? ''
-                                ];
-                                downloadCSV(`viaje_${detalle.id}.csv`, headers, [row]);
-                            }}>
-                                <i className="bi bi-filetype-csv me-1"></i> Exportar CSV
-                            </button>
-                            <button type="button" className="btn btn-outline-primary" onClick={() => {
-                                if (!detalle) return;
-                                const w = window.open('', '_blank');
-                                if (!w) return;
-                                const html = `<!doctype html><html><head><meta charset='utf-8'><title>Detalle viaje ${detalle.id}</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"></head><body class="p-3"><h4>Detalle de viaje #${detalle.id}</h4><hr/><div><strong>Fecha:</strong> ${new Date(detalle.fecha).toLocaleDateString()}</div><div><strong>Estado:</strong> ${detalle.estado}</div><div><strong>Origen:</strong> ${detalle.origen}</div><div><strong>Destino:</strong> ${detalle.destino}</div><div><strong>Camión:</strong> ${detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca} ${detalle.camion.modelo}, ${detalle.camion.anio})` : (detalle.camionId || '')}</div><div><strong>Camionero:</strong> ${detalle.camionero?.nombre || '-'}</div><div><strong>Tipo mercadería:</strong> ${detalle.tipoMercaderia ?? '-'}</div><div><strong>Cliente:</strong> ${detalle.cliente ?? '-'}</div><div><strong>Kilómetros:</strong> ${detalle.km ?? '-'}</div><div><strong>Combustible:</strong> ${detalle.combustible ?? '-'}</div></body></html>`;
-                                w.document.write(html);
-                                w.document.close();
-                                w.focus();
-                                w.print();
-                            }}>
-                                <i className="bi bi-printer me-1"></i> Imprimir
-                            </button>
-                            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                            {detalle && (
+                                <>
+                                    <div className="d-flex gap-2 align-items-center mb-2">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-secondary"
+                                            onClick={() => generarDetalleViajePDF(detalle)}
+                                            disabled={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada')}
+                                            title={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada') ? 'Acción no disponible hasta subir y confirmar la factura.' : 'Descarga el PDF de detalle'}
+                                        >
+                                            <i className="bi bi-file-earmark-pdf me-1"></i> PDF Detalle
+                                        </button>
+                                        {detalle.estado === 'finalizado' && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline-success"
+                                                onClick={() => generarFacturaViajePDF(detalle)}
+                                                disabled={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada')}
+                                                title={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada') ? 'Acción no disponible hasta subir y confirmar la factura.' : 'Descarga el PDF de la factura'}
+                                            >
+                                                <i className="bi bi-receipt me-1"></i> Factura PDF
+                                            </button>
+                                        )}
+                                        {!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada') && (
+                                            <span className="text-danger ms-2 d-flex align-items-center">
+                                                <i className="bi bi-exclamation-triangle me-1"></i>
+                                                Para descargar el PDF, primero sube y confirma la factura como cobrada.
+                                            </span>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowDetalleModal(false)}>Cerrar</button>
                         </div>
                     </div>
                 </div>
             </div>
+            {showDetalleModal && <div className="modal-backdrop show"></div>}
+
+            {/* Modal editar viaje */}
+            <div className={`modal ${editViajeModal.open ? 'show d-block' : 'fade'}`} id="modalEditarViaje" tabIndex="-1" aria-hidden={!editViajeModal.open}>
+                <div className="modal-dialog">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-6">Editar viaje #{editViajeModal.id ?? ''}</h1>
+                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={closeEditViaje}></button>
+                        </div>
+                        <div className="modal-body">
+                            {editViajeModal.error && <div className="alert alert-danger">{editViajeModal.error}</div>}
+                            <div className="row g-2">
+                                <div className="col-6"><label className="form-label">Origen</label><input className="form-control" value={editViajeModal.data.origen} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, origen: e.target.value } }))} /></div>
+                                <div className="col-6"><label className="form-label">Destino</label><input className="form-control" value={editViajeModal.data.destino} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, destino: e.target.value } }))} /></div>
+                                <div className="col-6"><label className="form-label">Fecha</label><input className="form-control" type="date" value={editViajeModal.data.fecha} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, fecha: e.target.value } }))} /></div>
+                                <div className="col-6"><label className="form-label">Camión</label>
+                                    <select className="form-select" value={editViajeModal.data.camionId} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, camionId: e.target.value } }))}>
+                                        <option value="">Seleccioná camión</option>
+                                        {camiones.map(c => <option key={c.id} value={c.id}>{c.patente}</option>)}
+                                    </select>
+                                </div>
+                                <div className="col-6"><label className="form-label">Acoplado</label>
+                                    <select className="form-select" value={editViajeModal.data.acopladoId || ''} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, acopladoId: e.target.value } }))}>
+                                        <option value="">Sin acoplado</option>
+                                        {acoplados.map(a => <option key={a.id} value={a.id}>{a.patente}</option>)}
+                                    </select>
+                                </div>
+                                <div className="col-6"><label className="form-label">Tipo mercadería</label><input className="form-control" value={editViajeModal.data.tipoMercaderia} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, tipoMercaderia: e.target.value } }))} /></div>
+                                <div className="col-6"><label className="form-label">Cliente</label><input className="form-control" value={editViajeModal.data.cliente} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, cliente: e.target.value } }))} /></div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-secondary" onClick={closeEditViaje} disabled={editViajeModal.loading}>Cancelar</button>
+                            <button className="btn btn-primary" onClick={saveEditViaje} disabled={editViajeModal.loading}>{editViajeModal.loading ? <span className="spinner-border spinner-border-sm" role="status" /> : 'Guardar'}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {editViajeModal.open && <div className="modal-backdrop show"></div>}
         </>
     );
 }

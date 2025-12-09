@@ -150,3 +150,21 @@
     transform: rotate(360deg);
   }
 }
+
+/* Column separators for tables */
+.table-cols-bordered thead th,
+.table-cols-bordered tbody td {
+  border-right: 1px solid var(--bs-border-color);
+}
+
+.table-cols-bordered thead th:last-child,
+.table-cols-bordered tbody td:last-child {
+  border-right: 0;
+}
+
+/* Tighter header spacing for compact tables */
+.table-cols-bordered thead th {
+  vertical-align: middle;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}

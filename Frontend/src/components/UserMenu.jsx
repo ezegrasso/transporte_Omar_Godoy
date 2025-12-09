@@ -18,13 +18,14 @@ export default function UserMenu() {
     const initials = (user.nombre || user.email || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
     const isCeo = String(user?.rol || '').toLowerCase() === 'ceo';
 
+
     const handleSave = async () => {
         setSaving(true);
         try {
             const body = { nombre: form.nombre, email: form.email };
             if (form.password.trim()) body.password = form.password.trim();
             if (form.avatarUrl) body.avatarUrl = form.avatarUrl;
-            await api.put(`/api/usuarios/me`, body);
+            await api.put(`/usuarios/me`, body);
             await refresh();
             showToast('Perfil actualizado', 'success');
             setEditing(false);

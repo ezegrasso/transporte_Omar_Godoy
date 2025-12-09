@@ -4,20 +4,28 @@ import { Link } from 'react-router-dom'
 import StatCard from '../components/UI/StatCard'
 import EmptyState from '../components/UI/EmptyState'
 import { SkeletonText } from '../components/UI/Skeleton'
+import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 
 export default function Home() {
+    const { user } = useAuth()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [stats, setStats] = useState({ viajes: 0, enCurso: 0, finalizados: 0 })
     const [recent, setRecent] = useState([])
+
+    // Helper fecha (DATEONLY -> local)
+    const formatDateOnly = (s) => {
+        if (!s) return '-'
+        try { const [y, m, d] = String(s).split('-').map(Number); const dt = new Date(y, (m || 1) - 1, d || 1); return dt.toLocaleDateString(); } catch { return s; }
+    }
 
     useEffect(() => {
         (async () => {
             setLoading(true); setError('')
             try {
                 const [viajesRes] = await Promise.all([
-                    api.get('/api/viajes?limit=10')
+                    api.get('/viajes?limit=10')
                 ])
                 const items = viajesRes.data.items || viajesRes.data.data || []
                 const total = items.length
@@ -35,9 +43,66 @@ export default function Home() {
         <div className="container py-3">
             <PageHeader
                 title="Panel general"
-                subtitle="Resumen rápido y accesos directos"
-                actions={<Link className="btn btn-primary" to="/ceo">Ir a CEO</Link>}
+                subtitle={user ? `Bienvenido, ${user.nombre}` : "Resumen rápido y accesos directos"}
             />
+
+            {/* Accesos rápidos según rol */}
+            {user && (
+                <div className="row g-3 mb-4">
+                    {user.rol === 'ceo' && (
+                        <>
+                            <div className="col-sm-6 col-lg-4">
+                                <Link to="/ceo" className="text-decoration-none">
+                                    <div className="card shadow-sm h-100 card-hover">
+                                        <div className="card-body text-center py-4">
+                                            <i className="bi bi-speedometer2 text-primary" style={{ fontSize: '3rem' }}></i>
+                                            <h5 className="mt-3 mb-1">Panel CEO</h5>
+                                            <p className="text-body-secondary small mb-0">Gestión completa</p>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </div>
+                            <div className="col-sm-6 col-lg-4">
+                                <Link to="/administracion" className="text-decoration-none">
+                                    <div className="card shadow-sm h-100 card-hover">
+                                        <div className="card-body text-center py-4">
+                                            <i className="bi bi-receipt text-success" style={{ fontSize: '3rem' }}></i>
+                                            <h5 className="mt-3 mb-1">Administración</h5>
+                                            <p className="text-body-secondary small mb-0">Facturas y reportes</p>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </div>
+                        </>
+                    )}
+                    {user.rol === 'administracion' && (
+                        <div className="col-sm-6 col-lg-4">
+                            <Link to="/administracion" className="text-decoration-none">
+                                <div className="card shadow-sm h-100 card-hover">
+                                    <div className="card-body text-center py-4">
+                                        <i className="bi bi-receipt text-success" style={{ fontSize: '3rem' }}></i>
+                                        <h5 className="mt-3 mb-1">Panel Administración</h5>
+                                        <p className="text-body-secondary small mb-0">Facturas y reportes</p>
+                                    </div>
+                                </div>
+                            </Link>
+                        </div>
+                    )}
+                    {user.rol === 'camionero' && (
+                        <div className="col-sm-6 col-lg-4">
+                            <Link to="/camionero" className="text-decoration-none">
+                                <div className="card shadow-sm h-100 card-hover">
+                                    <div className="card-body text-center py-4">
+                                        <i className="bi bi-truck text-primary" style={{ fontSize: '3rem' }}></i>
+                                        <h5 className="mt-3 mb-1">Mis Viajes</h5>
+                                        <p className="text-body-secondary small mb-0">Ver y gestionar viajes</p>
+                                    </div>
+                                </div>
+                            </Link>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="row g-3">
                 <div className="col-sm-6 col-lg-4">
@@ -83,7 +148,7 @@ export default function Home() {
                                 <tbody>
                                     {recent.map(v => (
                                         <tr key={v.id}>
-                                            <td>{new Date(v.fecha).toLocaleDateString()}</td>
+                                            <td>{formatDateOnly(v.fecha)}</td>
                                             <td>{v.origen}</td>
                                             <td>{v.destino}</td>
                                             <td>

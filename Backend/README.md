@@ -12,6 +12,8 @@ API REST con Node.js, Express, Sequelize y MySQL.
 - CEO_EMAIL (opcional, credenciales de CEO inicial)
 - CEO_PASSWORD (opcional, credenciales de CEO inicial)
 - ENABLE_CLAUDE_SONNET_4_5=true|false (flag para habilitar el modelo IA "Claude Sonnet 4.5" en endpoints o servicios internos)
+- ANTHROPIC_API_KEY=... (opcional; si está presente y `ENABLE_CLAUDE_SONNET_4_5=true`, se usa proveedor real)
+- ANTHROPIC_MODEL_ID=claude-3-5-sonnet-20241022 (opcional; ID del modelo en Anthropic)
 
 ## Scripts
 
@@ -55,7 +57,7 @@ Incluye en peticiones protegidas: `Authorization: Bearer <token>`
 - Al iniciar, si hay variables `CEO_EMAIL` y `CEO_PASSWORD`, se crea un usuario con rol `ceo` (si no existe ese email). Si no hay `CEO_*`, se usa por defecto `ceo@example.com` / `ceo123`.
 - En los logs de arranque verás `Usuario CEO creado (email)` si se creó el usuario inicial.
 - El usuario CEO no puede eliminarse y su rol no puede cambiarse (sí se puede editar nombre, email, password y avatar).
-- Si `ENABLE_CLAUDE_SONNET_4_5=true`, el servicio interno de IA usará el modelo "Claude Sonnet 4.5" (ver `src/services/aiClient.js`). Por ahora es un stub; reemplazar con integración real (API Anthropic) cuando se disponga de la clave.
+- Si `ENABLE_CLAUDE_SONNET_4_5=true`, el servicio interno de IA usará el modelo "Claude Sonnet 4.5" (ver `src/services/aiClient.js`). Si además defines `ANTHROPIC_API_KEY`, utiliza Anthropic de forma real (requiere `npm install anthropic`). Si no hay clave o librería, devuelve respuesta simulada.
 
 ## Herramientas CLI
 
