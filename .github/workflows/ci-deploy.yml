@@ -20,6 +20,8 @@ jobs:
         run: npm ci || npm install
       - name: Build Frontend
         working-directory: Frontend
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'http://localhost:3000' }}
         run: npm ci || npm install && npm run build
       - name: Deploy Vercel
         continue-on-error: true
@@ -27,7 +29,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then echo "VERCEL_TOKEN not set, skipping"; exit 0; fi
-          npx vercel --prod --token "$VERCEL_TOKEN" --cwd Frontend --confirm
+          npx vercel --prod --token "$VERCEL_TOKEN" --cwd Frontend --yes --name transporte-omar-godoy
       - name: Deploy Render
         continue-on-error: true
         env:
