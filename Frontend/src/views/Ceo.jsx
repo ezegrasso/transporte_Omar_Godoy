@@ -816,7 +816,7 @@ export default function Ceo() {
                 {/* KPIs rápidos */}
                 <div className="row g-3 mb-2">
                     <div className="col-6 col-md-3">
-                        <div className="card shadow-sm h-100">
+                        <div className="card shadow-sm h-100 kpi-card">
                             <div className="card-body py-3">
                                 <div className="text-body-secondary small text-uppercase">Viajes</div>
                                 <div className="fs-4 fw-bold">{reporte.total}</div>
@@ -824,7 +824,7 @@ export default function Ceo() {
                         </div>
                     </div>
                     <div className="col-6 col-md-3">
-                        <div className="card shadow-sm h-100">
+                        <div className="card shadow-sm h-100 kpi-card">
                             <div className="card-body py-3">
                                 <div className="text-body-secondary small text-uppercase">En curso</div>
                                 <div className="fs-4 fw-bold">{viajes.filter(v => v.estado === 'en curso').length}</div>
@@ -832,7 +832,7 @@ export default function Ceo() {
                         </div>
                     </div>
                     <div className="col-6 col-md-3">
-                        <div className="card shadow-sm h-100">
+                        <div className="card shadow-sm h-100 kpi-card">
                             <div className="card-body py-3">
                                 <div className="text-body-secondary small text-uppercase">Finalizados</div>
                                 <div className="fs-4 fw-bold">{viajes.filter(v => v.estado === 'finalizado').length}</div>
@@ -840,7 +840,7 @@ export default function Ceo() {
                         </div>
                     </div>
                     <div className="col-6 col-md-3">
-                        <div className="card shadow-sm h-100">
+                        <div className="card shadow-sm h-100 kpi-card">
                             <div className="card-body py-3">
                                 <div className="text-body-secondary small text-uppercase">Km totales</div>
                                 <div className="fs-4 fw-bold">{reporte.km}</div>

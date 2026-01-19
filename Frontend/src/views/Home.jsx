@@ -41,90 +41,92 @@ export default function Home() {
 
     return (
         <div className="container py-3">
-            <PageHeader
-                title="Panel general"
-                subtitle={user ? `Bienvenido, ${user.nombre}` : "Resumen rápido y accesos directos"}
-            />
+            <div className="home-hero mb-3">
+                <PageHeader
+                    title="Panel general"
+                    subtitle={user ? `Bienvenido, ${user.nombre}` : "Resumen rápido del día"}
+                />
 
-            {/* Accesos rápidos según rol */}
-            {user && (
-                <div className="row g-3 mb-4">
-                    {user.rol === 'ceo' && (
-                        <>
-                            <div className="col-sm-6 col-lg-4">
-                                <Link to="/ceo" className="text-decoration-none">
-                                    <div className="card shadow-sm h-100 card-hover">
-                                        <div className="card-body text-center py-4">
-                                            <i className="bi bi-speedometer2 text-primary" style={{ fontSize: '3rem' }}></i>
-                                            <h5 className="mt-3 mb-1">Panel CEO</h5>
-                                            <p className="text-body-secondary small mb-0">Gestión completa</p>
+                {/* Accesos rápidos según rol */}
+                {user && (
+                    <div className="row g-3 mb-4">
+                        {user.rol === 'ceo' && (
+                            <>
+                                <div className="col-sm-6 col-lg-4">
+                                    <Link to="/ceo" className="text-decoration-none">
+                                        <div className="card shadow-sm h-100 card-hover">
+                                            <div className="card-body text-center py-4">
+                                                <i className="bi bi-speedometer2 text-primary" style={{ fontSize: '3rem' }}></i>
+                                                <h5 className="mt-3 mb-1">Panel CEO</h5>
+                                                <p className="text-body-secondary small mb-0">Gestión completa</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </Link>
-                            </div>
+                                    </Link>
+                                </div>
+                                <div className="col-sm-6 col-lg-4">
+                                    <Link to="/administracion" className="text-decoration-none">
+                                        <div className="card shadow-sm h-100 card-hover">
+                                            <div className="card-body text-center py-4">
+                                                <i className="bi bi-receipt text-success" style={{ fontSize: '3rem' }}></i>
+                                                <h5 className="mt-3 mb-1">Administración</h5>
+                                                <p className="text-body-secondary small mb-0">Facturas y reportes</p>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </div>
+                            </>
+                        )}
+                        {user.rol === 'administracion' && (
                             <div className="col-sm-6 col-lg-4">
                                 <Link to="/administracion" className="text-decoration-none">
                                     <div className="card shadow-sm h-100 card-hover">
                                         <div className="card-body text-center py-4">
                                             <i className="bi bi-receipt text-success" style={{ fontSize: '3rem' }}></i>
-                                            <h5 className="mt-3 mb-1">Administración</h5>
+                                            <h5 className="mt-3 mb-1">Panel Administración</h5>
                                             <p className="text-body-secondary small mb-0">Facturas y reportes</p>
                                         </div>
                                     </div>
                                 </Link>
                             </div>
-                        </>
-                    )}
-                    {user.rol === 'administracion' && (
-                        <div className="col-sm-6 col-lg-4">
-                            <Link to="/administracion" className="text-decoration-none">
-                                <div className="card shadow-sm h-100 card-hover">
-                                    <div className="card-body text-center py-4">
-                                        <i className="bi bi-receipt text-success" style={{ fontSize: '3rem' }}></i>
-                                        <h5 className="mt-3 mb-1">Panel Administración</h5>
-                                        <p className="text-body-secondary small mb-0">Facturas y reportes</p>
+                        )}
+                        {user.rol === 'camionero' && (
+                            <div className="col-sm-6 col-lg-4">
+                                <Link to="/camionero" className="text-decoration-none">
+                                    <div className="card shadow-sm h-100 card-hover">
+                                        <div className="card-body text-center py-4">
+                                            <i className="bi bi-truck text-primary" style={{ fontSize: '3rem' }}></i>
+                                            <h5 className="mt-3 mb-1">Mis Viajes</h5>
+                                            <p className="text-body-secondary small mb-0">Ver y gestionar viajes</p>
+                                        </div>
                                     </div>
-                                </div>
-                            </Link>
-                        </div>
-                    )}
-                    {user.rol === 'camionero' && (
-                        <div className="col-sm-6 col-lg-4">
-                            <Link to="/camionero" className="text-decoration-none">
-                                <div className="card shadow-sm h-100 card-hover">
-                                    <div className="card-body text-center py-4">
-                                        <i className="bi bi-truck text-primary" style={{ fontSize: '3rem' }}></i>
-                                        <h5 className="mt-3 mb-1">Mis Viajes</h5>
-                                        <p className="text-body-secondary small mb-0">Ver y gestionar viajes</p>
-                                    </div>
-                                </div>
-                            </Link>
-                        </div>
-                    )}
-                </div>
-            )}
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                )}
 
-            <div className="row g-3">
-                <div className="col-sm-6 col-lg-4">
-                    {loading ? (
-                        <div className="card shadow-sm p-3"><SkeletonText lines={3} /></div>
-                    ) : (
-                        <StatCard icon={<i className="bi bi-truck" />} label="Viajes" value={stats.viajes} hint="Totales recientes" />
-                    )}
-                </div>
-                <div className="col-sm-6 col-lg-4">
-                    {loading ? (
-                        <div className="card shadow-sm p-3"><SkeletonText lines={3} /></div>
-                    ) : (
-                        <StatCard icon={<i className="bi bi-clock-history" />} label="En curso" value={stats.enCurso} />
-                    )}
-                </div>
-                <div className="col-sm-6 col-lg-4">
-                    {loading ? (
-                        <div className="card shadow-sm p-3"><SkeletonText lines={3} /></div>
-                    ) : (
-                        <StatCard icon={<i className="bi bi-flag" />} label="Finalizados" value={stats.finalizados} />
-                    )}
+                <div className="row g-3">
+                    <div className="col-sm-6 col-lg-4">
+                        {loading ? (
+                            <div className="card shadow-sm p-3"><SkeletonText lines={3} /></div>
+                        ) : (
+                            <StatCard icon={<i className="bi bi-truck text-primary" />} label="Viajes" value={stats.viajes} hint="Totales recientes" />
+                        )}
+                    </div>
+                    <div className="col-sm-6 col-lg-4">
+                        {loading ? (
+                            <div className="card shadow-sm p-3"><SkeletonText lines={3} /></div>
+                        ) : (
+                            <StatCard icon={<i className="bi bi-clock-history text-warning" />} label="En curso" value={stats.enCurso} />
+                        )}
+                    </div>
+                    <div className="col-sm-6 col-lg-4">
+                        {loading ? (
+                            <div className="card shadow-sm p-3"><SkeletonText lines={3} /></div>
+                        ) : (
+                            <StatCard icon={<i className="bi bi-flag text-success" />} label="Finalizados" value={stats.finalizados} />
+                        )}
+                    </div>
                 </div>
             </div>
 
