@@ -1,14 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-    const [email, setEmail] = useState('ceo@example.com');
-    const [password, setPassword] = useState('ceo123');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [rememberEmail, setRememberEmail] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { login } = useAuth();
+
+    // Cargar email recordado (si existe) al montar
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('app_login_email');
+            if (saved) {
+                setEmail(saved);
+                setRememberEmail(true);
+            }
+        } catch {
+            // ignore storage errors
+        }
+    }, []);
 
     const doLogin = async (em, pw) => {
         setError('');
@@ -27,6 +41,16 @@ export default function Login() {
 
     const onSubmit = async (e) => {
         e.preventDefault();
+        // Persistir o limpiar email recordado
+        try {
+            if (rememberEmail && email.trim()) {
+                localStorage.setItem('app_login_email', email.trim());
+            } else {
+                localStorage.removeItem('app_login_email');
+            }
+        } catch {
+            // ignore storage errors
+        }
         await doLogin(email, password);
     };
 
@@ -49,6 +73,19 @@ export default function Login() {
                         <div className="mb-3">
                             <label className="form-label">Password</label>
                             <input className="form-control form-control-lg" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" disabled={loading} />
+                        </div>
+                        <div className="mb-3 form-check">
+                            <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="rememberEmail"
+                                checked={rememberEmail}
+                                disabled={loading}
+                                onChange={(e) => setRememberEmail(e.target.checked)}
+                            />
+                            <label className="form-check-label small" htmlFor="rememberEmail">
+                                Recordar mi email en este dispositivo
+                            </label>
                         </div>
                         {error && <div className="alert alert-danger py-2" role="alert">{error}</div>}
                         <button className="btn btn-primary w-100 btn-lg" type="submit" disabled={loading}>
