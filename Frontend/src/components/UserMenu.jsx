@@ -11,7 +11,7 @@ export default function UserMenu() {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [form, setForm] = useState(() => ({ nombre: user?.nombre || '', email: user?.email || '', password: '', avatarUrl: user?.avatarUrl || '' }));
+    const [form, setForm] = useState({ nombre: '', email: '', password: '', avatarUrl: '' });
 
     if (!user) return null;
 
@@ -22,10 +22,17 @@ export default function UserMenu() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const body = { nombre: form.nombre, email: form.email };
+            const body = {};
+            const nombreTrim = form.nombre.trim();
+            const emailTrim = form.email.trim();
+            const avatarTrim = form.avatarUrl.trim();
+
+            if (nombreTrim) body.nombre = nombreTrim;
+            if (emailTrim) body.email = emailTrim;
             if (form.password.trim()) body.password = form.password.trim();
-            if (form.avatarUrl) body.avatarUrl = form.avatarUrl;
-            await api.put(`/usuarios/me`, body);
+            if (avatarTrim) body.avatarUrl = avatarTrim;
+
+            await api.put('/usuarios/me', body);
             await refresh();
             showToast('Perfil actualizado', 'success');
             setEditing(false);
@@ -37,6 +44,18 @@ export default function UserMenu() {
             setSaving(false);
         }
     };
+
+    useEffect(() => {
+        // Sincronizar el formulario con los datos actuales del usuario
+        if (user && editing) {
+            setForm({
+                nombre: user.nombre || '',
+                email: user.email || '',
+                password: '',
+                avatarUrl: user.avatarUrl || ''
+            });
+        }
+    }, [user, editing]);
 
     useEffect(() => {
         if (editing) {
