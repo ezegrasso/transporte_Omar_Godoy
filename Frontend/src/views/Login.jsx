@@ -32,7 +32,7 @@ export default function Login() {
 
     return (
         <div className="auth-hero d-flex justify-content-center align-items-center py-5">
-            <div className="card shadow-lg w-100 card-hover" style={{ maxWidth: 440, opacity: loading ? 0.9 : 1 }}>
+            <div className="card shadow-lg w-100 card-hover auth-card" style={{ maxWidth: 440, opacity: loading ? 0.9 : 1 }}>
                 <div className="card-body p-4">
                     <div className="text-center mb-4">
                         <img src="/logo.svg" alt="Omar Godoy" width="72" height="72" className="mb-2" />
