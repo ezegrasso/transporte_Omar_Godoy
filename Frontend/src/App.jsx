@@ -1,20 +1,22 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, Route, Routes, useNavigate, useLocation } from 'react-router-dom'
 import { Tooltip } from 'bootstrap'
 import ProtectedRoute from './components/ProtectedRoute'
-import Login from './views/Login'
-import Home from './views/Home'
-import Ceo from './views/Ceo'
-import Administracion from './views/Administracion'
-import Camionero from './views/Camionero'
 import { useAuth } from './context/AuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
+
+const Login = lazy(() => import('./views/Login'))
+const Home = lazy(() => import('./views/Home'))
+const Ceo = lazy(() => import('./views/Ceo'))
+const Administracion = lazy(() => import('./views/Administracion'))
+const Camionero = lazy(() => import('./views/Camionero'))
 
 function NavBar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
+  const [navOpen, setNavOpen] = useState(false)
   useEffect(() => {
     localStorage.setItem('theme', theme)
     const root = document.documentElement
@@ -27,6 +29,10 @@ function NavBar() {
     const tips = nodes.map(n => new Tooltip(n))
     return () => tips.forEach(t => t.dispose())
   }, [location.pathname])
+  useEffect(() => {
+    // Cerrar el menú colapsable al cambiar de ruta
+    setNavOpen(false)
+  }, [location.pathname])
   return (
     <nav className="navbar navbar-expand-lg bg-body-tertiary shadow-sm fixed-top">
       <div className="container">
@@ -37,10 +43,17 @@ function NavBar() {
             <span className="text-body-secondary small" style={{ marginTop: '-2px' }}>Transporte</span>
           </div>
         </Link>
-        <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <button
+          className="navbar-toggler"
+          type="button"
+          aria-controls="navbarSupportedContent"
+          aria-expanded={navOpen}
+          aria-label="Toggle navigation"
+          onClick={() => setNavOpen(o => !o)}
+        >
           <span className="navbar-toggler-icon"></span>
         </button>
-        <div className="collapse navbar-collapse" id="navbarSupportedContent">
+        <div className={`navbar-collapse collapse ${navOpen ? 'show' : ''}`} id="navbarSupportedContent">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item"><Link className="nav-link" to="/">Inicio</Link></li>
             {!user && <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>}
@@ -169,31 +182,33 @@ export default function App() {
     <>
       <NavBar />
       <div className="container pt-3 pb-4 max-w-6xl mx-auto app-content">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/ceo" element={
-            <ProtectedRoute roles={["ceo"]}>
-              <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en el panel CEO.</div>}>
-                <Ceo />
-              </ErrorBoundary>
-            </ProtectedRoute>
-          } />
-          <Route path="/administracion" element={
-            <ProtectedRoute roles={["administracion"]}>
-              <ErrorBoundary fallback={<div className="mt-2">Intenta recargar la página o revisar filtros.</div>}>
-                <Administracion />
-              </ErrorBoundary>
-            </ProtectedRoute>
-          } />
-          <Route path="/camionero" element={
-            <ProtectedRoute roles={["camionero"]}>
-              <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Mis Viajes.</div>}>
-                <Camionero />
-              </ErrorBoundary>
-            </ProtectedRoute>
-          } />
-        </Routes>
+        <Suspense fallback={<div className="spinner-border"><p>Cargando...</p></div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/ceo" element={
+              <ProtectedRoute roles={["ceo"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en el panel CEO.</div>}>
+                  <Ceo />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/administracion" element={
+              <ProtectedRoute roles={["administracion"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Intenta recargar la página o revisar filtros.</div>}>
+                  <Administracion />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/camionero" element={
+              <ProtectedRoute roles={["camionero"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Mis Viajes.</div>}>
+                  <Camionero />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </Suspense>
       </div>
     </>
   )
