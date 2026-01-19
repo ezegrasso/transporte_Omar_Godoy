@@ -99,6 +99,20 @@ router.get('/', authMiddleware, [
     }
 });
 
+// Eliminar TODOS los viajes (solo CEO) para limpiar historial
+router.delete('/',
+    authMiddleware,
+    roleMiddleware(['ceo']),
+    async (req, res) => {
+        try {
+            const eliminados = await Viaje.destroy({ where: {} });
+            res.json({ ok: true, eliminados });
+        } catch (error) {
+            res.status(500).json({ error: 'Error al eliminar todos los viajes' });
+        }
+    }
+);
+
 // Crear viaje (solo ceo)
 router.post('/',
     authMiddleware,
