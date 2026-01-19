@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Link, Route, Routes, useNavigate, useLocation } from 'react-router-dom'
+import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import { Tooltip } from 'bootstrap'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './context/AuthContext'
@@ -12,8 +12,7 @@ const Administracion = lazy(() => import('./views/Administracion'))
 const Camionero = lazy(() => import('./views/Camionero'))
 
 function NavBar() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth()
   const location = useLocation()
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
   const [navOpen, setNavOpen] = useState(false)
@@ -69,38 +68,10 @@ function NavBar() {
             {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion">Panel Administración</Link></li>}
             {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero">Mis Viajes</Link></li>}
           </ul>
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-2 flex-nowrap ms-lg-auto">
             <button className="btn btn-outline-secondary" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="Tema">
               <i className={`bi ${theme === 'dark' ? 'bi-moon-stars' : 'bi-sun'}`}></i>
             </button>
-            {user && (
-              <>
-                <button className="btn btn-outline-secondary position-relative" title="Notificaciones">
-                  <i className="bi bi-bell"></i>
-                  {/* contador opcional */}
-                </button>
-                <div className="dropdown">
-                  <button className="btn btn-outline-secondary d-flex align-items-center gap-2 dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <span className="badge rounded-circle bg-primary-subtle text-primary fw-bold" style={{ width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {String(user?.nombre || 'U').charAt(0).toUpperCase()}
-                    </span>
-                    <span className="d-none d-sm-inline">{user?.nombre || 'Usuario'}</span>
-                  </button>
-                  <ul className="dropdown-menu dropdown-menu-end">
-                    <li className="dropdown-item d-flex align-items-center justify-content-between">
-                      <span>Rol</span>
-                      <span className={`badge ${user?.rol === 'ceo' ? 'badge-role-ceo' : user?.rol === 'administracion' ? 'badge-role-administracion' : 'badge-role-camionero'}`}>{user?.rol}</span>
-                    </li>
-                    <li><hr className="dropdown-divider" /></li>
-                    <li>
-                      <button className="dropdown-item d-flex align-items-center gap-2" onClick={() => { logout(); navigate('/login') }}>
-                        <i className="bi bi-box-arrow-right"></i> Salir
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              </>
-            )}
           </div>
         </div>
       </div>
