@@ -625,14 +625,17 @@ export default function Ceo() {
     // Edición inline de usuarios
     const [confirmModal, setConfirmModal] = useState({ show: false });
     const [editUsuarioId, setEditUsuarioId] = useState(null);
-    const [editUsuarioData, setEditUsuarioData] = useState({ nombre: '', email: '', rol: 'camionero', password: '', changePassword: false });
+    const [editUsuarioData, setEditUsuarioData] = useState({ nombre: '', email: '', rol: 'camionero', password: '', changePassword: false, showPassword: false });
     const [savedUsuarioId, setSavedUsuarioId] = useState(null);
 
     const startEditUsuario = (u) => {
         setEditUsuarioId(u.id);
-        setEditUsuarioData({ nombre: u.nombre || '', email: u.email || '', rol: u.rol || 'camionero', password: '', changePassword: false });
+        setEditUsuarioData({ nombre: u.nombre || '', email: u.email || '', rol: u.rol || 'camionero', password: '', changePassword: false, showPassword: false });
     };
-    const cancelEditUsuario = () => { setEditUsuarioId(null); };
+    const cancelEditUsuario = () => {
+        setEditUsuarioId(null);
+        setEditUsuarioData({ nombre: '', email: '', rol: 'camionero', password: '', changePassword: false, showPassword: false });
+    };
     const saveEditUsuario = async (id) => {
         try {
             // Evitar enviar cambio de rol si el usuario editado es CEO
@@ -1434,14 +1437,25 @@ export default function Ceo() {
                                                             {editUsuarioId === u.id ? (
                                                                 <div className="d-flex gap-2 justify-content-end align-items-center flex-wrap">
                                                                     {!editUsuarioData.changePassword ? (
-                                                                        <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditUsuarioData(v => ({ ...v, changePassword: true, password: '' }))} title="Cambiar contraseña">
+                                                                        <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditUsuarioData(v => ({ ...v, changePassword: true, password: '', showPassword: false }))} title="Cambiar contraseña">
                                                                             <i className="bi bi-key me-1"></i> Cambiar contraseña
                                                                         </button>
                                                                     ) : (
                                                                         <div className="d-flex gap-2 align-items-center">
-                                                                            <input className="form-control form-control-sm" style={{ maxWidth: 220 }} type="password" placeholder="Nuevo password (opcional)" value={editUsuarioData.password} onChange={e => setEditUsuarioData(v => ({ ...v, password: e.target.value }))} />
-                                                                            <button className="btn btn-sm btn-outline-warning" onClick={() => setEditUsuarioData(v => ({ ...v, changePassword: false, password: '' }))} title="Quitar contraseña">
-                                                                                <i className="bi bi-eye-slash"></i>
+                                                                            <input
+                                                                                className="form-control form-control-sm"
+                                                                                style={{ maxWidth: 220 }}
+                                                                                type={editUsuarioData.showPassword ? 'text' : 'password'}
+                                                                                placeholder="Nuevo password (opcional)"
+                                                                                value={editUsuarioData.password}
+                                                                                onChange={e => setEditUsuarioData(v => ({ ...v, password: e.target.value }))}
+                                                                            />
+                                                                            <button
+                                                                                className="btn btn-sm btn-outline-warning"
+                                                                                onClick={() => setEditUsuarioData(v => ({ ...v, showPassword: !v.showPassword }))}
+                                                                                title={editUsuarioData.showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                                                                            >
+                                                                                <i className={`bi ${editUsuarioData.showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
                                                                             </button>
                                                                         </div>
                                                                     )}
