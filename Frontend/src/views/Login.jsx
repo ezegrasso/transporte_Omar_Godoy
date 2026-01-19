@@ -54,18 +54,6 @@ export default function Login() {
                         <button className="btn btn-primary w-100 btn-lg" type="submit" disabled={loading}>
                             {loading ? <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Entrando…</> : 'Entrar'}
                         </button>
-                        <div className="mt-3">
-                            <div className="text-center text-body-secondary small mb-2">Accesos rápidos</div>
-                            <div className="d-grid gap-2">
-                                <button type="button" className="btn btn-outline-secondary" disabled={loading} onClick={() => doLogin('ceo@example.com', 'ceo123')}>
-                                    Entrar como CEO demo
-                                </button>
-                                <button type="button" className="btn btn-outline-secondary" disabled={loading} onClick={() => doLogin('camionero@example.com', 'camion123')}>
-                                    Entrar como Camionero demo
-                                </button>
-                                <div className="form-text text-center">Si el usuario camionero demo no existe, podés crearlo desde CEO.</div>
-                            </div>
-                        </div>
                     </form>
                 </div>
             </div>
