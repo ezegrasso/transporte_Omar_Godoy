@@ -742,6 +742,8 @@ export default function Ceo() {
                 message={confirmModal.message}
                 onConfirm={confirmModal.onConfirm}
                 onCancel={confirmModal.onCancel}
+                requireText={confirmModal.requireText}
+                expectedText={confirmModal.expectedText}
             />
             <div className="container py-3 space-y-4">
                 <PageHeader title="Panel CEO" subtitle="Gestión de camiones, viajes y usuarios" actions={(
@@ -1069,6 +1071,36 @@ export default function Ceo() {
                                 <label className="form-label mb-1">Buscar</label>
                                 <input className="form-control form-control-sm" placeholder="Origen, destino, tipo, cliente, patente, chofer" value={busqueda} onChange={e => { setBusqueda(e.target.value); setPage(1); }} />
                             </div>
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger ms-auto"
+                                onClick={() => {
+                                    setConfirmModal({
+                                        show: true,
+                                        title: 'Limpiar historial de viajes',
+                                        message: 'Esta acción eliminará TODOS los viajes registrados (pendientes, en curso y finalizados).',
+                                        requireText: true,
+                                        expectedText: 'Confirmar',
+                                        onConfirm: async () => {
+                                            try {
+                                                const { data } = await api.delete('/viajes');
+                                                const eliminados = data?.eliminados ?? 0;
+                                                showToast(`Historial limpiado (${eliminados} viajes eliminados)`, 'success');
+                                                await fetchViajes();
+                                            } catch (e) {
+                                                const msg = e?.response?.data?.error || 'Error al limpiar historial de viajes';
+                                                setError(msg);
+                                                showToast(msg, 'error');
+                                            } finally {
+                                                setConfirmModal({ show: false });
+                                            }
+                                        },
+                                        onCancel: () => setConfirmModal({ show: false })
+                                    });
+                                }}
+                            >
+                                Limpiar historial
+                            </button>
                         </div>
                         {(filtroEstado || filtroCamion || filtroCamionero || filtroTipo || filtroCliente || busqueda) && (
                             <div className="d-flex flex-wrap filter-chips mb-2">
