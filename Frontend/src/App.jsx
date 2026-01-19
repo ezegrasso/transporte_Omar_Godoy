@@ -42,16 +42,26 @@ function NavBar() {
             <span className="text-body-secondary small" style={{ marginTop: '-2px' }}>Transporte</span>
           </div>
         </Link>
-        <button
-          className="navbar-toggler"
-          type="button"
-          aria-controls="navbarSupportedContent"
-          aria-expanded={navOpen}
-          aria-label="Toggle navigation"
-          onClick={() => setNavOpen(o => !o)}
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
+        <div className="d-flex align-items-center ms-auto gap-2">
+          <button
+            className="btn btn-outline-secondary d-lg-none"
+            type="button"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            title="Tema"
+          >
+            <i className={`bi ${theme === 'dark' ? 'bi-moon-stars' : 'bi-sun'}`}></i>
+          </button>
+          <button
+            className="navbar-toggler d-lg-none"
+            type="button"
+            aria-controls="navbarSupportedContent"
+            aria-expanded={navOpen}
+            aria-label="Toggle navigation"
+            onClick={() => setNavOpen(o => !o)}
+          >
+            <span className="navbar-toggler-icon"></span>
+          </button>
+        </div>
         <div
           id="navbarSupportedContent"
           className={`flex-grow-1 ${navOpen ? 'd-block' : 'd-none'} d-lg-flex align-items-lg-center`}
@@ -68,7 +78,7 @@ function NavBar() {
             {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion">Panel Administración</Link></li>}
             {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero">Mis Viajes</Link></li>}
           </ul>
-          <div className="d-flex align-items-center gap-2 flex-nowrap ms-lg-auto">
+          <div className="d-none d-lg-flex align-items-center gap-2 flex-nowrap ms-lg-auto">
             <button className="btn btn-outline-secondary" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="Tema">
               <i className={`bi ${theme === 'dark' ? 'bi-moon-stars' : 'bi-sun'}`}></i>
             </button>
