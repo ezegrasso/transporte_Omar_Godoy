@@ -302,6 +302,9 @@ export default function Ceo() {
         return Array.from(set);
     }, [viajes]);
 
+    // Lista de usuarios camioneros para asignar a camiones
+    const camioneros = useMemo(() => (usuarios || []).filter(u => u.rol === 'camionero'), [usuarios]);
+
     useEffect(() => {
         (async () => {
             setLoading(true);
@@ -921,7 +924,7 @@ export default function Ceo() {
                                         <table className={`table table-sm table-hover align-middle mb-0 table-sticky table-cols-bordered`}>
                                             <thead>
                                                 <tr>
-                                                    {['Patente', 'Marca', 'Modelo', 'Año'].map(label => (
+                                                    {['Patente', 'Marca', 'Modelo', 'Año', 'Camionero asignado'].map(label => (
                                                         <th key={label} className="text-uppercase small" style={{ verticalAlign: 'middle', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
                                                             <div className="d-inline-flex align-items-center gap-1"><span>{label}</span></div>
                                                         </th>
@@ -951,6 +954,34 @@ export default function Ceo() {
                                                             {editCamionId === c.id ? (
                                                                 <input className="form-control form-control-sm" type="number" value={editCamionData.anio} onChange={e => setEditCamionData(v => ({ ...v, anio: e.target.value }))} />
                                                             ) : (c.anio || '-')}
+                                                        </td>
+                                                        <td style={{ minWidth: 220 }}>
+                                                            {camioneros.length === 0 ? (
+                                                                <span className="text-body-secondary small">Sin camioneros cargados</span>
+                                                            ) : (
+                                                                <select
+                                                                    className="form-select form-select-sm"
+                                                                    value={c.camioneroId || ''}
+                                                                    onChange={async (e) => {
+                                                                        const value = e.target.value;
+                                                                        try {
+                                                                            const body = value ? { camioneroId: Number(value) } : { camioneroId: null };
+                                                                            await api.post(`/camiones/${c.id}/asignarCamionero`, body);
+                                                                            showToast('Camionero asignado al camión', 'success');
+                                                                            await fetchCamiones();
+                                                                        } catch (err) {
+                                                                            const msg = err?.response?.data?.error || 'Error al asignar camionero';
+                                                                            setError(msg);
+                                                                            showToast(msg, 'error');
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <option value="">Sin asignar</option>
+                                                                    {camioneros.map(cm => (
+                                                                        <option key={cm.id} value={cm.id}>{cm.nombre} ({cm.email})</option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
                                                         </td>
                                                         <td className="text-end">
                                                             {editCamionId === c.id ? (
