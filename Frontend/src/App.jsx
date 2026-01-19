@@ -53,7 +53,10 @@ function NavBar() {
         >
           <span className="navbar-toggler-icon"></span>
         </button>
-        <div className={`navbar-collapse collapse ${navOpen ? 'show' : ''}`} id="navbarSupportedContent">
+        <div
+          id="navbarSupportedContent"
+          className={`flex-grow-1 ${navOpen ? 'd-block' : 'd-none'} d-lg-flex align-items-lg-center`}
+        >
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item"><Link className="nav-link" to="/">Inicio</Link></li>
             {!user && <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>}
