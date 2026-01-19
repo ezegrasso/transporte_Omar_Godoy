@@ -699,11 +699,10 @@ export default function Camionero() {
                                 <div className="mt-3">
                                     <div className="alert alert-info">
                                         <div><strong>Mes:</strong> {liqRes.mes}</div>
-                                        <div><strong>Bruto:</strong> ${'{'}liqRes.bruto?.toFixed ? liqRes.bruto.toFixed(2) : liqRes.bruto{'}'}</div>
-                                        <div><strong>% Camionero:</strong> 16%</div>
-                                        <div><strong>Sueldo:</strong> ${'{'}liqRes.sueldo?.toFixed ? liqRes.sueldo.toFixed(2) : liqRes.sueldo{'}'}</div>
-                                        <div><strong>Adelanto:</strong> ${'{'}Number(liqRes.adelanto || 0).toFixed(2){'}'}</div>
-                                        <div><strong>Neto:</strong> ${'{'}liqRes.neto?.toFixed ? liqRes.neto.toFixed(2) : liqRes.neto{'}'}</div>
+                                        <div><strong>Bruto:</strong> ${liqRes.bruto?.toFixed ? liqRes.bruto.toFixed(2) : liqRes.bruto}</div>
+                                        <div><strong>Sueldo:</strong> ${liqRes.sueldo?.toFixed ? liqRes.sueldo.toFixed(2) : liqRes.sueldo}</div>
+                                        <div><strong>Adelanto:</strong> ${Number(liqRes.adelanto || 0).toFixed(2)}</div>
+                                        <div><strong>Neto:</strong> ${liqRes.neto?.toFixed ? liqRes.neto.toFixed(2) : liqRes.neto}</div>
                                     </div>
                                     <div className="table-responsive">
                                         <table className="table table-sm table-striped">
@@ -718,6 +717,13 @@ export default function Camionero() {
                                                 </tr>
                                             </thead>
                                             <tbody>
+                                                {(!liqRes.viajes || liqRes.viajes.length === 0) && (
+                                                    <tr>
+                                                        <td colSpan={6} className="text-center text-muted">
+                                                            No hay viajes para liquidar en este mes.
+                                                        </td>
+                                                    </tr>
+                                                )}
                                                 {liqRes.viajes?.map(v => (
                                                     <tr key={v.id}>
                                                         <td>{formatDateOnly(v.fecha)}</td>
