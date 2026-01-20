@@ -1,10 +1,14 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Servicio de envío de correo al CEO (simulado si falta configuración SMTP)
-// Variables esperadas en .env para envío real:
-// SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
-// Opcional: SMTP_SECURE=true (usar TLS implícito).
+// Servicio de envío de correo al CEO (simulado si falta configuración)
+// Soporta dos modos:
+// 1) API HTTP (recomendado para producción en Render):
+//    - MAIL_API_KEY (o RESEND_API_KEY)
+//    - MAIL_FROM (remitente verificado en el proveedor)
+// 2) SMTP clásico (útil para desarrollo local):
+//    - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+//    - Opcional: SMTP_SECURE=true (usar TLS implícito).
 // Si CEO_EMAIL no está, se buscará usuario con rol='ceo' en la base.
 
 let nodemailer = null;
@@ -15,7 +19,13 @@ try {
 }
 
 import Usuario from '../models/Usuario.js';
+import axios from 'axios';
 
+// Config API (por ejemplo Resend)
+const MAIL_API_KEY = process.env.MAIL_API_KEY || process.env.RESEND_API_KEY;
+const MAIL_FROM = process.env.MAIL_FROM || process.env.SMTP_USER;
+
+// Config SMTP (uso secundario / local)
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 0;
 const SMTP_USER = process.env.SMTP_USER;
@@ -25,6 +35,41 @@ const SMTP_DEBUG = String(process.env.SMTP_DEBUG || 'false').toLowerCase() === '
 
 function canSendRealEmail() {
     return !!(nodemailer && SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
+}
+
+async function sendEmailViaApi({ to, subject, text }) {
+    if (!MAIL_API_KEY || !MAIL_FROM) {
+        console.log('[emailService] API email no configurada, se salta a SMTP o modo simulado.', {
+            hasApiKey: !!MAIL_API_KEY,
+            hasFrom: !!MAIL_FROM
+        });
+        return { simulated: true, reason: 'api_not_configured' };
+    }
+    try {
+        const response = await axios.post(
+            'https://api.resend.com/emails',
+            {
+                from: MAIL_FROM,
+                to,
+                subject,
+                text
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${MAIL_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        const data = response.data || {};
+
+        console.log(`[emailService] (REAL/API) Email enviado a <${to}>: ${subject} -> ${text}`);
+        return { simulated: false, provider: 'api', id: data.id || data.messageId };
+    } catch (e) {
+        console.error('[emailService] ERROR enviando correo vía API:', e?.message || e);
+        return { simulated: true, provider: 'api', error: e?.message || String(e) };
+    }
 }
 
 async function resolveCeoEmail() {
@@ -40,6 +85,13 @@ async function resolveCeoEmail() {
 
 export async function sendEmailToCEO({ subject, text }) {
     const to = await resolveCeoEmail();
+    // 1) Intentar primero por API (si está configurada)
+    const apiResult = await sendEmailViaApi({ to, subject, text });
+    if (!apiResult.simulated) {
+        return apiResult;
+    }
+
+    // 2) Si la API no está disponible o falla, intentar SMTP
     if (!canSendRealEmail()) {
         console.error('[emailService] MODO SIMULADO: No se puede enviar correo real. Verifica configuración SMTP.');
         console.error(`[emailService] SMTP_HOST=${SMTP_HOST}, SMTP_PORT=${SMTP_PORT}, SMTP_USER=${SMTP_USER}, SMTP_PASS=${SMTP_PASS ? '***' : ''}, nodemailer=${!!nodemailer}`);
@@ -77,6 +129,13 @@ export async function sendEmailToCEO({ subject, text }) {
 // Enviar email genérico a un destinatario específico
 export async function sendEmail({ to, subject, text }) {
     if (!to) return { simulated: true, error: 'destinatario vacío' };
+    // 1) Intentar primero por API (si está configurada)
+    const apiResult = await sendEmailViaApi({ to, subject, text });
+    if (!apiResult.simulated) {
+        return apiResult;
+    }
+
+    // 2) Si la API no está disponible o falla, intentar SMTP
     if (!canSendRealEmail()) {
         console.error('[emailService] MODO SIMULADO: No se puede enviar correo real. Verifica configuración SMTP.');
         console.error(`[emailService] SMTP_HOST=${SMTP_HOST}, SMTP_PORT=${SMTP_PORT}, SMTP_USER=${SMTP_USER}, SMTP_PASS=${SMTP_PASS ? '***' : ''}, nodemailer=${!!nodemailer}`);
