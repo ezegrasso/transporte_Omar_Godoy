@@ -16,11 +16,15 @@ export default class ErrorBoundary extends React.Component {
     }
 
     render() {
+        const errorMessage = this.state.error && typeof this.state.error === 'object'
+            ? (this.state.error.message || 'Se produjo un error inesperado.')
+            : (this.state.error || 'Se produjo un error inesperado.');
+
         if (this.state.hasError) {
             return (
                 <div className="alert alert-danger" role="alert">
                     <h6 className="mb-2">Ocurrió un error en esta vista.</h6>
-                    <div className="text-body-secondary small">{String(this.state.error)}</div>
+                    <div className="text-body-secondary small">{errorMessage}</div>
                     {this.props.fallback}
                 </div>
             )

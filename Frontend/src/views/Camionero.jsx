@@ -330,29 +330,24 @@ export default function Camionero() {
                                 <div><strong>Combustible:</strong> {viajeEnCursoActual.combustible ?? '-'}</div>
                             </div>
                         </div>
-                        <div className="border rounded p-2">
-                            <div className="row g-2 align-items-end">
-                                <div className="col-12 col-sm-4">
-                                    <label className="form-label mb-1">Km</label>
-                                    <input className="form-control form-control-sm" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} placeholder="Ej: 120" />
-                                </div>
-                                <div className="col-12 col-sm-4">
-                                    <label className="form-label mb-1">Combustible</label>
-                                    <input className="form-control form-control-sm" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} placeholder="Litros" />
-                                </div>
-                                <div className="col-12 col-sm-4">
-                                    <label className="form-label mb-1">Kilos cargados</label>
-                                    <input className="form-control form-control-sm" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} placeholder="Ej: 20000" />
-                                </div>
-                                <div className="col-12 col-sm-4 text-end d-flex gap-2 justify-content-end">
-                                    <button className="btn btn-sm btn-outline-warning" onClick={() => cancelar(viajeEnCursoActual.id)}>Cancelar viaje</button>
-                                    <button className="btn btn-sm btn-success" disabled={finishingId === viajeEnCursoActual.id} onClick={() => openFinalizarModal(viajeEnCursoActual.id)}>
-                                        {finishingId === viajeEnCursoActual.id ? 'Finalizando…' : 'Finalizar viaje'}
-                                    </button>
-                                </div>
+                        <div className="border rounded p-3">
+                            <div className="d-flex justify-content-center gap-3 flex-wrap">
+                                <button
+                                    className="btn btn-sm btn-outline-warning px-4"
+                                    onClick={() => cancelar(viajeEnCursoActual.id)}
+                                >
+                                    Cancelar viaje
+                                </button>
+                                <button
+                                    className="btn btn-sm btn-success px-4"
+                                    disabled={finishingId === viajeEnCursoActual.id}
+                                    onClick={() => openFinalizarModal(viajeEnCursoActual.id)}
+                                >
+                                    {finishingId === viajeEnCursoActual.id ? 'Finalizando…' : 'Finalizar viaje'}
+                                </button>
                             </div>
                         </div>
-                        <small className="text-body-secondary d-block mt-2">Al finalizar, se registrará el km y el combustible y el CEO podrá verlo en su panel.</small>
+                        <small className="text-body-secondary d-block mt-2">Al finalizar, se registrará el km, el combustible y los kilos cargados y el CEO podrá verlo en su panel.</small>
                     </div>
                 </div>
             )}
