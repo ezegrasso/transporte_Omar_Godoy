@@ -89,8 +89,63 @@ export default function Administracion() {
         }
     };
     const [remitosUploadModal, setRemitosUploadModal] = useState({ open: false, id: null, files: [], loading: false, error: '' });
+    const [checkingVencidas, setCheckingVencidas] = useState(false);
     const openUploadRemitos = (v) => setRemitosUploadModal({ open: true, id: v.id, files: [], loading: false, error: '' });
     const closeUploadRemitos = () => setRemitosUploadModal({ open: false, id: null, files: [], loading: false, error: '' });
+
+    // Modal: Resumen Financiero Mensual
+    const [finanzasModal, setFinanzasModal] = useState({ open: false, mes: '', clienteFiltro: 'todos' });
+    const openFinanzas = () => {
+        const hoy = new Date();
+        const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+        setFinanzasModal({ open: true, mes: mesActual, clienteFiltro: 'todos' });
+    };
+    const closeFinanzas = () => setFinanzasModal({ open: false, mes: '', clienteFiltro: 'todos' });
+    // Cálculos del resumen financiero mensual
+    const datosFinanzas = useMemo(() => {
+        const { mes, clienteFiltro } = finanzasModal;
+        if (!mes) return { totalFacturado: 0, totalPendiente: 0, porCliente: {} };
+
+        // Filtrar viajes del mes seleccionado
+        const [anio, mesNum] = mes.split('-').map(Number);
+        const viajesMes = (viajes || []).filter(v => {
+            if ((v.estado || '').toLowerCase() !== 'finalizado') return false;
+            if (!v.fecha) return false;
+            const [y, m] = String(v.fecha).split('-').map(Number);
+            return y === anio && m === mesNum;
+        });
+
+        // Filtrar por cliente si no es "todos"
+        const viajesFiltro = clienteFiltro === 'todos'
+            ? viajesMes
+            : viajesMes.filter(v => v.cliente === clienteFiltro);
+
+        // Calcular totales
+        let totalFacturado = 0;
+        let totalPendiente = 0;
+        const porCliente = {};
+
+        viajesFiltro.forEach(v => {
+            const importe = Number(v.importe) || 0;
+            const cliente = v.cliente || 'Sin cliente';
+            const estado = (v.facturaEstado || 'pendiente').toLowerCase();
+
+            if (!porCliente[cliente]) {
+                porCliente[cliente] = { facturado: 0, pendiente: 0, cobrado: 0 };
+            }
+
+            if (estado === 'cobrada') {
+                totalFacturado += importe;
+                porCliente[cliente].cobrado += importe;
+            } else {
+                totalPendiente += importe;
+                porCliente[cliente].pendiente += importe;
+            }
+        });
+
+        return { totalFacturado, totalPendiente, porCliente, viajesMes: viajesFiltro.length };
+    }, [finanzasModal, viajes]);
+
     const submitUploadRemitos = async () => {
         if (!remitosUploadModal.id || !(remitosUploadModal.files?.length)) return;
         setRemitosUploadModal(m => ({ ...m, loading: true, error: '' }));
@@ -103,6 +158,24 @@ export default function Administracion() {
             fetchSemana();
         } catch (e) {
             setRemitosUploadModal(m => ({ ...m, loading: false, error: e?.response?.data?.error || 'Error al subir remitos' }));
+        }
+    };
+
+    const revisarVencidas = async () => {
+        setCheckingVencidas(true);
+        showToast('Revisando facturas vencidas...', 'info');
+        try {
+            const { data } = await api.post('/viajes/checkVencidas');
+            const marcadas = data?.facturasMarcadasVencidas ?? 0;
+            const notis = data?.notificacionesCreadas ?? 0;
+            showToast(`Listo: ${marcadas} marcadas vencidas, ${notis} notificaciones`, 'success');
+        } catch (e) {
+            console.error('revisarVencidas error', e);
+            showToast(e?.response?.data?.error || 'No se pudieron revisar las vencidas', 'error');
+        } finally {
+            setCheckingVencidas(false);
+            fetchSemana();
+            fetchNotis();
         }
     };
 
@@ -472,12 +545,14 @@ export default function Administracion() {
                         </button>
                     </div>
                     <button className="btn btn-soft-danger btn-action" onClick={exportPDF} title="Exportar PDF"><i className="bi bi-filetype-pdf me-1"></i> PDF Viajes</button>
-                    <button className="btn btn-soft-warning btn-action" onClick={async () => { try { await api.post('/viajes/checkVencidas'); } catch { } finally { fetchSemana(); fetchNotis(); } }} title="Generar notificaciones por facturas vencidas">Revisar vencidas</button>
-                    {(user?.rol === 'ceo' || user?.rol === 'administracion') && (
-                        <button className="btn btn-soft-primary btn-action" onClick={resumirSemana} title="Resumir la semana con IA">
-                            <i className="bi bi-magic me-1"></i> Resumir semana
-                        </button>
-                    )}
+                    <button className="btn btn-warning btn-action" onClick={revisarVencidas} disabled={checkingVencidas} title="Generar notificaciones por facturas vencidas">
+                        {checkingVencidas ? <span className="spinner-border spinner-border-sm me-1" role="status" /> : <i className="bi bi-bell me-1"></i>}
+                        Revisar vencidas
+                    </button>
+                    <button className="btn btn-primary btn-action" onClick={openFinanzas} title="Resumen financiero mensual">
+                        <i className="bi bi-currency-dollar me-1"></i>
+                        Finanzas
+                    </button>
                     <div className="ms-auto flex-grow-1" style={{ minWidth: 260, maxWidth: 420 }}>
                         <label className="form-label mb-1">Buscar</label>
                         <input className="form-control" placeholder="Origen, destino, tipo, cliente, camión o camionero" value={term} onChange={e => { setTerm(e.target.value); setPage(1); }} />
@@ -796,6 +871,139 @@ export default function Administracion() {
                         </div>
                         <div className="modal-footer">
                             <button type="button" className="btn btn-secondary" onClick={closeRemitos}>Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modal: Resumen Financiero Mensual */}
+            <div className={`modal ${finanzasModal.open ? 'd-block show' : 'fade'}`} tabIndex="-1" aria-hidden={!finanzasModal.open} style={finanzasModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
+                <div className="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-5">
+                                <i className="bi bi-currency-dollar me-2"></i>
+                                Resumen Financiero Mensual
+                            </h1>
+                            <button type="button" className="btn-close" aria-label="Close" onClick={closeFinanzas}></button>
+                        </div>
+                        <div className="modal-body">
+                            {/* Filtros */}
+                            <div className="row g-3 mb-4">
+                                <div className="col-md-6">
+                                    <label className="form-label">Mes</label>
+                                    <input
+                                        type="month"
+                                        className="form-control"
+                                        value={finanzasModal.mes}
+                                        onChange={e => setFinanzasModal(m => ({ ...m, mes: e.target.value }))}
+                                    />
+                                </div>
+                                <div className="col-md-6">
+                                    <label className="form-label">Cliente</label>
+                                    <select
+                                        className="form-select"
+                                        value={finanzasModal.clienteFiltro}
+                                        onChange={e => setFinanzasModal(m => ({ ...m, clienteFiltro: e.target.value }))}
+                                    >
+                                        <option value="todos">Todos los clientes</option>
+                                        {opcionesCliente.filter(c => c !== 'todos').map(cliente => (
+                                            <option key={cliente} value={cliente}>{cliente}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Resumen General */}
+                            <div className="row g-3 mb-4">
+                                <div className="col-md-4">
+                                    <div className="card bg-success bg-opacity-10 border-success">
+                                        <div className="card-body">
+                                            <h6 className="card-subtitle mb-2 text-success">
+                                                <i className="bi bi-check-circle me-1"></i>
+                                                Cobrado
+                                            </h6>
+                                            <h3 className="card-title mb-0 text-success">
+                                                ${datosFinanzas.totalFacturado.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="col-md-4">
+                                    <div className="card bg-warning bg-opacity-10 border-warning">
+                                        <div className="card-body">
+                                            <h6 className="card-subtitle mb-2 text-warning">
+                                                <i className="bi bi-clock-history me-1"></i>
+                                                Pendiente
+                                            </h6>
+                                            <h3 className="card-title mb-0 text-warning">
+                                                ${datosFinanzas.totalPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="col-md-4">
+                                    <div className="card bg-primary bg-opacity-10 border-primary">
+                                        <div className="card-body">
+                                            <h6 className="card-subtitle mb-2 text-primary">
+                                                <i className="bi bi-calculator me-1"></i>
+                                                Total
+                                            </h6>
+                                            <h3 className="card-title mb-0 text-primary">
+                                                ${(datosFinanzas.totalFacturado + datosFinanzas.totalPendiente).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Detalle por Cliente */}
+                            {finanzasModal.clienteFiltro === 'todos' && Object.keys(datosFinanzas.porCliente).length > 0 && (
+                                <div>
+                                    <h5 className="mb-3">
+                                        <i className="bi bi-people me-2"></i>
+                                        Detalle por Cliente
+                                    </h5>
+                                    <div className="table-responsive">
+                                        <table className="table table-sm table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Cliente</th>
+                                                    <th className="text-end">Cobrado</th>
+                                                    <th className="text-end">Pendiente</th>
+                                                    <th className="text-end">Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {Object.entries(datosFinanzas.porCliente).sort(([a], [b]) => a.localeCompare(b)).map(([cliente, datos]) => (
+                                                    <tr key={cliente}>
+                                                        <td>{cliente}</td>
+                                                        <td className="text-end text-success">
+                                                            ${datos.cobrado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="text-end text-warning">
+                                                            ${datos.pendiente.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="text-end fw-bold">
+                                                            ${(datos.cobrado + datos.pendiente).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Información adicional */}
+                            <div className="mt-3 text-muted small">
+                                <i className="bi bi-info-circle me-1"></i>
+                                {datosFinanzas.viajesMes} viaje(s) finalizado(s) en el período seleccionado
+                                {finanzasModal.clienteFiltro !== 'todos' && ` para ${finanzasModal.clienteFiltro}`}
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={closeFinanzas}>Cerrar</button>
                         </div>
                     </div>
                 </div>
