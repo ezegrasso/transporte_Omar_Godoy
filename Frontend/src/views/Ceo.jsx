@@ -252,6 +252,73 @@ export default function Ceo() {
         return list;
     };
 
+    const openFinalizarModal = (id) => {
+        setModalFinalizarId(id);
+        setFinalizarData({ km: '', combustible: '', kilosCargados: '' });
+        setFinalizarPasoConfirm(false);
+        setConfirmChecked(false);
+        setTimeout(() => {
+            try {
+                const el = document.getElementById('modalFinalizarCeo');
+                if (el && window.bootstrap?.Modal) {
+                    const modal = window.bootstrap.Modal.getOrCreateInstance(el);
+                    modal.show();
+                } else {
+                    setShowFinalizarModal(true);
+                }
+            } catch {
+                setShowFinalizarModal(true);
+            }
+        }, 50);
+    };
+
+    const finalizarViaje = async (id) => {
+        setError('');
+        if (!finalizarPasoConfirm) {
+            if (String(finalizarData.km).trim() === '' || String(finalizarData.combustible).trim() === '') {
+                showToast('Complet\u00e1 km y combustible', 'error');
+                return;
+            }
+            const kmNum = Number(finalizarData.km);
+            const combNum = Number(finalizarData.combustible);
+            if (isNaN(kmNum) || kmNum <= 0) {
+                showToast('Ingres\u00e1 KM mayor a 0', 'error');
+                return;
+            }
+            if (isNaN(combNum) || combNum <= 0) {
+                showToast('Ingres\u00e1 combustible mayor a 0', 'error');
+                return;
+            }
+            setFinalizarPasoConfirm(true);
+            return;
+        }
+        setFinishingId(id);
+        try {
+            const body = { km: Number(finalizarData.km), combustible: Number(finalizarData.combustible) };
+            if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = Number(finalizarData.kilosCargados);
+            await api.patch(`/viajes/${id}/finalizar`, body);
+            setFinalizarData({ km: '', combustible: '', kilosCargados: '' });
+            await new Promise(r => setTimeout(r, 400));
+            await fetchViajes();
+            showToast('Viaje finalizado', 'success');
+            try {
+                const el = document.getElementById('modalFinalizarCeo');
+                if (el && window.bootstrap?.Modal) {
+                    const modal = window.bootstrap.Modal.getOrCreateInstance(el);
+                    modal.hide();
+                }
+            } catch { /* no-op */ }
+            setShowFinalizarModal(false);
+            setModalFinalizarId(null);
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'No se pudo finalizar';
+            setError(msg);
+            showToast(msg, 'error');
+        } finally {
+            setFinishingId(null);
+        }
+    };
+
     // Exportar listado a PDF
     const exportViajesPDF = (scope = 'filtro') => {
         const set = scope === 'pagina' ? viajesPagina : viajesOrdenados;
@@ -630,6 +697,14 @@ export default function Ceo() {
     const [editUsuarioId, setEditUsuarioId] = useState(null);
     const [editUsuarioData, setEditUsuarioData] = useState({ nombre: '', email: '', rol: 'camionero', password: '', changePassword: false, showPassword: false });
     const [savedUsuarioId, setSavedUsuarioId] = useState(null);
+
+    // Estados para finalizar viaje (CEO puede finalizar viajes en curso)
+    const [finalizarData, setFinalizarData] = useState({ km: '', combustible: '', kilosCargados: '' });
+    const [finalizarPasoConfirm, setFinalizarPasoConfirm] = useState(false);
+    const [confirmChecked, setConfirmChecked] = useState(false);
+    const [showFinalizarModal, setShowFinalizarModal] = useState(false);
+    const [modalFinalizarId, setModalFinalizarId] = useState(null);
+    const [finishingId, setFinishingId] = useState(null);
 
     const startEditUsuario = (u) => {
         setEditUsuarioId(u.id);
@@ -1268,18 +1343,23 @@ export default function Ceo() {
                                                             </>
                                                         )}
                                                         {v.estado === 'en curso' && (
-                                                            <button className="btn btn-danger" onClick={async () => {
-                                                                if (!confirm('¿Liberar este viaje? Volverá a pendientes.')) return;
-                                                                try {
-                                                                    await api.patch(`/viajes/${v.id}/liberar`);
-                                                                    showToast('Viaje liberado', 'success');
-                                                                    await fetchViajes();
-                                                                } catch (e) {
-                                                                    const msg = e?.response?.data?.error || 'Error liberando viaje';
-                                                                    setError(msg);
-                                                                    showToast(msg, 'error');
-                                                                }
-                                                            }}>Liberar</button>
+                                                            <>
+                                                                <button className="btn btn-success" onClick={() => openFinalizarModal(v.id)} title="Finalizar viaje">
+                                                                    <i className="bi bi-check-circle"></i>
+                                                                </button>
+                                                                <button className="btn btn-danger" onClick={async () => {
+                                                                    if (!confirm('¿Liberar este viaje? Volverá a pendientes.')) return;
+                                                                    try {
+                                                                        await api.patch(`/viajes/${v.id}/liberar`);
+                                                                        showToast('Viaje liberado', 'success');
+                                                                        await fetchViajes();
+                                                                    } catch (e) {
+                                                                        const msg = e?.response?.data?.error || 'Error liberando viaje';
+                                                                        setError(msg);
+                                                                        showToast(msg, 'error');
+                                                                    }
+                                                                }}>Liberar</button>
+                                                            </>
                                                         )}
                                                     </div>
                                                 </td>
@@ -1699,6 +1779,106 @@ export default function Ceo() {
                 </div>
             </div>
             {editViajeModal.open && <div className="modal-backdrop show"></div>}
+
+            {/* Modal Finalizar Viaje (CEO) */}
+            <div className={`modal ${showFinalizarModal ? 'show d-block' : 'fade'}`} id="modalFinalizarCeo" tabIndex="-1" aria-hidden={!showFinalizarModal}>
+                <div className="modal-dialog">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-5">Finalizar viaje</h1>
+                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={() => setShowFinalizarModal(false)}></button>
+                        </div>
+                        <div className="modal-body">
+                            {modalFinalizarId && (() => {
+                                const viajeSeleccionado = viajes.find(v => v.id === modalFinalizarId);
+                                if (!viajeSeleccionado) return null;
+                                return (
+                                    <>
+                                        <div className="mb-3 small">
+                                            <div className="row g-2">
+                                                <div className="col-12 col-sm-6">
+                                                    <div><strong>Fecha:</strong> {formatDateOnly(viajeSeleccionado.fecha)}</div>
+                                                    <div><strong>Origen:</strong> {viajeSeleccionado.origen}</div>
+                                                    <div><strong>Destino:</strong> {viajeSeleccionado.destino}</div>
+                                                </div>
+                                                <div className="col-12 col-sm-6">
+                                                    <div><strong>Camión:</strong> {viajeSeleccionado.camion?.patente || viajeSeleccionado.camionId}</div>
+                                                    <div><strong>Tipo:</strong> {viajeSeleccionado.tipoMercaderia || '-'}</div>
+                                                    <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
+                                                    <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
+                                                    <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}</div>
+                                                    <div><strong>Kilos cargados:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
+                                                </div>
+                                            </div>
+                                            <hr />
+                                        </div>
+                                        {!finalizarPasoConfirm ? (
+                                            <div className="row g-2">
+                                                <div className="col-6">
+                                                    <label className="form-label">Km</label>
+                                                    <input className="form-control" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} />
+                                                </div>
+                                                <div className="col-6">
+                                                    <label className="form-label">Combustible</label>
+                                                    <input className="form-control" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} />
+                                                </div>
+                                                <div className="col-12">
+                                                    <label className="form-label">Kilos cargados</label>
+                                                    <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} />
+                                                    <small className="text-body-secondary">Si definiste precio por tonelada, se calculará automáticamente el importe del viaje.</small>
+                                                </div>
+                                                <div className="col-12 mt-2">
+                                                    <div className="alert alert-warning py-2 mb-0 small">
+                                                        Después de pulsar "Continuar" verás un resumen y deberás confirmar nuevamente.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="border rounded p-2 bg-body-tertiary">
+                                                <h6 className="mb-2">Confirmación final</h6>
+                                                <p className="small mb-2">Revisá los datos antes de finalizar definitivamente el viaje:</p>
+                                                <ul className="small mb-2">
+                                                    <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
+                                                    <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
+                                                    <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
+                                                    <li><strong>Kilos a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
+                                                </ul>
+                                                <div className="alert alert-danger py-2 small mb-2">
+                                                    Una vez finalizado el viaje, no podrás volverlo a "en curso".
+                                                </div>
+                                                <div className="form-check mb-0">
+                                                    <input className="form-check-input" type="checkbox" id="chkConfirmFinalizarCeo"
+                                                        checked={confirmChecked}
+                                                        onChange={(e) => setConfirmChecked(e.target.checked)} />
+                                                    <label className="form-check-label small" htmlFor="chkConfirmFinalizarCeo">Entiendo que esta acción es definitiva y confirmo finalizar el viaje</label>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
+                        </div>
+                        <div className="modal-footer">
+                            {!finalizarPasoConfirm ? (
+                                <>
+                                    <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowFinalizarModal(false)}>Cerrar</button>
+                                    <button type="button" className="btn btn-primary" disabled={!modalFinalizarId || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
+                                        Continuar
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button type="button" className="btn btn-outline-secondary" onClick={() => setFinalizarPasoConfirm(false)} disabled={finishingId === modalFinalizarId}>Volver</button>
+                                    <button type="button" className="btn btn-danger" disabled={!modalFinalizarId || finishingId === modalFinalizarId || !confirmChecked || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
+                                        {finishingId === modalFinalizarId ? 'Finalizando…' : 'Finalizar viaje'}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {showFinalizarModal && <div className="modal-backdrop show"></div>}
         </>
     );
 }

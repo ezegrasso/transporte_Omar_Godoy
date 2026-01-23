@@ -246,14 +246,19 @@ router.patch('/:id/tomar',
 // Finalizar viaje (camionero actualiza km, combustible y estado)
 router.patch('/:id/finalizar',
     authMiddleware,
-    roleMiddleware(['camionero']),
+    // Permitir que el camionero finalice su propio viaje y que el CEO/Administración pueda finalizar desde su panel
+    roleMiddleware(['camionero', 'ceo', 'administracion']),
     [param('id').isInt(), body('km').isInt({ min: 0 }), body('combustible').isFloat({ min: 0 }), body('kilosCargados').optional().isFloat({ min: 0 })],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
             const viaje = await Viaje.findByPk(req.params.id);
-            if (!viaje || viaje.estado !== 'en curso' || viaje.camioneroId !== req.user.id) return res.status(400).json({ error: 'No autorizado o viaje no válido' });
+            if (!viaje || viaje.estado !== 'en curso') return res.status(400).json({ error: 'Viaje no válido o no está en curso' });
+            // Si es camionero, solo puede finalizar su propio viaje
+            if (req.user.rol === 'camionero' && viaje.camioneroId !== req.user.id) {
+                return res.status(400).json({ error: 'No autorizado' });
+            }
             viaje.estado = 'finalizado';
             viaje.km = req.body.km;
             viaje.combustible = req.body.combustible;
