@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import PageHeader from '../components/UI/PageHeader';
 import StatCard from '../components/UI/StatCard';
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +24,7 @@ export default function Administracion() {
     const isPdfUrl = (url) => /(\.(pdf))$/i.test(url || '');
     const [fEstado, setFEstado] = useState('todos');
     const [rowActionsOpen, setRowActionsOpen] = useState(null);
+    const [rowMenuPos, setRowMenuPos] = useState({ top: 0, right: 0 });
     const [remitosModal, setRemitosModal] = useState({ open: false, id: null, files: [] });
     const [remitoPreviewUrl, setRemitoPreviewUrl] = useState('');
     // ...existing code...
@@ -360,6 +362,18 @@ export default function Administracion() {
         } catch { }
     }, [viajesPagina, viajesFiltrados, term, fEstado, fCliente]);
 
+    // Cerrar menú al hacer scroll o resize para evitar desalineación
+    useEffect(() => {
+        if (!rowActionsOpen) return;
+        const handler = () => setRowActionsOpen(null);
+        window.addEventListener('scroll', handler, true);
+        window.addEventListener('resize', handler);
+        return () => {
+            window.removeEventListener('scroll', handler, true);
+            window.removeEventListener('resize', handler);
+        };
+    }, [rowActionsOpen]);
+
     // Atajos de teclado (solo dentro de la vista Administración). Ubicado aquí para que las dependencias existan.
     useEffect(() => {
         const handler = (e) => {
@@ -588,13 +602,18 @@ export default function Administracion() {
                                                         aria-label={`Acciones del viaje ${v.id}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            setRowActionsOpen(prev => (prev === v.id ? null : v.id));
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            const next = (rowActionsOpen === v.id ? null : v.id);
+                                                            setRowActionsOpen(next);
+                                                            if (next) {
+                                                                setRowMenuPos({ top: rect.bottom, right: window.innerWidth - rect.right });
+                                                            }
                                                         }}
                                                     >
                                                         <i className="bi bi-three-dots"></i>
                                                     </button>
-                                                    {rowActionsOpen === v.id && (
-                                                        <div className="dropdown-menu show" style={{ position: 'absolute', right: 0, top: '100%', zIndex: 5 }}>
+                                                    {rowActionsOpen === v.id && createPortal(
+                                                        <div className="dropdown-menu show" style={{ position: 'fixed', top: rowMenuPos.top, right: rowMenuPos.right, zIndex: 1055 }}>
                                                             <button className="dropdown-item" onClick={() => { openFactura(v); setRowActionsOpen(null); }}>
                                                                 <i className="bi bi-receipt me-2"></i> Subir/Editar factura
                                                             </button>
@@ -607,7 +626,7 @@ export default function Administracion() {
                                                             <button className="dropdown-item" onClick={() => { descargarFacturaPDF(v); setRowActionsOpen(null); }}>
                                                                 <i className="bi bi-file-earmark-pdf me-2"></i> Factura PDF
                                                             </button>
-                                                        </div>
+                                                        </div>, document.body
                                                     )}
                                                 </td>
                                             </tr>
