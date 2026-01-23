@@ -24,7 +24,8 @@ export default function Administracion() {
     const isPdfUrl = (url) => /(\.(pdf))$/i.test(url || '');
     const [fEstado, setFEstado] = useState('todos');
     const [rowActionsOpen, setRowActionsOpen] = useState(null);
-    const [rowMenuPos, setRowMenuPos] = useState({ top: 0, right: 0 });
+    const [rowMenuPos, setRowMenuPos] = useState({ topDown: 0, topUp: 0, left: 0, right: 0 });
+    const [rowMenuPlacement, setRowMenuPlacement] = useState({ v: 'down', h: 'right' });
     const [remitosModal, setRemitosModal] = useState({ open: false, id: null, files: [] });
     const [remitoPreviewUrl, setRemitoPreviewUrl] = useState('');
     // ...existing code...
@@ -606,14 +607,25 @@ export default function Administracion() {
                                                             const next = (rowActionsOpen === v.id ? null : v.id);
                                                             setRowActionsOpen(next);
                                                             if (next) {
-                                                                setRowMenuPos({ top: rect.bottom, right: window.innerWidth - rect.right });
+                                                                const approxW = 240; // ancho estimado del menú
+                                                                const approxH = 180; // alto estimado del menú
+                                                                const v = (window.innerHeight - rect.bottom >= approxH) ? 'down' : 'up';
+                                                                const h = (window.innerWidth - rect.right >= approxW) ? 'right' : 'left';
+                                                                setRowMenuPlacement({ v, h });
+                                                                setRowMenuPos({ topDown: rect.bottom, topUp: rect.top, left: rect.left, right: window.innerWidth - rect.right });
                                                             }
                                                         }}
                                                     >
                                                         <i className="bi bi-three-dots"></i>
                                                     </button>
                                                     {rowActionsOpen === v.id && createPortal(
-                                                        <div className="dropdown-menu show" style={{ position: 'fixed', top: rowMenuPos.top, right: rowMenuPos.right, zIndex: 1055 }}>
+                                                        <div className="dropdown-menu show" style={{
+                                                            position: 'fixed',
+                                                            top: (rowMenuPlacement.v === 'down' ? rowMenuPos.topDown : rowMenuPos.topUp),
+                                                            ...(rowMenuPlacement.h === 'right' ? { right: rowMenuPos.right } : { left: rowMenuPos.left }),
+                                                            transform: `translate(${rowMenuPlacement.h === 'left' ? '-100%' : '0'}, ${rowMenuPlacement.v === 'up' ? '-100%' : '0'})`,
+                                                            zIndex: 1055
+                                                        }}>
                                                             <button className="dropdown-item" onClick={() => { openFactura(v); setRowActionsOpen(null); }}>
                                                                 <i className="bi bi-receipt me-2"></i> Subir/Editar factura
                                                             </button>
