@@ -35,7 +35,7 @@ export default function Administracion() {
         setRemitoPreviewUrl('');
     };
     const closeRemitos = () => setRemitosModal({ open: false, id: null, files: [] });
-    const [facturaModal, setFacturaModal] = useState({ open: false, id: null, estado: 'pendiente', fecha: '', file: null, loading: false, error: '' });
+    const [facturaModal, setFacturaModal] = useState({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', conIVA: false, file: null, loading: false, error: '' });
     const openFactura = (v) => {
         const yyyyMMdd = (d) => {
             if (!d) return '';
@@ -49,12 +49,14 @@ export default function Administracion() {
             id: v.id,
             estado: (v.facturaEstado || 'pendiente').toLowerCase(),
             fecha: yyyyMMdd(v.fechaFactura || v.fecha),
+            precioUnitario: v.importe ?? '',
+            conIVA: false,
             file: null,
             loading: false,
             error: ''
         });
     };
-    const closeFactura = () => setFacturaModal({ open: false, id: null, estado: 'pendiente', fecha: '', file: null, loading: false, error: '' });
+    const closeFactura = () => setFacturaModal({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', conIVA: false, file: null, loading: false, error: '' });
     const submitFactura = async () => {
         if (!facturaModal.id) return;
         setFacturaModal((m) => ({ ...m, loading: true, error: '' }));
@@ -65,11 +67,15 @@ export default function Administracion() {
                 fd.append('file', facturaModal.file);
                 if (facturaModal.estado) fd.append('facturaEstado', facturaModal.estado);
                 if (facturaModal.fecha) fd.append('fechaFactura', facturaModal.fecha);
+                if (String(facturaModal.precioUnitario).trim() !== '') fd.append('precioUnitario', String(facturaModal.precioUnitario));
+                fd.append('conIVA', facturaModal.conIVA ? 'true' : 'false');
                 await api.post(`/viajes/${facturaModal.id}/factura`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             } else {
                 await api.patch(`/viajes/${facturaModal.id}/factura`, {
                     facturaEstado: facturaModal.estado,
                     fechaFactura: facturaModal.fecha || null,
+                    precioUnitario: String(facturaModal.precioUnitario || '').trim() !== '' ? Number(facturaModal.precioUnitario) : undefined,
+                    conIVA: facturaModal.conIVA,
                 });
             }
             showToast('Factura actualizada', 'success');
@@ -524,6 +530,7 @@ export default function Administracion() {
                                         <th scope="col">Precio/Tn</th>
                                         <th scope="col">Importe</th>
                                         <th scope="col">Acoplado</th>
+                                        <th scope="col">Subtotal</th>
                                         <th scope="col">Factura</th>
                                         <th scope="col">Estado factura</th>
                                         <th scope="col">Fecha factura</th>
@@ -557,6 +564,7 @@ export default function Administracion() {
                                                 <td>{v.precioTonelada ?? '-'}</td>
                                                 <td>{v.importe ?? '-'}</td>
                                                 <td>{v.acoplado?.patente || v.acopladoPatente || '-'}</td>
+                                                <td>{v.importe ?? '-'}</td>
                                                 <td>{v.facturaUrl ? <a href={buildUrl(v.facturaUrl)} target="_blank" rel="noreferrer" aria-label={`Abrir factura del viaje ${v.id}`}>Ver</a> : '-'}</td>
                                                 <td>
                                                     {v.facturaEstado ? (
@@ -648,6 +656,22 @@ export default function Administracion() {
                             <div className="mb-3">
                                 <label className="form-label">Fecha de factura</label>
                                 <input type="date" className="form-control" value={facturaModal.fecha} onChange={(e) => setFacturaModal(m => ({ ...m, fecha: e.target.value }))} />
+                            </div>
+                            <div className="row g-2 mb-3">
+                                <div className="col-6">
+                                    <label className="form-label">Precio Unitario</label>
+                                    <input type="number" min={0} step={0.01} className="form-control" value={facturaModal.precioUnitario}
+                                        onChange={(e) => setFacturaModal(m => ({ ...m, precioUnitario: e.target.value }))} />
+                                </div>
+                                <div className="col-6">
+                                    <label className="form-label d-block">IVA</label>
+                                    <div className="form-check">
+                                        <input className="form-check-input" type="checkbox" id="chkCargarConIVA" checked={facturaModal.conIVA}
+                                            onChange={(e) => setFacturaModal(m => ({ ...m, conIVA: e.target.checked }))} />
+                                        <label className="form-check-label" htmlFor="chkCargarConIVA">Aplicar IVA (21%)</label>
+                                    </div>
+                                    <div className="form-text">Si marcás IVA, el importe se calculará como precio × 1.21.</div>
+                                </div>
                             </div>
                             <div className="mb-0">
                                 <label className="form-label">Archivo (opcional)</label>

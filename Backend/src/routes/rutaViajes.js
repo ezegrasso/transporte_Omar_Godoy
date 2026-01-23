@@ -368,6 +368,16 @@ router.post('/:id/factura',
             viaje.facturaUrl = url;
             if (req.body.fechaFactura) viaje.fechaFactura = new Date(req.body.fechaFactura);
             if (req.body.facturaEstado) viaje.facturaEstado = req.body.facturaEstado;
+            // Calcular y persistir importe a partir de precioUnitario (+ IVA opcional)
+            if (req.body.precioUnitario !== undefined) {
+                const precioUnitario = parseFloat(String(req.body.precioUnitario));
+                const conIVA = String(req.body.conIVA || '').toLowerCase() === 'true';
+                if (!isNaN(precioUnitario) && precioUnitario >= 0) {
+                    const factorIVA = conIVA ? 1.21 : 1.0;
+                    const total = Number((precioUnitario * factorIVA).toFixed(2));
+                    viaje.importe = total;
+                }
+            }
             await viaje.save();
             res.json(viaje);
         } catch (e) {
@@ -403,7 +413,7 @@ router.post('/:id/remitos',
 router.patch('/:id/factura',
     authMiddleware,
     roleMiddleware(['ceo', 'administracion']),
-    [param('id').isInt(), body('facturaEstado').optional().isString(), body('fechaFactura').optional().isISO8601()],
+    [param('id').isInt(), body('facturaEstado').optional().isString(), body('fechaFactura').optional().isISO8601(), body('precioUnitario').optional().isFloat({ min: 0 }), body('conIVA').optional().isBoolean()],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -412,6 +422,16 @@ router.patch('/:id/factura',
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
             if (req.body.facturaEstado) viaje.facturaEstado = req.body.facturaEstado;
             if (req.body.fechaFactura) viaje.fechaFactura = new Date(req.body.fechaFactura);
+            // Calcular y persistir importe si se envía precioUnitario (con IVA opcional)
+            if (req.body.precioUnitario !== undefined) {
+                const precioUnitario = parseFloat(String(req.body.precioUnitario));
+                const conIVA = (req.body.conIVA === true) || (String(req.body.conIVA).toLowerCase() === 'true');
+                if (!isNaN(precioUnitario) && precioUnitario >= 0) {
+                    const factorIVA = conIVA ? 1.21 : 1.0;
+                    const total = Number((precioUnitario * factorIVA).toFixed(2));
+                    viaje.importe = total;
+                }
+            }
             await viaje.save();
             res.json(viaje);
         } catch (e) {
