@@ -254,7 +254,11 @@ router.patch('/:id/finalizar',
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
             const viaje = await Viaje.findByPk(req.params.id);
-            if (!viaje || viaje.estado !== 'en curso') return res.status(400).json({ error: 'Viaje no válido o no está en curso' });
+            const isManager = req.user.rol === 'ceo' || req.user.rol === 'administracion';
+            const estadoPermitido = isManager ? ['en curso', 'pendiente'] : ['en curso'];
+            if (!viaje || !estadoPermitido.includes(viaje.estado)) {
+                return res.status(400).json({ error: 'Viaje no válido o no está en curso/pendiente' });
+            }
             // Si es camionero, solo puede finalizar su propio viaje
             if (req.user.rol === 'camionero' && viaje.camioneroId !== req.user.id) {
                 return res.status(400).json({ error: 'No autorizado' });

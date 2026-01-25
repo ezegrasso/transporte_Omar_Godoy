@@ -1342,23 +1342,25 @@ export default function Ceo() {
                                                                 </button>
                                                             </>
                                                         )}
-                                                        {v.estado === 'en curso' && (
+                                                        {(v.estado === 'en curso' || v.estado === 'pendiente') && (
                                                             <>
                                                                 <button className="btn btn-success" onClick={() => openFinalizarModal(v.id)} title="Finalizar viaje">
                                                                     <i className="bi bi-check-circle"></i>
                                                                 </button>
-                                                                <button className="btn btn-danger" onClick={async () => {
-                                                                    if (!confirm('¿Liberar este viaje? Volverá a pendientes.')) return;
-                                                                    try {
-                                                                        await api.patch(`/viajes/${v.id}/liberar`);
-                                                                        showToast('Viaje liberado', 'success');
-                                                                        await fetchViajes();
-                                                                    } catch (e) {
-                                                                        const msg = e?.response?.data?.error || 'Error liberando viaje';
-                                                                        setError(msg);
-                                                                        showToast(msg, 'error');
-                                                                    }
-                                                                }}>Liberar</button>
+                                                                {v.estado === 'en curso' && (
+                                                                    <button className="btn btn-danger" onClick={async () => {
+                                                                        if (!confirm('¿Liberar este viaje? Volverá a pendientes.')) return;
+                                                                        try {
+                                                                            await api.patch(`/viajes/${v.id}/liberar`);
+                                                                            showToast('Viaje liberado', 'success');
+                                                                            await fetchViajes();
+                                                                        } catch (e) {
+                                                                            const msg = e?.response?.data?.error || 'Error liberando viaje';
+                                                                            setError(msg);
+                                                                            showToast(msg, 'error');
+                                                                        }
+                                                                    }}>Liberar</button>
+                                                                )}
                                                             </>
                                                         )}
                                                     </div>

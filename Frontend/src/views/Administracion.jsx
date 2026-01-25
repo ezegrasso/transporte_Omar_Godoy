@@ -161,6 +161,7 @@ export default function Administracion() {
         }
     };
 
+
     const revisarVencidas = async () => {
         setCheckingVencidas(true);
         showToast('Revisando facturas vencidas...', 'info');
@@ -378,38 +379,39 @@ export default function Administracion() {
 
 
 
-    const viajesSoloFinalizados = useMemo(() => (viajes || []).filter(v => (v.estado || '').toLowerCase() === 'finalizado'), [viajes]);
-    // Estadísticas para las cards (debe ir después de viajesSoloFinalizados)
+    const viajesSemana = useMemo(() => viajes || [], [viajes]);
+    const viajesFinalizados = useMemo(() => viajesSemana.filter(v => (v.estado || '').toLowerCase() === 'finalizado'), [viajesSemana]);
+    // Estadísticas para las cards (solo finalizados)
     const stats = useMemo(() => {
-        const total = viajesSoloFinalizados.length;
-        const conFactura = viajesSoloFinalizados.filter(v => v.facturaUrl).length;
-        const cobradas = viajesSoloFinalizados.filter(v => (v.facturaEstado || '').toLowerCase() === 'cobrada').length;
-        const sinRemitos = viajesSoloFinalizados.filter(v => !v.remitosJson || v.remitosJson === '[]').length;
+        const total = viajesFinalizados.length;
+        const conFactura = viajesFinalizados.filter(v => v.facturaUrl).length;
+        const cobradas = viajesFinalizados.filter(v => (v.facturaEstado || '').toLowerCase() === 'cobrada').length;
+        const sinRemitos = viajesFinalizados.filter(v => !v.remitosJson || v.remitosJson === '[]').length;
         return { total, conFactura, cobradas, sinRemitos };
-    }, [viajesSoloFinalizados]);
+    }, [viajesFinalizados]);
     // Filtros avanzados
     const [fCliente, setFCliente] = useState('todos');
     const opcionesEstadoFactura = useMemo(() => {
         const set = new Set();
-        (viajesSoloFinalizados || []).forEach(v => set.add((v.facturaEstado || 'pendiente').toLowerCase()));
+        (viajesSemana || []).forEach(v => set.add((v.facturaEstado || 'pendiente').toLowerCase()));
         return ['todos', ...Array.from(set)];
-    }, [viajesSoloFinalizados]);
+    }, [viajesSemana]);
     const opcionesCliente = useMemo(() => {
         const set = new Set();
-        (viajesSoloFinalizados || []).forEach(v => { if (v.cliente) set.add(v.cliente); });
+        (viajesSemana || []).forEach(v => { if (v.cliente) set.add(v.cliente); });
         return ['todos', ...Array.from(set)];
-    }, [viajesSoloFinalizados]);
+    }, [viajesSemana]);
 
     const viajesFiltrados = useMemo(() => {
         const t = term.trim().toLowerCase();
-        const list = (viajesSoloFinalizados || []).filter(v => (
+        const list = (viajesSemana || []).filter(v => (
             `${v.origen || ''} ${v.destino || ''} ${v.tipoMercaderia || ''} ${v.cliente || ''} ${v.camion?.patente || v.camionId || ''} ${v.camionero?.nombre || v.camioneroNombre || ''}`
                 .toLowerCase().includes(t)
         ));
         return list
             .filter(v => (fEstado === 'todos' ? true : (v.facturaEstado || 'pendiente').toLowerCase() === fEstado))
             .filter(v => (fCliente === 'todos' ? true : (v.cliente || '') === fCliente));
-    }, [viajesSoloFinalizados, term, fEstado, fCliente]);
+    }, [viajesSemana, term, fEstado, fCliente]);
 
     // Derivados (definidos después de viajesFiltrados)
     const curPage = page;
@@ -736,7 +738,7 @@ export default function Administracion() {
             {/* Gráficos (debajo de la tabla) */}
             <div className="row g-3 mt-3">
                 <div className="col-12">
-                    <DashboardCharts viajes={viajesSoloFinalizados} />
+                    <DashboardCharts viajes={viajesFinalizados} />
                 </div>
             </div>
 
@@ -876,6 +878,40 @@ export default function Administracion() {
                 </div>
             </div>
 
+            {/* Modal: Finalizar viaje (CEO/Admin) */}
+            <div className={`modal ${finalizarModal.open ? 'd-block show' : 'fade'}`} tabIndex="-1" aria-hidden={!finalizarModal.open} style={finalizarModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
+                <div className="modal-dialog">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-6">Finalizar viaje #{finalizarModal.id ?? ''}</h1>
+                            <button type="button" className="btn-close" aria-label="Close" onClick={closeFinalizar}></button>
+                        </div>
+                        <div className="modal-body">
+                            {finalizarModal.error && <div className="alert alert-danger">{finalizarModal.error}</div>}
+                            <div className="mb-3">
+                                <label className="form-label">Kilómetros</label>
+                                <input type="number" className="form-control" min="0" value={finalizarModal.km} onChange={e => setFinalizarModal(m => ({ ...m, km: e.target.value }))} />
+                            </div>
+                            <div className="mb-3">
+                                <label className="form-label">Combustible</label>
+                                <input type="number" className="form-control" min="0" step="0.01" value={finalizarModal.combustible} onChange={e => setFinalizarModal(m => ({ ...m, combustible: e.target.value }))} />
+                            </div>
+                            <div className="mb-3">
+                                <label className="form-label">Kilos cargados (opcional)</label>
+                                <input type="number" className="form-control" min="0" step="0.01" value={finalizarModal.kilos} onChange={e => setFinalizarModal(m => ({ ...m, kilos: e.target.value }))} />
+                                <div className="form-text">Si hay precio/tonelada, se recalcula el importe automáticamente.</div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={closeFinalizar} disabled={finalizarModal.loading}>Cancelar</button>
+                            <button type="button" className="btn btn-success" onClick={submitFinalizar} disabled={finalizarModal.loading}>
+                                {finalizarModal.loading ? <span className="spinner-border spinner-border-sm" role="status" /> : 'Finalizar viaje'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Modal: Resumen Financiero Mensual */}
             <div className={`modal ${finanzasModal.open ? 'd-block show' : 'fade'}`} tabIndex="-1" aria-hidden={!finanzasModal.open} style={finanzasModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
                 <div className="modal-dialog modal-lg modal-dialog-scrollable">
@@ -1008,7 +1044,6 @@ export default function Administracion() {
                     </div>
                 </div>
             </div>
-
         </>
     );
 }
