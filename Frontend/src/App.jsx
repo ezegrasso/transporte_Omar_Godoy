@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 const Login = lazy(() => import('./views/Login'))
 const Home = lazy(() => import('./views/Home'))
 const Ceo = lazy(() => import('./views/Ceo'))
+const Graficos = lazy(() => import('./views/Graficos'))
 const Administracion = lazy(() => import('./views/Administracion'))
 const Camionero = lazy(() => import('./views/Camionero'))
 
@@ -71,6 +72,9 @@ function NavBar() {
             {!user && <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>}
             {user?.rol === 'ceo' && location.pathname === '/ceo' && (
               <li className="nav-item"><Link className="nav-link" to="/ceo">Panel CEO</Link></li>
+            )}
+            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos') && (
+              <li className="nav-item"><Link className="nav-link" to="/graficos">Gráficos</Link></li>
             )}
             {user?.rol === 'ceo' && location.pathname === '/administracion' && (
               <li className="nav-item"><Link className="nav-link" to="/administracion">Administración</Link></li>
@@ -140,6 +144,7 @@ export default function App() {
       '/': 'Inicio',
       '/login': 'Login',
       '/ceo': 'CEO',
+      '/graficos': 'Gráficos',
       '/camionero': 'Camionero',
       '/administracion': 'Administración'
     }
@@ -174,6 +179,13 @@ export default function App() {
               <ProtectedRoute roles={["ceo"]}>
                 <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en el panel CEO.</div>}>
                   <Ceo />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/graficos" element={
+              <ProtectedRoute roles={["ceo"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Gráficos.</div>}>
+                  <Graficos />
                 </ErrorBoundary>
               </ProtectedRoute>
             } />

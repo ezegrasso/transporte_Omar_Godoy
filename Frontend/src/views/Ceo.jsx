@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import { generarListadoViajesPDF, generarDetalleViajePDF, generarFacturaViajePDF } from '../utils/pdf';
 import { ConfirmModal } from '../components/UI/ConfirmModal';
 import React from 'react';
-import DashboardCharts from '../components/UI/DashboardCharts';
 
 function AcopladosCrud({ acoplados, onCreated, onUpdated, onDeleted }) {
     const [nuevo, setNuevo] = useState({ patente: '' });
@@ -168,11 +167,6 @@ export default function Ceo() {
     const compact = true;
 
     const viajesFinalizados = useMemo(() => (viajes || []).filter(v => (v.estado || '').toLowerCase() === 'finalizado'), [viajes]);
-    // Filtros para gráficos
-    const [chartFrom, setChartFrom] = useState('');
-    const [chartTo, setChartTo] = useState('');
-    const [chartCliente, setChartCliente] = useState('');
-    const [chartTipo, setChartTipo] = useState('');
 
     // Detalle de viaje
     const [detalle, setDetalle] = useState(null);
@@ -561,7 +555,6 @@ export default function Ceo() {
 
     const viajesFiltrados = useMemo(() => {
         const term = busqueda.trim().toLowerCase();
-        // Aplica filtros de tabla + filtros de gráficos (fecha, cliente, tipo)
         return viajes.filter(v => {
             const okEstado = !filtroEstado || v.estado === filtroEstado;
             const text = `${v.origen ?? ''} ${v.destino ?? ''} ${v.tipoMercaderia ?? ''} ${v.cliente ?? ''} ${v.camion?.patente ?? v.camionId ?? ''} ${v.acoplado?.patente ?? v.acopladoPatente ?? ''} ${v.camionero?.nombre ?? ''}`.toLowerCase();
@@ -570,21 +563,9 @@ export default function Ceo() {
             const okCamionero = !filtroCamionero || (v.camionero?.nombre || '') === filtroCamionero;
             const okTipo = !filtroTipo || (v.tipoMercaderia || '') === filtroTipo;
             const okCliente = !filtroCliente || (v.cliente || '') === filtroCliente;
-            // Filtros del panel de gráficos
-            const okTipoChart = !chartTipo || (v.tipoMercaderia || '') === chartTipo;
-            const okClienteChart = !chartCliente || (v.cliente || '') === chartCliente;
-            const okFechaChart = (() => {
-                if (!chartFrom && !chartTo) return true;
-                const ts = parseDateOnlyLocal(v.fecha);
-                const fromTs = chartFrom ? parseDateOnlyLocal(chartFrom) : null;
-                const toTs = chartTo ? parseDateOnlyLocal(chartTo) : null;
-                if (fromTs && ts < fromTs) return false;
-                if (toTs && ts > toTs) return false;
-                return true;
-            })();
-            return okEstado && okTexto && okCamion && okCamionero && okTipo && okCliente && okTipoChart && okClienteChart && okFechaChart;
+            return okEstado && okTexto && okCamion && okCamionero && okTipo && okCliente;
         });
-    }, [viajes, filtroEstado, busqueda, filtroCamion, filtroCamionero, filtroTipo, filtroCliente, chartFrom, chartTo, chartCliente, chartTipo]);
+    }, [viajes, filtroEstado, busqueda, filtroCamion, filtroCamionero, filtroTipo, filtroCliente]);
 
     // Helpers de fecha (DATEONLY -> local)
     const parseDateOnlyLocal = (s) => {
@@ -1740,40 +1721,7 @@ export default function Ceo() {
                         </div>
                     </div>
                 </div>
-                <hr />
 
-
-                {/* Gráficos del CEO */}
-                <div className="mb-3">
-                    <div className="card shadow-sm mb-2">
-                        <div className="card-body d-flex flex-wrap align-items-end gap-2">
-                            <div>
-                                <label className="form-label mb-1">Desde</label>
-                                <input type="date" className="form-control" value={chartFrom} onChange={e => setChartFrom(e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="form-label mb-1">Hasta</label>
-                                <input type="date" className="form-control" value={chartTo} onChange={e => setChartTo(e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="form-label mb-1">Cliente</label>
-                                <select className="form-select" value={chartCliente} onChange={e => setChartCliente(e.target.value)}>
-                                    <option value="">Todos</option>
-                                    {clientesOpciones.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="form-label mb-1">Tipo</label>
-                                <select className="form-select" value={chartTipo} onChange={e => setChartTipo(e.target.value)}>
-                                    <option value="">Todos</option>
-                                    {tiposOpciones.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                            </div>
-                            <button className="btn btn-outline-secondary ms-auto" onClick={() => { setChartFrom(''); setChartTo(''); setChartCliente(''); setChartTipo(''); }}>Limpiar</button>
-                        </div>
-                    </div>
-                    <DashboardCharts viajes={viajesFinalizados} filtros={{ from: chartFrom, to: chartTo, cliente: chartCliente, tipo: chartTipo }} />
-                </div>
 
                 {/* Modal detalle viaje */}
                 <div className={`modal ${showDetalleModal ? 'show d-block' : 'fade'}`} id="modalDetalleViaje" tabIndex="-1" aria-hidden={!showDetalleModal}>
