@@ -70,7 +70,7 @@ function NavBar() {
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item"><Link className="nav-link" to="/">Inicio</Link></li>
             {!user && <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>}
-            {user?.rol === 'ceo' && location.pathname === '/ceo' && (
+            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos') && (
               <li className="nav-item"><Link className="nav-link" to="/ceo">Panel CEO</Link></li>
             )}
             {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos') && (
