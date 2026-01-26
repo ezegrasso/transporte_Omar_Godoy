@@ -1484,7 +1484,7 @@ export default function Ceo() {
                         </div>
                     </div>
                 </div>
-
+                <hr />
                 <div className="row g-3">
                     <div className="col-12">
                         <div className="card shadow-sm">
@@ -1740,7 +1740,7 @@ export default function Ceo() {
                         </div>
                     </div>
                 </div>
-
+                <hr />
 
 
                 {/* Gráficos del CEO */}
