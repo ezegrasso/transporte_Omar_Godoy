@@ -70,7 +70,6 @@ function AcopladosCrud({ acoplados, onCreated, onUpdated, onDeleted }) {
             showToast(msg, 'error');
         }
     };
-
     return (
         <div>
             {error && <div className="alert alert-danger" role="alert">{error}</div>}
@@ -143,7 +142,6 @@ function AcopladosCrud({ acoplados, onCreated, onUpdated, onDeleted }) {
         </div>
     );
 }
-
 export default function Ceo() {
     const { user } = useAuth();
     const [camiones, setCamiones] = useState([]);
@@ -950,169 +948,8 @@ export default function Ceo() {
                 </div>
                 {error && <div className="alert alert-danger" role="alert">{error}</div>}
 
-                <div className="row g-3">
-                    <div className="col-lg-6">
-                        <div className="card shadow-sm">
-                            <div className="card-body">
-                                <h3 className="h5">Crear camión</h3>
-                                <form onSubmit={crearCamion} className="row g-2 mt-2" style={{ opacity: savingCamion ? 0.85 : 1 }}>
-                                    <div className="col-6">
-                                        <input
-                                            className={`form-control ${camionErrors.patente ? 'is-invalid' : ''}`}
-                                            placeholder="Patente (AAA123 o AB123CD)"
-                                            value={nuevoCamion.patente}
-                                            onChange={e => {
-                                                const val = e.target.value.toUpperCase();
-                                                setNuevoCamion(v => ({ ...v, patente: val }));
-                                                const err = validarPatente(val);
-                                                setCamionErrors(prev => ({ ...prev, patente: err }));
-                                            }}
-                                        />
-                                        {camionErrors.patente && <div className="invalid-feedback">{camionErrors.patente}</div>}
-                                    </div>
-                                    <div className="col-6">
-                                        <input
-                                            className={`form-control ${camionErrors.marca ? 'is-invalid' : ''}`}
-                                            placeholder="Marca"
-                                            value={nuevoCamion.marca}
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                setNuevoCamion(v => ({ ...v, marca: val }));
-                                                setCamionErrors(prev => ({ ...prev, marca: val.trim() ? '' : 'La marca es requerida' }));
-                                            }}
-                                        />
-                                        {camionErrors.marca && <div className="invalid-feedback">{camionErrors.marca}</div>}
-                                    </div>
-                                    <div className="col-6">
-                                        <input
-                                            className={`form-control ${camionErrors.modelo ? 'is-invalid' : ''}`}
-                                            placeholder="Modelo"
-                                            value={nuevoCamion.modelo}
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                setNuevoCamion(v => ({ ...v, modelo: val }));
-                                                setCamionErrors(prev => ({ ...prev, modelo: val.trim() ? '' : 'El modelo es requerido' }));
-                                            }}
-                                        />
-                                        {camionErrors.modelo && <div className="invalid-feedback">{camionErrors.modelo}</div>}
-                                    </div>
-                                    <div className="col-6">
-                                        <input
-                                            className={`form-control ${camionErrors.anio ? 'is-invalid' : ''}`}
-                                            placeholder="Año"
-                                            value={nuevoCamion.anio}
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                setNuevoCamion(v => ({ ...v, anio: val }));
-                                                const num = Number(val);
-                                                setCamionErrors(prev => ({ ...prev, anio: (!num || num < 1900) ? 'El año debe ser >= 1900' : '' }));
-                                            }}
-                                        />
-                                        {camionErrors.anio && <div className="invalid-feedback">{camionErrors.anio}</div>}
-                                    </div>
-                                    <div className="col-12"><button className="btn btn-primary" disabled={savingCamion || Object.values(camionErrors).some(Boolean)}>{savingCamion ? 'Guardando…' : 'Guardar'}</button></div>
-                                </form>
-                                <div className="mt-3">
-                                    {camiones.length === 0 ? (
-                                        <EmptyState title="Sin camiones" description="Todavía no cargaste ningún camión" />
-                                    ) : (
-                                        <div className="row g-3">
-                                            {camiones.map(c => (
-                                                <div key={c.id} className="col-12 col-md-6 col-lg-4 col-xl-3">
-                                                    <div className={`card h-100 shadow-sm ${savedCamionId === c.id ? 'border-success' : ''}`}>
-                                                        <div className="card-body">
-                                                            {editCamionId === c.id ? (
-                                                                <>
-                                                                    <div className="mb-2">
-                                                                        <label className="form-label small mb-1">Patente</label>
-                                                                        <input className="form-control form-control-sm" value={editCamionData.patente} onChange={e => setEditCamionData(v => ({ ...v, patente: e.target.value }))} />
-                                                                    </div>
-                                                                    <div className="mb-2">
-                                                                        <label className="form-label small mb-1">Marca</label>
-                                                                        <input className="form-control form-control-sm" value={editCamionData.marca} onChange={e => setEditCamionData(v => ({ ...v, marca: e.target.value }))} />
-                                                                    </div>
-                                                                    <div className="mb-2">
-                                                                        <label className="form-label small mb-1">Modelo</label>
-                                                                        <input className="form-control form-control-sm" value={editCamionData.modelo} onChange={e => setEditCamionData(v => ({ ...v, modelo: e.target.value }))} />
-                                                                    </div>
-                                                                    <div className="mb-3">
-                                                                        <label className="form-label small mb-1">Año</label>
-                                                                        <input className="form-control form-control-sm" type="number" value={editCamionData.anio} onChange={e => setEditCamionData(v => ({ ...v, anio: e.target.value }))} />
-                                                                    </div>
-                                                                    <div className="d-flex flex-column gap-2">
-                                                                        <button className="btn btn-sm btn-success w-100" onClick={() => saveEditCamion(c.id)}>
-                                                                            <i className="bi bi-check-lg me-1"></i>Guardar
-                                                                        </button>
-                                                                        <button className="btn btn-sm btn-outline-secondary w-100" onClick={cancelEditCamion}>
-                                                                            <i className="bi bi-x-lg me-1"></i>Cancelar
-                                                                        </button>
-                                                                    </div>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <h6 className="card-title mb-2 d-flex align-items-center">
-                                                                        <i className="bi bi-truck me-2 text-primary"></i>
-                                                                        <strong>{c.patente}</strong>
-                                                                    </h6>
-                                                                    <p className="card-text small mb-1">
-                                                                        <strong>{c.marca}</strong> {c.modelo}
-                                                                    </p>
-                                                                    <p className="card-text small text-muted mb-3">
-                                                                        <i className="bi bi-calendar me-1"></i>Año: {c.anio || '-'}
-                                                                    </p>
-                                                                    <div className="mb-3">
-                                                                        <label className="form-label small mb-1">
-                                                                            <i className="bi bi-person me-1"></i>Camionero
-                                                                        </label>
-                                                                        {camioneros.length === 0 ? (
-                                                                            <span className="text-body-secondary small d-block">Sin camioneros cargados</span>
-                                                                        ) : (
-                                                                            <select
-                                                                                className="form-select form-select-sm"
-                                                                                value={c.camioneroId || ''}
-                                                                                onChange={async (e) => {
-                                                                                    const value = e.target.value;
-                                                                                    try {
-                                                                                        const body = value ? { camioneroId: Number(value) } : { camioneroId: null };
-                                                                                        await api.post(`/camiones/${c.id}/asignarCamionero`, body);
-                                                                                        showToast('Camionero asignado al camión', 'success');
-                                                                                        await fetchCamiones();
-                                                                                    } catch (err) {
-                                                                                        const msg = err?.response?.data?.error || 'Error al asignar camionero';
-                                                                                        setError(msg);
-                                                                                        showToast(msg, 'error');
-                                                                                    }
-                                                                                }}
-                                                                            >
-                                                                                <option value="">Sin asignar</option>
-                                                                                {camioneros.map(cm => (
-                                                                                    <option key={cm.id} value={cm.id}>{cm.nombre}</option>
-                                                                                ))}
-                                                                            </select>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="d-flex gap-2">
-                                                                        <button className="btn btn-sm btn-outline-primary flex-fill" onClick={() => startEditCamion(c)} title="Editar">
-                                                                            <i className="bi bi-pencil"></i>
-                                                                        </button>
-                                                                        <button className="btn btn-sm btn-outline-danger flex-fill" onClick={() => deleteCamion(c.id)} title="Eliminar">
-                                                                            <i className="bi bi-trash"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="col-lg-6">
+                <div className="row g-3 mt-1">
+                    <div className="col-lg-12">
                         <div className="card shadow-sm">
                             <div className="card-body">
                                 <h3 className="h5">Crear viaje</h3>
@@ -1140,21 +977,8 @@ export default function Ceo() {
                             </div>
                         </div>
                     </div>
-                    <div className="col-lg-6">
-                        <div className="card shadow-sm">
-                            <div className="card-body">
-                                <h3 className="h5">Acoplados</h3>
-                                <AcopladosCrud
-                                    acoplados={acoplados}
-                                    onCreated={async () => { await fetchAcoplados(); showToast('Acoplado creado', 'success'); }}
-                                    onUpdated={async () => { await fetchAcoplados(); showToast('Acoplado actualizado', 'success'); }}
-                                    onDeleted={async () => { await fetchAcoplados(); showToast('Acoplado eliminado', 'success'); }}
-                                />
-                            </div>
-                        </div>
-                    </div>
                 </div>
-
+                <hr />
                 <div className="card shadow-sm">
                     <div className="card-body">
                         <div className="d-flex flex-wrap gap-2 align-items-end mb-2">
@@ -1239,6 +1063,7 @@ export default function Ceo() {
                                 Limpiar historial
                             </button>
                         </div>
+                        <hr />
                         {(filtroEstado || filtroCamion || filtroCamionero || filtroTipo || filtroCliente || busqueda) && (
                             <div className="d-flex flex-wrap filter-chips mb-2">
                                 {filtroEstado && (
@@ -1276,6 +1101,7 @@ export default function Ceo() {
                                 </button>
                             </div>
                         )}
+
                         <div className="d-flex flex-wrap gap-2 mb-2">
                             <button className="btn btn-sm btn-soft-danger" onClick={() => exportViajesPDF('filtro')} title="Exportar PDF (viajes filtrados)">
                                 <i className="bi bi-file-earmark-pdf me-1"></i> PDF listado (filtro)
@@ -1284,6 +1110,7 @@ export default function Ceo() {
                                 <i className="bi bi-file-earmark-pdf me-1"></i> PDF listado (página)
                             </button>
                         </div>
+                        <hr />
                         <div className="table-responsive">
                             {viajesFiltrados.length === 0 ? (
                                 <EmptyState title="Sin viajes" description="No hay viajes que coincidan con el filtro" />
@@ -1411,7 +1238,7 @@ export default function Ceo() {
                         </div>
                     </div>
                 </div>
-
+                <hr />
                 <div className="row g-3">
                     <div className="col-lg-6">
                         <div className="card shadow-sm">
@@ -1657,261 +1484,525 @@ export default function Ceo() {
                         </div>
                     </div>
                 </div>
-            </div >
-            {/* Gráficos del CEO */}
-            <div className="mb-3">
-                <div className="card shadow-sm mb-2">
-                    <div className="card-body d-flex flex-wrap align-items-end gap-2">
-                        <div>
-                            <label className="form-label mb-1">Desde</label>
-                            <input type="date" className="form-control" value={chartFrom} onChange={e => setChartFrom(e.target.value)} />
-                        </div>
-                        <div>
-                            <label className="form-label mb-1">Hasta</label>
-                            <input type="date" className="form-control" value={chartTo} onChange={e => setChartTo(e.target.value)} />
-                        </div>
-                        <div>
-                            <label className="form-label mb-1">Cliente</label>
-                            <select className="form-select" value={chartCliente} onChange={e => setChartCliente(e.target.value)}>
-                                <option value="">Todos</option>
-                                {clientesOpciones.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="form-label mb-1">Tipo</label>
-                            <select className="form-select" value={chartTipo} onChange={e => setChartTipo(e.target.value)}>
-                                <option value="">Todos</option>
-                                {tiposOpciones.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </div>
-                        <button className="btn btn-outline-secondary ms-auto" onClick={() => { setChartFrom(''); setChartTo(''); setChartCliente(''); setChartTipo(''); }}>Limpiar</button>
-                    </div>
-                </div>
-                <DashboardCharts viajes={viajesFinalizados} filtros={{ from: chartFrom, to: chartTo, cliente: chartCliente, tipo: chartTipo }} />
-            </div>
-            {/* Modal detalle viaje */}
-            <div className={`modal ${showDetalleModal ? 'show d-block' : 'fade'}`} id="modalDetalleViaje" tabIndex="-1" aria-hidden={!showDetalleModal}>
-                <div className="modal-dialog modal-lg">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <h1 className="modal-title fs-5">Detalle de viaje</h1>
-                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={() => setShowDetalleModal(false)}></button>
-                        </div>
-                        <div className="modal-body">
-                            {detalleLoading && <div className="text-center py-3"><span className="spinner-border"></span></div>}
-                            {detalle && (
-                                <div className="row g-3">
-                                    <div className="col-12 col-md-6">
-                                        <div><strong>Fecha:</strong> {formatDateOnly(detalle.fecha)}</div>
-                                        <div><strong>Estado:</strong> <span className={`badge badge-dot ${detalle.estado === 'finalizado' ? 'badge-estado-finalizado' : detalle.estado === 'en curso' ? 'badge-estado-en_curso' : 'badge-estado-pendiente'} text-capitalize`}>{detalle.estado}</span></div>
-                                        <div><strong>Origen:</strong> {detalle.origen}</div>
-                                        <div><strong>Destino:</strong> {detalle.destino}</div>
-                                        <div>
-                                            <strong>Factura:</strong>{' '}
-                                            {detalle.facturaUrl ? (
-                                                <a href={(() => { try { const base = api?.defaults?.baseURL || window.location.origin; return new URL(detalle.facturaUrl, base).toString(); } catch { return detalle.facturaUrl; } })()} target="_blank" rel="noreferrer">
-                                                    Ver factura
-                                                </a>
-                                            ) : (
-                                                <span className="text-body-secondary">No subida</span>
-                                            )}
-                                        </div>
-                                        <div><strong>Estado factura:</strong> {detalle.facturaEstado || '-'}</div>
-                                        <div><strong>Fecha factura:</strong> {detalle.fechaFactura ? formatDateOnly(detalle.fechaFactura) : '-'}</div>
-                                    </div>
-                                    <div className="col-12 col-md-6">
-                                        <div><strong>Camión:</strong> {detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca} ${detalle.camion.modelo}, ${detalle.camion.anio})` : detalle.camionId}</div>
-                                        <div><strong>Acoplado:</strong> {detalle.acoplado ? detalle.acoplado.patente : (detalle.acopladoPatente || '-')}</div>
-                                        <div><strong>Camionero:</strong> {detalle.camionero?.nombre || '-'}</div>
-                                        <div><strong>Tipo mercadería:</strong> {detalle.tipoMercaderia ?? '-'}</div>
-                                        <div><strong>Cliente:</strong> {detalle.cliente ?? '-'}</div>
-                                        <div><strong>Kilómetros:</strong> {detalle.km ?? '-'}</div>
-                                        <div><strong>Combustible:</strong> {detalle.combustible ?? '-'}</div>
-                                        <div><strong>Kilos cargados:</strong> {detalle.kilosCargados ?? '-'}</div>
-                                        <div><strong>Precio por tonelada:</strong> {detalle.precioTonelada ?? '-'}</div>
-                                        <div><strong>Importe:</strong> {detalle.importe ?? '-'}</div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="modal-footer">
-                            {detalle && (
-                                <>
-                                    <div className="d-flex gap-2 align-items-center mb-2">
-                                        <button
-                                            type="button"
-                                            className="btn btn-outline-secondary"
-                                            onClick={() => generarDetalleViajePDF(detalle)}
-                                            disabled={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada')}
-                                            title={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada') ? 'Acción no disponible hasta subir y confirmar la factura.' : 'Descarga el PDF de detalle'}
-                                        >
-                                            <i className="bi bi-file-earmark-pdf me-1"></i> PDF Detalle
-                                        </button>
-                                        {detalle.estado === 'finalizado' && (
-                                            <button
-                                                type="button"
-                                                className="btn btn-outline-success"
-                                                onClick={() => generarFacturaViajePDF(detalle)}
-                                                disabled={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada')}
-                                                title={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada') ? 'Acción no disponible hasta subir y confirmar la factura.' : 'Descarga el PDF de la factura'}
-                                            >
-                                                <i className="bi bi-receipt me-1"></i> Factura PDF
-                                            </button>
-                                        )}
-                                        {!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada') && (
-                                            <span className="text-danger ms-2 d-flex align-items-center">
-                                                <i className="bi bi-exclamation-triangle me-1"></i>
-                                                Para descargar el PDF, primero sube y confirma la factura como cobrada.
-                                            </span>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowDetalleModal(false)}>Cerrar</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {showDetalleModal && <div className="modal-backdrop show"></div>}
 
-            {/* Modal editar viaje */}
-            <div className={`modal ${editViajeModal.open ? 'show d-block' : 'fade'}`} id="modalEditarViaje" tabIndex="-1" aria-hidden={!editViajeModal.open}>
-                <div className="modal-dialog">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <h1 className="modal-title fs-6">Editar viaje #{editViajeModal.id ?? ''}</h1>
-                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={closeEditViaje}></button>
-                        </div>
-                        <div className="modal-body">
-                            {editViajeModal.error && <div className="alert alert-danger">{editViajeModal.error}</div>}
-                            <div className="row g-2">
-                                <div className="col-6"><label className="form-label">Origen</label><input className="form-control" value={editViajeModal.data.origen} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, origen: e.target.value } }))} /></div>
-                                <div className="col-6"><label className="form-label">Destino</label><input className="form-control" value={editViajeModal.data.destino} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, destino: e.target.value } }))} /></div>
-                                <div className="col-6"><label className="form-label">Fecha</label><input className="form-control" type="date" value={editViajeModal.data.fecha} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, fecha: e.target.value } }))} /></div>
-                                <div className="col-6"><label className="form-label">Camión</label>
-                                    <select className="form-select" value={editViajeModal.data.camionId} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, camionId: e.target.value } }))}>
-                                        <option value="">Seleccioná camión</option>
-                                        {camiones.map(c => <option key={c.id} value={c.id}>{c.patente}</option>)}
-                                    </select>
-                                </div>
-                                <div className="col-6"><label className="form-label">Acoplado</label>
-                                    <select className="form-select" value={editViajeModal.data.acopladoId || ''} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, acopladoId: e.target.value } }))}>
-                                        <option value="">Sin acoplado</option>
-                                        {acoplados.map(a => <option key={a.id} value={a.id}>{a.patente}</option>)}
-                                    </select>
-                                </div>
-                                <div className="col-6"><label className="form-label">Tipo mercadería</label><input className="form-control" value={editViajeModal.data.tipoMercaderia} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, tipoMercaderia: e.target.value } }))} /></div>
-                                <div className="col-6"><label className="form-label">Cliente</label><input className="form-control" value={editViajeModal.data.cliente} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, cliente: e.target.value } }))} /></div>
-                            </div>
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn btn-secondary" onClick={closeEditViaje} disabled={editViajeModal.loading}>Cancelar</button>
-                            <button className="btn btn-primary" onClick={saveEditViaje} disabled={editViajeModal.loading}>{editViajeModal.loading ? <span className="spinner-border spinner-border-sm" role="status" /> : 'Guardar'}</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {editViajeModal.open && <div className="modal-backdrop show"></div>}
-
-            {/* Modal Finalizar Viaje (CEO) */}
-            <div className={`modal ${showFinalizarModal ? 'show d-block' : 'fade'}`} id="modalFinalizarCeo" tabIndex="-1" aria-hidden={!showFinalizarModal}>
-                <div className="modal-dialog">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <h1 className="modal-title fs-5">Finalizar viaje</h1>
-                            <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={() => setShowFinalizarModal(false)}></button>
-                        </div>
-                        <div className="modal-body">
-                            {modalFinalizarId && (() => {
-                                const viajeSeleccionado = viajes.find(v => v.id === modalFinalizarId);
-                                if (!viajeSeleccionado) return null;
-                                return (
-                                    <>
-                                        <div className="mb-3 small">
-                                            <div className="row g-2">
-                                                <div className="col-12 col-sm-6">
-                                                    <div><strong>Fecha:</strong> {formatDateOnly(viajeSeleccionado.fecha)}</div>
-                                                    <div><strong>Origen:</strong> {viajeSeleccionado.origen}</div>
-                                                    <div><strong>Destino:</strong> {viajeSeleccionado.destino}</div>
-                                                </div>
-                                                <div className="col-12 col-sm-6">
-                                                    <div><strong>Camión:</strong> {viajeSeleccionado.camion?.patente || viajeSeleccionado.camionId}</div>
-                                                    <div><strong>Tipo:</strong> {viajeSeleccionado.tipoMercaderia || '-'}</div>
-                                                    <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
-                                                    <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
-                                                    <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}</div>
-                                                    <div><strong>Kilos cargados:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
-                                                </div>
-                                            </div>
-                                            <hr />
-                                        </div>
-                                        {!finalizarPasoConfirm ? (
-                                            <div className="row g-2">
-                                                <div className="col-6">
-                                                    <label className="form-label">Km</label>
-                                                    <input className="form-control" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} />
-                                                </div>
-                                                <div className="col-6">
-                                                    <label className="form-label">Combustible</label>
-                                                    <input className="form-control" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} />
-                                                </div>
-                                                <div className="col-12">
-                                                    <label className="form-label">Kilos cargados</label>
-                                                    <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} />
-                                                    <small className="text-body-secondary">Si definiste precio por tonelada, se calculará automáticamente el importe del viaje.</small>
-                                                </div>
-                                                <div className="col-12 mt-2">
-                                                    <div className="alert alert-warning py-2 mb-0 small">
-                                                        Después de pulsar "Continuar" verás un resumen y deberás confirmar nuevamente.
+                <div className="row g-3">
+                    <div className="col-12">
+                        <div className="card shadow-sm">
+                            <div className="card-body">
+                                <h3 className="h5">Crear camión</h3>
+                                <form onSubmit={crearCamion} className="row g-2 mt-2" style={{ opacity: savingCamion ? 0.85 : 1 }}>
+                                    <div className="col-6">
+                                        <input
+                                            className={`form-control ${camionErrors.patente ? 'is-invalid' : ''}`}
+                                            placeholder="Patente (AAA123 o AB123CD)"
+                                            value={nuevoCamion.patente}
+                                            onChange={e => {
+                                                const val = e.target.value.toUpperCase();
+                                                setNuevoCamion(v => ({ ...v, patente: val }));
+                                                const err = validarPatente(val);
+                                                setCamionErrors(prev => ({ ...prev, patente: err }));
+                                            }}
+                                        />
+                                        {camionErrors.patente && <div className="invalid-feedback">{camionErrors.patente}</div>}
+                                    </div>
+                                    <div className="col-6">
+                                        <input
+                                            className={`form-control ${camionErrors.marca ? 'is-invalid' : ''}`}
+                                            placeholder="Marca"
+                                            value={nuevoCamion.marca}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setNuevoCamion(v => ({ ...v, marca: val }));
+                                                setCamionErrors(prev => ({ ...prev, marca: val.trim() ? '' : 'La marca es requerida' }));
+                                            }}
+                                        />
+                                        {camionErrors.marca && <div className="invalid-feedback">{camionErrors.marca}</div>}
+                                    </div>
+                                    <div className="col-6">
+                                        <input
+                                            className={`form-control ${camionErrors.modelo ? 'is-invalid' : ''}`}
+                                            placeholder="Modelo"
+                                            value={nuevoCamion.modelo}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setNuevoCamion(v => ({ ...v, modelo: val }));
+                                                setCamionErrors(prev => ({ ...prev, modelo: val.trim() ? '' : 'El modelo es requerido' }));
+                                            }}
+                                        />
+                                        {camionErrors.modelo && <div className="invalid-feedback">{camionErrors.modelo}</div>}
+                                    </div>
+                                    <div className="col-6">
+                                        <input
+                                            className={`form-control ${camionErrors.anio ? 'is-invalid' : ''}`}
+                                            placeholder="Año"
+                                            value={nuevoCamion.anio}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setNuevoCamion(v => ({ ...v, anio: val }));
+                                                const num = Number(val);
+                                                setCamionErrors(prev => ({ ...prev, anio: (!num || num < 1900) ? 'El año debe ser >= 1900' : '' }));
+                                            }}
+                                        />
+                                        {camionErrors.anio && <div className="invalid-feedback">{camionErrors.anio}</div>}
+                                    </div>
+                                    <div className="col-12"><button className="btn btn-primary" disabled={savingCamion || Object.values(camionErrors).some(Boolean)}>{savingCamion ? 'Guardando…' : 'Guardar'}</button></div>
+                                </form>
+                                <div className="mt-3">
+                                    {camiones.length === 0 ? (
+                                        <EmptyState title="Sin camiones" description="Todavía no cargaste ningún camión" />
+                                    ) : (
+                                        <div className="row g-3">
+                                            {camiones.map(c => (
+                                                <div key={c.id} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                                                    <div className={`card h-100 shadow-sm ${savedCamionId === c.id ? 'border-success' : ''}`}>
+                                                        <div className="card-body">
+                                                            {editCamionId === c.id ? (
+                                                                <>
+                                                                    <div className="mb-2">
+                                                                        <label className="form-label small mb-1">Patente</label>
+                                                                        <input className="form-control form-control-sm" value={editCamionData.patente} onChange={e => setEditCamionData(v => ({ ...v, patente: e.target.value }))} />
+                                                                    </div>
+                                                                    <div className="mb-2">
+                                                                        <label className="form-label small mb-1">Marca</label>
+                                                                        <input className="form-control form-control-sm" value={editCamionData.marca} onChange={e => setEditCamionData(v => ({ ...v, marca: e.target.value }))} />
+                                                                    </div>
+                                                                    <div className="mb-2">
+                                                                        <label className="form-label small mb-1">Modelo</label>
+                                                                        <input className="form-control form-control-sm" value={editCamionData.modelo} onChange={e => setEditCamionData(v => ({ ...v, modelo: e.target.value }))} />
+                                                                    </div>
+                                                                    <div className="mb-3">
+                                                                        <label className="form-label small mb-1">Año</label>
+                                                                        <input className="form-control form-control-sm" type="number" value={editCamionData.anio} onChange={e => setEditCamionData(v => ({ ...v, anio: e.target.value }))} />
+                                                                    </div>
+                                                                    <div className="d-flex flex-column gap-2">
+                                                                        <button className="btn btn-sm btn-success w-100" onClick={() => saveEditCamion(c.id)}>
+                                                                            <i className="bi bi-check-lg me-1"></i>Guardar
+                                                                        </button>
+                                                                        <button className="btn btn-sm btn-outline-secondary w-100" onClick={cancelEditCamion}>
+                                                                            <i className="bi bi-x-lg me-1"></i>Cancelar
+                                                                        </button>
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <h6 className="card-title mb-2 d-flex align-items-center">
+                                                                        <i className="bi bi-truck me-2 text-primary"></i>
+                                                                        <strong>{c.patente}</strong>
+                                                                    </h6>
+                                                                    <p className="card-text small mb-1">
+                                                                        <strong>{c.marca}</strong> {c.modelo}
+                                                                    </p>
+                                                                    <p className="card-text small text-muted mb-3">
+                                                                        <i className="bi bi-calendar me-1"></i>Año: {c.anio || '-'}
+                                                                    </p>
+                                                                    <div className="mb-3">
+                                                                        <label className="form-label small mb-1">
+                                                                            <i className="bi bi-person me-1"></i>Camionero
+                                                                        </label>
+                                                                        {camioneros.length === 0 ? (
+                                                                            <span className="text-body-secondary small d-block">Sin camioneros cargados</span>
+                                                                        ) : (
+                                                                            <select
+                                                                                className="form-select form-select-sm"
+                                                                                value={c.camioneroId || ''}
+                                                                                onChange={async (e) => {
+                                                                                    const value = e.target.value;
+                                                                                    try {
+                                                                                        const body = value ? { camioneroId: Number(value) } : { camioneroId: null };
+                                                                                        await api.post(`/camiones/${c.id}/asignarCamionero`, body);
+                                                                                        showToast('Camionero asignado al camión', 'success');
+                                                                                        await fetchCamiones();
+                                                                                    } catch (err) {
+                                                                                        const msg = err?.response?.data?.error || 'Error al asignar camionero';
+                                                                                        setError(msg);
+                                                                                        showToast(msg, 'error');
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                <option value="">Sin asignar</option>
+                                                                                {camioneros.map(cm => (
+                                                                                    <option key={cm.id} value={cm.id}>{cm.nombre}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="d-flex gap-2">
+                                                                        <button className="btn btn-sm btn-outline-primary flex-fill" onClick={() => startEditCamion(c)} title="Editar">
+                                                                            <i className="bi bi-pencil"></i>
+                                                                        </button>
+                                                                        <button className="btn btn-sm btn-outline-danger flex-fill" onClick={() => deleteCamion(c.id)} title="Eliminar">
+                                                                            <i className="bi bi-trash"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ) : (
-                                            <div className="border rounded p-2 bg-body-tertiary">
-                                                <h6 className="mb-2">Confirmación final</h6>
-                                                <p className="small mb-2">Revisá los datos antes de finalizar definitivamente el viaje:</p>
-                                                <ul className="small mb-2">
-                                                    <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
-                                                    <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
-                                                    <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
-                                                    <li><strong>Kilos a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
-                                                </ul>
-                                                <div className="alert alert-danger py-2 small mb-2">
-                                                    Una vez finalizado el viaje, no podrás volverlo a "en curso".
-                                                </div>
-                                                <div className="form-check mb-0">
-                                                    <input className="form-check-input" type="checkbox" id="chkConfirmFinalizarCeo"
-                                                        checked={confirmChecked}
-                                                        onChange={(e) => setConfirmChecked(e.target.checked)} />
-                                                    <label className="form-check-label small" htmlFor="chkConfirmFinalizarCeo">Entiendo que esta acción es definitiva y confirmo finalizar el viaje</label>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                );
-                            })()}
-                        </div>
-                        <div className="modal-footer">
-                            {!finalizarPasoConfirm ? (
-                                <>
-                                    <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowFinalizarModal(false)}>Cerrar</button>
-                                    <button type="button" className="btn btn-primary" disabled={!modalFinalizarId || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
-                                        Continuar
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <button type="button" className="btn btn-outline-secondary" onClick={() => setFinalizarPasoConfirm(false)} disabled={finishingId === modalFinalizarId}>Volver</button>
-                                    <button type="button" className="btn btn-danger" disabled={!modalFinalizarId || finishingId === modalFinalizarId || !confirmChecked || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
-                                        {finishingId === modalFinalizarId ? 'Finalizando…' : 'Finalizar viaje'}
-                                    </button>
-                                </>
-                            )}
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <div className="row g-3 mt-1">
+                    <div className="col-12">
+                        <div className="card shadow-sm">
+                            <div className="card-body">
+                                <h3 className="h5 mb-3">Acoplados</h3>
+                                <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    const patente = e.target.patente.value.toUpperCase().trim();
+                                    if (!patente) { showToast('La patente es requerida', 'error'); return; }
+                                    const patenteRegex = /^([A-Z]{3}\d{3}|[A-Z]{2}\d{3}[A-Z]{2})$/;
+                                    if (!patenteRegex.test(patente)) { showToast('Formato inválido (AAA123 o AB123CD)', 'error'); return; }
+                                    try {
+                                        await api.post('/acoplados', { patente });
+                                        e.target.reset();
+                                        await fetchAcoplados();
+                                        showToast('Acoplado creado', 'success');
+                                    } catch (err) {
+                                        const msg = err?.response?.data?.error || 'Error creando acoplado';
+                                        showToast(msg, 'error');
+                                    }
+                                }} className="row g-2">
+                                    <div className="col-auto">
+                                        <input name="patente" className="form-control" placeholder="Patente acoplado" />
+                                    </div>
+                                    <div className="col-auto">
+                                        <button className="btn btn-primary">Crear acoplado</button>
+                                    </div>
+                                </form>
+                                <div className="mt-3">
+                                    {acoplados.length === 0 ? (
+                                        <EmptyState title="Sin acoplados" description="Todavía no cargaste acoplados" />
+                                    ) : (
+                                        <div className="row g-3">
+                                            {acoplados.map(a => (
+                                                <div key={a.id} className="col-6 col-sm-4 col-md-3 col-lg-2">
+                                                    <div className="card h-100 shadow-sm">
+                                                        <div className="card-body p-2">
+                                                            <h6 className="card-title mb-2 d-flex align-items-center justify-content-center">
+                                                                <i className="bi bi-box-seam me-1 text-secondary"></i>
+                                                                <strong style={{ fontSize: '0.85rem' }}>{a.patente}</strong>
+                                                            </h6>
+                                                            <div className="d-flex gap-1">
+                                                                <button
+                                                                    className="btn btn-sm btn-outline-primary flex-fill p-1"
+                                                                    onClick={async () => {
+                                                                        const nuevaPatente = prompt('Nueva patente:', a.patente);
+                                                                        if (!nuevaPatente || nuevaPatente === a.patente) return;
+                                                                        const p = nuevaPatente.toUpperCase().trim();
+                                                                        const patenteRegex = /^([A-Z]{3}\d{3}|[A-Z]{2}\d{3}[A-Z]{2})$/;
+                                                                        if (!patenteRegex.test(p)) { showToast('Formato inválido', 'error'); return; }
+                                                                        try {
+                                                                            await api.patch(`/acoplados/${a.id}`, { patente: p });
+                                                                            await fetchAcoplados();
+                                                                            showToast('Acoplado actualizado', 'success');
+                                                                        } catch (err) {
+                                                                            const msg = err?.response?.data?.error || 'Error actualizando acoplado';
+                                                                            showToast(msg, 'error');
+                                                                        }
+                                                                    }}
+                                                                    title="Editar"
+                                                                >
+                                                                    <i className="bi bi-pencil"></i>
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn-sm btn-outline-danger flex-fill p-1"
+                                                                    onClick={async () => {
+                                                                        if (!confirm('¿Eliminar acoplado?')) return;
+                                                                        try {
+                                                                            await api.delete(`/acoplados/${a.id}`);
+                                                                            await fetchAcoplados();
+                                                                            showToast('Acoplado eliminado', 'success');
+                                                                        } catch (err) {
+                                                                            const msg = err?.response?.data?.error || 'Error eliminando acoplado';
+                                                                            showToast(msg, 'error');
+                                                                        }
+                                                                    }}
+                                                                    title="Eliminar"
+                                                                >
+                                                                    <i className="bi bi-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                {/* Gráficos del CEO */}
+                <div className="mb-3">
+                    <div className="card shadow-sm mb-2">
+                        <div className="card-body d-flex flex-wrap align-items-end gap-2">
+                            <div>
+                                <label className="form-label mb-1">Desde</label>
+                                <input type="date" className="form-control" value={chartFrom} onChange={e => setChartFrom(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="form-label mb-1">Hasta</label>
+                                <input type="date" className="form-control" value={chartTo} onChange={e => setChartTo(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="form-label mb-1">Cliente</label>
+                                <select className="form-select" value={chartCliente} onChange={e => setChartCliente(e.target.value)}>
+                                    <option value="">Todos</option>
+                                    {clientesOpciones.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="form-label mb-1">Tipo</label>
+                                <select className="form-select" value={chartTipo} onChange={e => setChartTipo(e.target.value)}>
+                                    <option value="">Todos</option>
+                                    {tiposOpciones.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <button className="btn btn-outline-secondary ms-auto" onClick={() => { setChartFrom(''); setChartTo(''); setChartCliente(''); setChartTipo(''); }}>Limpiar</button>
+                        </div>
+                    </div>
+                    <DashboardCharts viajes={viajesFinalizados} filtros={{ from: chartFrom, to: chartTo, cliente: chartCliente, tipo: chartTipo }} />
+                </div>
+
+                {/* Modal detalle viaje */}
+                <div className={`modal ${showDetalleModal ? 'show d-block' : 'fade'}`} id="modalDetalleViaje" tabIndex="-1" aria-hidden={!showDetalleModal}>
+                    <div className="modal-dialog modal-lg">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h1 className="modal-title fs-5">Detalle de viaje</h1>
+                                <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={() => setShowDetalleModal(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                {detalleLoading && <div className="text-center py-3"><span className="spinner-border"></span></div>}
+                                {detalle && (
+                                    <div className="row g-3">
+                                        <div className="col-12 col-md-6">
+                                            <div><strong>Fecha:</strong> {formatDateOnly(detalle.fecha)}</div>
+                                            <div><strong>Estado:</strong> <span className={`badge badge-dot ${detalle.estado === 'finalizado' ? 'badge-estado-finalizado' : detalle.estado === 'en curso' ? 'badge-estado-en_curso' : 'badge-estado-pendiente'} text-capitalize`}>{detalle.estado}</span></div>
+                                            <div><strong>Origen:</strong> {detalle.origen}</div>
+                                            <div><strong>Destino:</strong> {detalle.destino}</div>
+                                            <div>
+                                                <strong>Factura:</strong>{' '}
+                                                {detalle.facturaUrl ? (
+                                                    <a href={(() => { try { const base = api?.defaults?.baseURL || window.location.origin; return new URL(detalle.facturaUrl, base).toString(); } catch { return detalle.facturaUrl; } })()} target="_blank" rel="noreferrer">
+                                                        Ver factura
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-body-secondary">No subida</span>
+                                                )}
+                                            </div>
+                                            <div><strong>Estado factura:</strong> {detalle.facturaEstado || '-'}</div>
+                                            <div><strong>Fecha factura:</strong> {detalle.fechaFactura ? formatDateOnly(detalle.fechaFactura) : '-'}</div>
+                                        </div>
+                                        <div className="col-12 col-md-6">
+                                            <div><strong>Camión:</strong> {detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca} ${detalle.camion.modelo}, ${detalle.camion.anio})` : detalle.camionId}</div>
+                                            <div><strong>Acoplado:</strong> {detalle.acoplado ? detalle.acoplado.patente : (detalle.acopladoPatente || '-')}</div>
+                                            <div><strong>Camionero:</strong> {detalle.camionero?.nombre || '-'}</div>
+                                            <div><strong>Tipo mercadería:</strong> {detalle.tipoMercaderia ?? '-'}</div>
+                                            <div><strong>Cliente:</strong> {detalle.cliente ?? '-'}</div>
+                                            <div><strong>Kilómetros:</strong> {detalle.km ?? '-'}</div>
+                                            <div><strong>Combustible:</strong> {detalle.combustible ?? '-'}</div>
+                                            <div><strong>Kilos cargados:</strong> {detalle.kilosCargados ?? '-'}</div>
+                                            <div><strong>Precio por tonelada:</strong> {detalle.precioTonelada ?? '-'}</div>
+                                            <div><strong>Importe:</strong> {detalle.importe ?? '-'}</div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                {detalle && (
+                                    <>
+                                        <div className="d-flex gap-2 align-items-center mb-2">
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline-secondary"
+                                                onClick={() => generarDetalleViajePDF(detalle)}
+                                                disabled={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada')}
+                                                title={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada') ? 'Acción no disponible hasta subir y confirmar la factura.' : 'Descarga el PDF de detalle'}
+                                            >
+                                                <i className="bi bi-file-earmark-pdf me-1"></i> PDF Detalle
+                                            </button>
+                                            {detalle.estado === 'finalizado' && (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-outline-success"
+                                                    onClick={() => generarFacturaViajePDF(detalle)}
+                                                    disabled={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada')}
+                                                    title={!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada') ? 'Acción no disponible hasta subir y confirmar la factura.' : 'Descarga el PDF de la factura'}
+                                                >
+                                                    <i className="bi bi-receipt me-1"></i> Factura PDF
+                                                </button>
+                                            )}
+                                            {!(detalle.facturaUrl && detalle.facturaEstado === 'cobrada') && (
+                                                <span className="text-danger ms-2 d-flex align-items-center">
+                                                    <i className="bi bi-exclamation-triangle me-1"></i>
+                                                    Para descargar el PDF, primero sube y confirma la factura como cobrada.
+                                                </span>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                                <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowDetalleModal(false)}>Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {showDetalleModal && <div className="modal-backdrop show"></div>}
+
+                {/* Modal editar viaje */}
+                <div className={`modal ${editViajeModal.open ? 'show d-block' : 'fade'}`} id="modalEditarViaje" tabIndex="-1" aria-hidden={!editViajeModal.open}>
+                    <div className="modal-dialog">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h1 className="modal-title fs-6">Editar viaje #{editViajeModal.id ?? ''}</h1>
+                                <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={closeEditViaje}></button>
+                            </div>
+                            <div className="modal-body">
+                                {editViajeModal.error && <div className="alert alert-danger">{editViajeModal.error}</div>}
+                                <div className="row g-2">
+                                    <div className="col-6"><label className="form-label">Origen</label><input className="form-control" value={editViajeModal.data.origen} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, origen: e.target.value } }))} /></div>
+                                    <div className="col-6"><label className="form-label">Destino</label><input className="form-control" value={editViajeModal.data.destino} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, destino: e.target.value } }))} /></div>
+                                    <div className="col-6"><label className="form-label">Fecha</label><input className="form-control" type="date" value={editViajeModal.data.fecha} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, fecha: e.target.value } }))} /></div>
+                                    <div className="col-6"><label className="form-label">Camión</label>
+                                        <select className="form-select" value={editViajeModal.data.camionId} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, camionId: e.target.value } }))}>
+                                            <option value="">Seleccioná camión</option>
+                                            {camiones.map(c => <option key={c.id} value={c.id}>{c.patente}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="col-6"><label className="form-label">Acoplado</label>
+                                        <select className="form-select" value={editViajeModal.data.acopladoId || ''} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, acopladoId: e.target.value } }))}>
+                                            <option value="">Sin acoplado</option>
+                                            {acoplados.map(a => <option key={a.id} value={a.id}>{a.patente}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="col-6"><label className="form-label">Tipo mercadería</label><input className="form-control" value={editViajeModal.data.tipoMercaderia} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, tipoMercaderia: e.target.value } }))} /></div>
+                                    <div className="col-6"><label className="form-label">Cliente</label><input className="form-control" value={editViajeModal.data.cliente} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, cliente: e.target.value } }))} /></div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-secondary" onClick={closeEditViaje} disabled={editViajeModal.loading}>Cancelar</button>
+                                <button className="btn btn-primary" onClick={saveEditViaje} disabled={editViajeModal.loading}>{editViajeModal.loading ? <span className="spinner-border spinner-border-sm" role="status" /> : 'Guardar'}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {editViajeModal.open && <div className="modal-backdrop show"></div>}
+
+                {/* Modal Finalizar Viaje (CEO) */}
+                <div className={`modal ${showFinalizarModal ? 'show d-block' : 'fade'}`} id="modalFinalizarCeo" tabIndex="-1" aria-hidden={!showFinalizarModal}>
+                    <div className="modal-dialog">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h1 className="modal-title fs-5">Finalizar viaje</h1>
+                                <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={() => setShowFinalizarModal(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                {modalFinalizarId && (() => {
+                                    const viajeSeleccionado = viajes.find(v => v.id === modalFinalizarId);
+                                    if (!viajeSeleccionado) return null;
+                                    return (
+                                        <>
+                                            <div className="mb-3 small">
+                                                <div className="row g-2">
+                                                    <div className="col-12 col-sm-6">
+                                                        <div><strong>Fecha:</strong> {formatDateOnly(viajeSeleccionado.fecha)}</div>
+                                                        <div><strong>Origen:</strong> {viajeSeleccionado.origen}</div>
+                                                        <div><strong>Destino:</strong> {viajeSeleccionado.destino}</div>
+                                                    </div>
+                                                    <div className="col-12 col-sm-6">
+                                                        <div><strong>Camión:</strong> {viajeSeleccionado.camion?.patente || viajeSeleccionado.camionId}</div>
+                                                        <div><strong>Tipo:</strong> {viajeSeleccionado.tipoMercaderia || '-'}</div>
+                                                        <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
+                                                        <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
+                                                        <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}</div>
+                                                        <div><strong>Kilos cargados:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
+                                                    </div>
+                                                </div>
+                                                <hr />
+                                            </div>
+                                            {!finalizarPasoConfirm ? (
+                                                <div className="row g-2">
+                                                    <div className="col-6">
+                                                        <label className="form-label">Km</label>
+                                                        <input className="form-control" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} />
+                                                    </div>
+                                                    <div className="col-6">
+                                                        <label className="form-label">Combustible</label>
+                                                        <input className="form-control" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} />
+                                                    </div>
+                                                    <div className="col-12">
+                                                        <label className="form-label">Kilos cargados</label>
+                                                        <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} />
+                                                        <small className="text-body-secondary">Si definiste precio por tonelada, se calculará automáticamente el importe del viaje.</small>
+                                                    </div>
+                                                    <div className="col-12 mt-2">
+                                                        <div className="alert alert-warning py-2 mb-0 small">
+                                                            Después de pulsar "Continuar" verás un resumen y deberás confirmar nuevamente.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="border rounded p-2 bg-body-tertiary">
+                                                    <h6 className="mb-2">Confirmación final</h6>
+                                                    <p className="small mb-2">Revisá los datos antes de finalizar definitivamente el viaje:</p>
+                                                    <ul className="small mb-2">
+                                                        <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
+                                                        <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
+                                                        <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
+                                                        <li><strong>Kilos a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
+                                                    </ul>
+                                                    <div className="alert alert-danger py-2 small mb-2">
+                                                        Una vez finalizado el viaje, no podrás volverlo a "en curso".
+                                                    </div>
+                                                    <div className="form-check mb-0">
+                                                        <input className="form-check-input" type="checkbox" id="chkConfirmFinalizarCeo"
+                                                            checked={confirmChecked}
+                                                            onChange={(e) => setConfirmChecked(e.target.checked)} />
+                                                        <label className="form-check-label small" htmlFor="chkConfirmFinalizarCeo">Entiendo que esta acción es definitiva y confirmo finalizar el viaje</label>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                            <div className="modal-footer">
+                                {!finalizarPasoConfirm ? (
+                                    <>
+                                        <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowFinalizarModal(false)}>Cerrar</button>
+                                        <button type="button" className="btn btn-primary" disabled={!modalFinalizarId || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
+                                            Continuar
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button type="button" className="btn btn-outline-secondary" onClick={() => setFinalizarPasoConfirm(false)} disabled={finishingId === modalFinalizarId}>Volver</button>
+                                        <button type="button" className="btn btn-danger" disabled={!modalFinalizarId || finishingId === modalFinalizarId || !confirmChecked || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
+                                            {finishingId === modalFinalizarId ? 'Finalizando…' : 'Finalizar viaje'}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {showFinalizarModal && <div className="modal-backdrop show"></div>}
             </div>
-            {showFinalizarModal && <div className="modal-backdrop show"></div>}
         </>
     );
 }
+
+
+
+
