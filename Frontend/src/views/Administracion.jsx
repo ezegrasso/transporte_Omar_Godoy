@@ -101,6 +101,38 @@ export default function Administracion() {
         setFinanzasModal({ open: true, mes: mesActual, clienteFiltro: 'todos' });
     };
     const closeFinanzas = () => setFinanzasModal({ open: false, mes: '', clienteFiltro: 'todos' });
+
+    // Modal: Finalizar viaje
+    const [finalizarModal, setFinalizarModal] = useState({ open: false, id: null, km: '', combustible: '', kilos: '', loading: false, error: '' });
+    const openFinalizar = (v) => {
+        setFinalizarModal({
+            open: true,
+            id: v.id,
+            km: v.kmFinal || '',
+            combustible: v.combustibleConsumido || '',
+            kilos: v.kilosCargados || '',
+            loading: false,
+            error: ''
+        });
+    };
+    const closeFinalizar = () => setFinalizarModal({ open: false, id: null, km: '', combustible: '', kilos: '', loading: false, error: '' });
+    const submitFinalizar = async () => {
+        if (!finalizarModal.id) return;
+        setFinalizarModal(m => ({ ...m, loading: true, error: '' }));
+        try {
+            await api.patch(`/viajes/${finalizarModal.id}/finalizar`, {
+                kmFinal: Number(finalizarModal.km) || 0,
+                combustibleConsumido: Number(finalizarModal.combustible) || 0,
+                kilosCargados: Number(finalizarModal.kilos) || 0
+            });
+            showToast('Viaje finalizado correctamente', 'success');
+            closeFinalizar();
+            fetchSemana();
+        } catch (e) {
+            setFinalizarModal(m => ({ ...m, loading: false, error: e?.response?.data?.error || 'Error al finalizar viaje' }));
+        }
+    };
+
     // Cálculos del resumen financiero mensual
     const datosFinanzas = useMemo(() => {
         const { mes, clienteFiltro } = finanzasModal;
