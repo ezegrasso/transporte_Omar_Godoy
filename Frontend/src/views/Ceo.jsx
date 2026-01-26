@@ -81,43 +81,63 @@ function AcopladosCrud({ acoplados, onCreated, onUpdated, onDeleted }) {
                 </div>
                 <div className="col-12"><button className="btn btn-primary" disabled={saving}>{saving ? 'Guardando…' : 'Crear acoplado'}</button></div>
             </form>
-            <div className="table-responsive mt-3">
+            <div className="mt-3">
                 {acoplados.length === 0 ? (
                     <EmptyState title="Sin acoplados" description="Todavía no cargaste acoplados" />
                 ) : (
-                    <table className={`table table-hover align-middle mb-0 table-sticky`}>
-                        <thead>
-                            <tr>
-                                <th>Patente</th>
-                                <th className="text-end">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {acoplados.map(a => (
-                                <tr key={a.id}>
-                                    <td>
+                    <div className="row g-3">
+                        {acoplados.map(a => (
+                            <div key={a.id} className="col-12 col-sm-6 col-md-4 col-lg-3">
+                                <div className="card h-100 shadow-sm">
+                                    <div className="card-body">
                                         {editId === a.id ? (
-                                            <input className="form-control form-control-sm" value={editData.patente}
-                                                onChange={e => setEditData(v => ({ ...v, patente: e.target.value }))} />
-                                        ) : a.patente}
-                                    </td>
-                                    <td className="text-end">
-                                        {editId === a.id ? (
-                                            <div className="btn-group btn-group-sm">
-                                                <button className="btn btn-success" onClick={() => saveEdit(a.id)}><i className="bi bi-check-lg"></i></button>
-                                                <button className="btn btn-outline-secondary" onClick={() => setEditId(null)}><i className="bi bi-x-lg"></i></button>
-                                            </div>
+                                            <>
+                                                <div className="mb-3">
+                                                    <label className="form-label small mb-1">Patente</label>
+                                                    <input
+                                                        className="form-control form-control-sm"
+                                                        value={editData.patente}
+                                                        onChange={e => setEditData(v => ({ ...v, patente: e.target.value }))}
+                                                    />
+                                                </div>
+                                                <div className="d-flex gap-2">
+                                                    <button className="btn btn-sm btn-success flex-fill" onClick={() => saveEdit(a.id)}>
+                                                        <i className="bi bi-check-lg me-1"></i>Guardar
+                                                    </button>
+                                                    <button className="btn btn-sm btn-outline-secondary flex-fill" onClick={() => setEditId(null)}>
+                                                        <i className="bi bi-x-lg me-1"></i>Cancelar
+                                                    </button>
+                                                </div>
+                                            </>
                                         ) : (
-                                            <div className="btn-group btn-group-sm">
-                                                <button className="btn btn-outline-primary" onClick={() => { setEditId(a.id); setEditData({ patente: a.patente || '' }); }} title="Editar"><i className="bi bi-pencil"></i></button>
-                                                <button className="btn btn-outline-danger" onClick={() => eliminar(a.id)} title="Eliminar"><i className="bi bi-trash"></i></button>
-                                            </div>
+                                            <>
+                                                <h6 className="card-title mb-3 d-flex align-items-center">
+                                                    <i className="bi bi-box-seam me-2 text-secondary"></i>
+                                                    <strong>{a.patente}</strong>
+                                                </h6>
+                                                <div className="d-flex gap-2">
+                                                    <button
+                                                        className="btn btn-sm btn-outline-primary flex-fill"
+                                                        onClick={() => { setEditId(a.id); setEditData({ patente: a.patente || '' }); }}
+                                                        title="Editar"
+                                                    >
+                                                        <i className="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-outline-danger flex-fill"
+                                                        onClick={() => eliminar(a.id)}
+                                                        title="Eliminar"
+                                                    >
+                                                        <i className="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </>
                                         )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
         </div>
@@ -992,89 +1012,100 @@ export default function Ceo() {
                                     </div>
                                     <div className="col-12"><button className="btn btn-primary" disabled={savingCamion || Object.values(camionErrors).some(Boolean)}>{savingCamion ? 'Guardando…' : 'Guardar'}</button></div>
                                 </form>
-                                <div className="table-responsive mt-3">
+                                <div className="mt-3">
                                     {camiones.length === 0 ? (
                                         <EmptyState title="Sin camiones" description="Todavía no cargaste ningún camión" />
                                     ) : (
-                                        <table className={`table table-sm table-hover align-middle mb-0 table-sticky table-cols-bordered`}>
-                                            <thead>
-                                                <tr>
-                                                    {['Patente', 'Marca', 'Modelo', 'Año', 'Camionero asignado'].map(label => (
-                                                        <th key={label} className="text-uppercase small" style={{ verticalAlign: 'middle', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
-                                                            <div className="d-inline-flex align-items-center gap-1"><span>{label}</span></div>
-                                                        </th>
-                                                    ))}
-                                                    <th className="text-end text-uppercase small" style={{ verticalAlign: 'middle', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>Acciones</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {camiones.map(c => (
-                                                    <tr key={c.id} className={savedCamionId === c.id ? 'table-success row-saved-anim' : ''}>
-                                                        <td>
+                                        <div className="row g-3">
+                                            {camiones.map(c => (
+                                                <div key={c.id} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                                                    <div className={`card h-100 shadow-sm ${savedCamionId === c.id ? 'border-success' : ''}`}>
+                                                        <div className="card-body">
                                                             {editCamionId === c.id ? (
-                                                                <input className="form-control form-control-sm" value={editCamionData.patente} onChange={e => setEditCamionData(v => ({ ...v, patente: e.target.value }))} />
-                                                            ) : c.patente}
-                                                        </td>
-                                                        <td>
-                                                            {editCamionId === c.id ? (
-                                                                <input className="form-control form-control-sm" value={editCamionData.marca} onChange={e => setEditCamionData(v => ({ ...v, marca: e.target.value }))} />
-                                                            ) : c.marca}
-                                                        </td>
-                                                        <td>
-                                                            {editCamionId === c.id ? (
-                                                                <input className="form-control form-control-sm" value={editCamionData.modelo} onChange={e => setEditCamionData(v => ({ ...v, modelo: e.target.value }))} />
-                                                            ) : c.modelo}
-                                                        </td>
-                                                        <td style={{ maxWidth: 90 }}>
-                                                            {editCamionId === c.id ? (
-                                                                <input className="form-control form-control-sm" type="number" value={editCamionData.anio} onChange={e => setEditCamionData(v => ({ ...v, anio: e.target.value }))} />
-                                                            ) : (c.anio || '-')}
-                                                        </td>
-                                                        <td style={{ minWidth: 220 }}>
-                                                            {camioneros.length === 0 ? (
-                                                                <span className="text-body-secondary small">Sin camioneros cargados</span>
+                                                                <>
+                                                                    <div className="mb-2">
+                                                                        <label className="form-label small mb-1">Patente</label>
+                                                                        <input className="form-control form-control-sm" value={editCamionData.patente} onChange={e => setEditCamionData(v => ({ ...v, patente: e.target.value }))} />
+                                                                    </div>
+                                                                    <div className="mb-2">
+                                                                        <label className="form-label small mb-1">Marca</label>
+                                                                        <input className="form-control form-control-sm" value={editCamionData.marca} onChange={e => setEditCamionData(v => ({ ...v, marca: e.target.value }))} />
+                                                                    </div>
+                                                                    <div className="mb-2">
+                                                                        <label className="form-label small mb-1">Modelo</label>
+                                                                        <input className="form-control form-control-sm" value={editCamionData.modelo} onChange={e => setEditCamionData(v => ({ ...v, modelo: e.target.value }))} />
+                                                                    </div>
+                                                                    <div className="mb-3">
+                                                                        <label className="form-label small mb-1">Año</label>
+                                                                        <input className="form-control form-control-sm" type="number" value={editCamionData.anio} onChange={e => setEditCamionData(v => ({ ...v, anio: e.target.value }))} />
+                                                                    </div>
+                                                                    <div className="d-flex flex-column gap-2">
+                                                                        <button className="btn btn-sm btn-success w-100" onClick={() => saveEditCamion(c.id)}>
+                                                                            <i className="bi bi-check-lg me-1"></i>Guardar
+                                                                        </button>
+                                                                        <button className="btn btn-sm btn-outline-secondary w-100" onClick={cancelEditCamion}>
+                                                                            <i className="bi bi-x-lg me-1"></i>Cancelar
+                                                                        </button>
+                                                                    </div>
+                                                                </>
                                                             ) : (
-                                                                <select
-                                                                    className="form-select form-select-sm"
-                                                                    value={c.camioneroId || ''}
-                                                                    onChange={async (e) => {
-                                                                        const value = e.target.value;
-                                                                        try {
-                                                                            const body = value ? { camioneroId: Number(value) } : { camioneroId: null };
-                                                                            await api.post(`/camiones/${c.id}/asignarCamionero`, body);
-                                                                            showToast('Camionero asignado al camión', 'success');
-                                                                            await fetchCamiones();
-                                                                        } catch (err) {
-                                                                            const msg = err?.response?.data?.error || 'Error al asignar camionero';
-                                                                            setError(msg);
-                                                                            showToast(msg, 'error');
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <option value="">Sin asignar</option>
-                                                                    {camioneros.map(cm => (
-                                                                        <option key={cm.id} value={cm.id}>{cm.nombre} ({cm.email})</option>
-                                                                    ))}
-                                                                </select>
+                                                                <>
+                                                                    <h6 className="card-title mb-2 d-flex align-items-center">
+                                                                        <i className="bi bi-truck me-2 text-primary"></i>
+                                                                        <strong>{c.patente}</strong>
+                                                                    </h6>
+                                                                    <p className="card-text small mb-1">
+                                                                        <strong>{c.marca}</strong> {c.modelo}
+                                                                    </p>
+                                                                    <p className="card-text small text-muted mb-3">
+                                                                        <i className="bi bi-calendar me-1"></i>Año: {c.anio || '-'}
+                                                                    </p>
+                                                                    <div className="mb-3">
+                                                                        <label className="form-label small mb-1">
+                                                                            <i className="bi bi-person me-1"></i>Camionero
+                                                                        </label>
+                                                                        {camioneros.length === 0 ? (
+                                                                            <span className="text-body-secondary small d-block">Sin camioneros cargados</span>
+                                                                        ) : (
+                                                                            <select
+                                                                                className="form-select form-select-sm"
+                                                                                value={c.camioneroId || ''}
+                                                                                onChange={async (e) => {
+                                                                                    const value = e.target.value;
+                                                                                    try {
+                                                                                        const body = value ? { camioneroId: Number(value) } : { camioneroId: null };
+                                                                                        await api.post(`/camiones/${c.id}/asignarCamionero`, body);
+                                                                                        showToast('Camionero asignado al camión', 'success');
+                                                                                        await fetchCamiones();
+                                                                                    } catch (err) {
+                                                                                        const msg = err?.response?.data?.error || 'Error al asignar camionero';
+                                                                                        setError(msg);
+                                                                                        showToast(msg, 'error');
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                <option value="">Sin asignar</option>
+                                                                                {camioneros.map(cm => (
+                                                                                    <option key={cm.id} value={cm.id}>{cm.nombre}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="d-flex gap-2">
+                                                                        <button className="btn btn-sm btn-outline-primary flex-fill" onClick={() => startEditCamion(c)} title="Editar">
+                                                                            <i className="bi bi-pencil"></i>
+                                                                        </button>
+                                                                        <button className="btn btn-sm btn-outline-danger flex-fill" onClick={() => deleteCamion(c.id)} title="Eliminar">
+                                                                            <i className="bi bi-trash"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </>
                                                             )}
-                                                        </td>
-                                                        <td className="text-end">
-                                                            {editCamionId === c.id ? (
-                                                                <div className="btn-group btn-group-sm">
-                                                                    <button className="btn btn-success" onClick={() => saveEditCamion(c.id)}><i className="bi bi-check-lg"></i></button>
-                                                                    <button className="btn btn-outline-secondary" onClick={cancelEditCamion}><i className="bi bi-x-lg"></i></button>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="btn-group btn-group-sm">
-                                                                    <button className="btn btn-outline-primary" onClick={() => startEditCamion(c)} title="Editar"><i className="bi bi-pencil"></i></button>
-                                                                    <button className="btn btn-outline-danger" onClick={() => deleteCamion(c.id)} title="Eliminar"><i className="bi bi-trash"></i></button>
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             </div>
