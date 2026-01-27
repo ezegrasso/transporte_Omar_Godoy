@@ -3,6 +3,7 @@ import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { body, param, query, validationResult } from 'express-validator';
 import sequelize from '../config/db.js';
 import { Op } from 'sequelize';
@@ -18,21 +19,47 @@ import { sendEmailToCEO, sendEmailToCamioneros, sendEmail } from '../services/em
 
 const router = Router();
 
-// Configuración de subida de archivos
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const id = req.params.id || 'general';
-        const dir = path.resolve('uploads', 'viajes', String(id));
-        fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-    },
-    filename: function (req, file, cb) {
-        const ext = path.extname(file.originalname);
-        const base = file.fieldname === 'file' ? 'factura' : 'remito';
-        cb(null, `${base}_${Date.now()}${ext}`);
-    }
-});
+// Configuración de subida de archivos (memoria). Si hay credenciales S3, sube a bucket; si no, guarda en disco local.
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+const hasS3 = process.env.S3_BUCKET && process.env.S3_REGION && process.env.S3_ACCESS_KEY && process.env.S3_SECRET_KEY;
+const s3Client = hasS3 ? new S3Client({
+    region: process.env.S3_REGION,
+    endpoint: process.env.S3_ENDPOINT || undefined,
+    forcePathStyle: Boolean(process.env.S3_ENDPOINT),
+    credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY,
+        secretAccessKey: process.env.S3_SECRET_KEY,
+    },
+}) : null;
+
+const buildS3Url = (key) => {
+    if (process.env.S3_PUBLIC_URL) {
+        return `${process.env.S3_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
+    }
+    if (process.env.S3_ENDPOINT) {
+        return `${process.env.S3_ENDPOINT.replace(/\/$/, '')}/${process.env.S3_BUCKET}/${key}`;
+    }
+    return `https://${process.env.S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${key}`;
+};
+
+const uploadBufferToS3 = async (key, buffer, contentType) => {
+    if (!s3Client) throw new Error('S3 no está configurado');
+    await s3Client.send(new PutObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key, Body: buffer, ContentType: contentType }));
+    return buildS3Url(key);
+};
+
+const saveLocalFile = (id, file, base) => {
+    const ext = path.extname(file.originalname) || '.bin';
+    const dir = path.resolve('uploads', 'viajes', String(id));
+    fs.mkdirSync(dir, { recursive: true });
+    const filename = `${base}_${Date.now()}${ext}`;
+    const fullPath = path.join(dir, filename);
+    fs.writeFileSync(fullPath, file.buffer);
+    const relPath = `viajes/${id}/${filename}`;
+    return { fullPath, relPath };
+};
 
 // Obtener viajes (ceo/administracion ven todos; camionero ve disponibles/asignados)
 router.get('/', authMiddleware, [
@@ -380,8 +407,14 @@ router.post('/:id/factura',
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
             let url = viaje.facturaUrl;
             if (req.file) {
-                const rel = `viajes/${req.params.id}/${req.file.filename}`;
-                url = rel;
+                const ext = path.extname(req.file.originalname) || '.pdf';
+                const key = `viajes/${req.params.id}/factura_${Date.now()}${ext}`;
+                if (hasS3) {
+                    url = await uploadBufferToS3(key, req.file.buffer, req.file.mimetype || 'application/octet-stream');
+                } else {
+                    const saved = saveLocalFile(req.params.id, req.file, 'factura');
+                    url = saved.relPath;
+                }
             }
             viaje.facturaUrl = url;
             if (req.body.fechaFactura) viaje.fechaFactura = new Date(req.body.fechaFactura);
@@ -426,7 +459,18 @@ router.post('/:id/remitos',
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
             const existing = viaje.remitosJson ? JSON.parse(viaje.remitosJson) : [];
-            const added = (req.files || []).map(f => `/uploads/viajes/${req.params.id}/${f.filename}`);
+            const added = [];
+            for (const file of (req.files || [])) {
+                const ext = path.extname(file.originalname) || '.pdf';
+                const key = `viajes/${req.params.id}/remito_${Date.now()}_${Math.random().toString(36).slice(2, 6)}${ext}`;
+                if (hasS3) {
+                    const url = await uploadBufferToS3(key, file.buffer, file.mimetype || 'application/octet-stream');
+                    added.push(url);
+                } else {
+                    const saved = saveLocalFile(req.params.id, file, 'remito');
+                    added.push(`/uploads/${saved.relPath}`);
+                }
+            }
             viaje.remitosJson = JSON.stringify([...existing, ...added]);
             await viaje.save();
             res.json(viaje);
@@ -583,6 +627,11 @@ router.get('/:id/factura/download',
         try {
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje || !viaje.facturaUrl) return res.status(404).json({ error: 'Factura no encontrada' });
+
+            // Si la URL es remota (S3 o similar), redirigimos
+            if (/^https?:\/\//i.test(viaje.facturaUrl)) {
+                return res.redirect(viaje.facturaUrl);
+            }
 
             const filePath = path.resolve(process.cwd(), 'uploads', viaje.facturaUrl);
 
