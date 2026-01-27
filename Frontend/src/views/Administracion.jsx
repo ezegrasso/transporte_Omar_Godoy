@@ -53,13 +53,13 @@ export default function Administracion() {
             estado: (v.facturaEstado || 'pendiente').toLowerCase(),
             fecha: yyyyMMdd(v.fechaFactura || v.fecha),
             precioUnitario: v.importe ?? '',
-            conIVA: false,
+            ivaPercentaje: 0,
             file: null,
             loading: false,
             error: ''
         });
     };
-    const closeFactura = () => setFacturaModal({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', conIVA: false, file: null, loading: false, error: '' });
+    const closeFactura = () => setFacturaModal({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', ivaPercentaje: 0, file: null, loading: false, error: '' });
     const submitFactura = async () => {
         if (!facturaModal.id) return;
         setFacturaModal((m) => ({ ...m, loading: true, error: '' }));
@@ -71,14 +71,14 @@ export default function Administracion() {
                 if (facturaModal.estado) fd.append('facturaEstado', facturaModal.estado);
                 if (facturaModal.fecha) fd.append('fechaFactura', facturaModal.fecha);
                 if (String(facturaModal.precioUnitario).trim() !== '') fd.append('precioUnitario', String(facturaModal.precioUnitario));
-                fd.append('conIVA', facturaModal.conIVA ? 'true' : 'false');
+                fd.append('ivaPercentaje', facturaModal.ivaPercentaje);
                 await api.post(`/viajes/${facturaModal.id}/factura`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             } else {
                 await api.patch(`/viajes/${facturaModal.id}/factura`, {
                     facturaEstado: facturaModal.estado,
                     fechaFactura: facturaModal.fecha || null,
                     precioUnitario: String(facturaModal.precioUnitario || '').trim() !== '' ? Number(facturaModal.precioUnitario) : undefined,
-                    conIVA: facturaModal.conIVA,
+                    ivaPercentaje: facturaModal.ivaPercentaje,
                 });
             }
             showToast('Factura actualizada', 'success');
@@ -804,13 +804,12 @@ export default function Administracion() {
                                         onChange={(e) => setFacturaModal(m => ({ ...m, precioUnitario: e.target.value }))} />
                                 </div>
                                 <div className="col-6">
-                                    <label className="form-label d-block">IVA</label>
-                                    <div className="form-check">
-                                        <input className="form-check-input" type="checkbox" id="chkCargarConIVA" checked={facturaModal.conIVA}
-                                            onChange={(e) => setFacturaModal(m => ({ ...m, conIVA: e.target.checked }))} />
-                                        <label className="form-check-label" htmlFor="chkCargarConIVA">Aplicar IVA (21%)</label>
-                                    </div>
-                                    <div className="form-text">Si marcás IVA, el importe se calculará como precio × 1.21.</div>
+                                    <label className="form-label">IVA</label>
+                                    <select className="form-select" value={facturaModal.ivaPercentaje} onChange={(e) => setFacturaModal(m => ({ ...m, ivaPercentaje: Number(e.target.value) }))}>
+                                        <option value={0}>Sin IVA</option>
+                                        <option value={10.5}>IVA 10.5%</option>
+                                        <option value={21}>IVA 21%</option>
+                                    </select>
                                 </div>
                             </div>
                             <div className="mb-0">
