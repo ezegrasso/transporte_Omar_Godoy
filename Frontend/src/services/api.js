@@ -32,3 +32,22 @@ api.interceptors.response.use(
 );
 
 export default api;
+// Función para descargar factura desde el servidor
+export const downloadFactura = async (viajeId) => {
+    try {
+        const response = await api.get(`/viajes/${viajeId}/factura/download`, {
+            responseType: 'blob'
+        });
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `factura_${viajeId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } catch (error) {
+        throw new Error(error?.response?.data?.error || 'Error al descargar la factura');
+    }
+};

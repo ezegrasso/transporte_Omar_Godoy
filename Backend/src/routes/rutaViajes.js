@@ -366,7 +366,7 @@ router.post('/:id/factura',
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
             let url = viaje.facturaUrl;
             if (req.file) {
-                const rel = `/uploads/viajes/${req.params.id}/${req.file.filename}`;
+                const rel = `viajes/${req.params.id}/${req.file.filename}`;
                 url = rel;
             }
             viaje.facturaUrl = url;
@@ -541,6 +541,29 @@ router.patch('/:id/liberar',
             res.status(500).json({ error: 'Error al liberar viaje' });
         }
     });
+
+// Descargar factura subida
+router.get('/:id/factura/download',
+    authMiddleware,
+    roleMiddleware(['ceo', 'administracion']),
+    [param('id').isInt()],
+    async (req, res) => {
+        try {
+            const viaje = await Viaje.findByPk(req.params.id);
+            if (!viaje || !viaje.facturaUrl) return res.status(404).json({ error: 'Factura no encontrada' });
+
+            const filePath = path.resolve(process.cwd(), 'uploads', viaje.facturaUrl);
+
+            if (!fs.existsSync(filePath)) {
+                return res.status(404).json({ error: 'Archivo no existe en el servidor' });
+            }
+
+            res.download(filePath, `factura_${viaje.id}.pdf`);
+        } catch (e) {
+            res.status(500).json({ error: 'Error al descargar factura' });
+        }
+    }
+);
 
 export default router;
 // Editar viaje (solo ceo; permitido solo si está pendiente)

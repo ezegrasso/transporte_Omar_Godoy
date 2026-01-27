@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import PageHeader from '../components/UI/PageHeader';
 import StatCard from '../components/UI/StatCard';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
+import api, { downloadFactura } from '../services/api';
 import EmptyState from '../components/UI/EmptyState';
 // Migración de exportación: reemplazamos CSV por PDF y añadimos detalle/factura
 import { generarListadoViajesPDF, generarDetalleViajePDF, generarFacturaViajePDF } from '../utils/pdf';
@@ -267,6 +267,14 @@ export default function Administracion() {
             const base = api?.defaults?.baseURL || window.location.origin;
             return new URL(u, base).toString();
         } catch { return u || '#'; }
+    };
+    const handleDownloadFactura = async (v) => {
+        if (!v?.id || !v?.facturaUrl) return;
+        try {
+            await downloadFactura(v.id);
+        } catch (e) {
+            showToast(e?.response?.data?.error || 'No se pudo descargar la factura', 'error');
+        }
     };
     const AUTO_OPEN_THRESHOLD = Number(import.meta?.env?.VITE_NOTIS_AUTO_OPEN_THRESHOLD ?? 3);
     const [weekStart, setWeekStart] = useState(() => {
@@ -689,7 +697,18 @@ export default function Administracion() {
                                                 <td>{v.importe ?? '-'}</td>
                                                 <td>{v.acoplado?.patente || v.acopladoPatente || '-'}</td>
                                                 <td>{v.importe ?? '-'}</td>
-                                                <td>{v.facturaUrl ? <a href={buildUrl(v.facturaUrl)} target="_blank" rel="noreferrer" aria-label={`Abrir factura del viaje ${v.id}`}>Ver</a> : '-'}</td>
+                                                <td>
+                                                    {v.facturaUrl ? (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-link p-0"
+                                                            onClick={() => handleDownloadFactura(v)}
+                                                            aria-label={`Descargar factura del viaje ${v.id}`}
+                                                        >
+                                                            Ver
+                                                        </button>
+                                                    ) : '-'}
+                                                </td>
                                                 <td>
                                                     {v.facturaEstado ? (
                                                         <span className={`badge text-capitalize ${(v.facturaEstado.toLowerCase() === 'cobrada') ? 'bg-success-subtle text-success' :
