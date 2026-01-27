@@ -77,6 +77,10 @@ const Viaje = sequelize.define('Viaje', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true
     },
+    precioUnitarioNegro: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
     tipoMercaderia: {
         type: DataTypes.STRING,
         allowNull: true

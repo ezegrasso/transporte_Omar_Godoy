@@ -396,6 +396,15 @@ router.post('/:id/factura',
                     viaje.importe = total;
                 }
             }
+            // Guardar precio unitario negro si viene
+            if (req.body.precioUnitarioNegro !== undefined) {
+                const precioNegro = parseFloat(String(req.body.precioUnitarioNegro));
+                if (!isNaN(precioNegro) && precioNegro >= 0) {
+                    viaje.precioUnitarioNegro = precioNegro;
+                } else {
+                    viaje.precioUnitarioNegro = null;
+                }
+            }
             await viaje.save();
             res.json(viaje);
         } catch (e) {
@@ -431,7 +440,7 @@ router.post('/:id/remitos',
 router.patch('/:id/factura',
     authMiddleware,
     roleMiddleware(['ceo', 'administracion']),
-    [param('id').isInt(), body('facturaEstado').optional().isString(), body('fechaFactura').optional().isISO8601(), body('precioUnitario').optional().isFloat({ min: 0 }), body('ivaPercentaje').optional().isFloat({ min: 0 })],
+    [param('id').isInt(), body('facturaEstado').optional().isString(), body('fechaFactura').optional().isISO8601(), body('precioUnitario').optional().isFloat({ min: 0 }), body('ivaPercentaje').optional().isFloat({ min: 0 }), body('precioUnitarioNegro').optional().isFloat({ min: 0 })],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -448,6 +457,15 @@ router.patch('/:id/factura',
                 const precioUnitario = parseFloat(String(req.body.precioUnitario));
                 if (!isNaN(precioUnitario) && precioUnitario >= 0) {
                     viaje.precioUnitarioFactura = precioUnitario;
+                }
+            }
+            // Guardar precio unitario negro
+            if (req.body.precioUnitarioNegro !== undefined) {
+                const precioNegro = parseFloat(String(req.body.precioUnitarioNegro));
+                if (!isNaN(precioNegro) && precioNegro >= 0) {
+                    viaje.precioUnitarioNegro = precioNegro;
+                } else {
+                    viaje.precioUnitarioNegro = null;
                 }
             }
             await viaje.save();

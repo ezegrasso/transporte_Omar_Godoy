@@ -38,7 +38,7 @@ export default function Administracion() {
         setRemitoPreviewUrl('');
     };
     const closeRemitos = () => setRemitosModal({ open: false, id: null, files: [] });
-    const [facturaModal, setFacturaModal] = useState({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', conIVA: false, file: null, loading: false, error: '' });
+    const [facturaModal, setFacturaModal] = useState({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', precioUnitarioNegro: '', conIVA: false, file: null, loading: false, error: '' });
     const openFactura = (v) => {
         const yyyyMMdd = (d) => {
             if (!d) return '';
@@ -53,13 +53,14 @@ export default function Administracion() {
             estado: (v.facturaEstado || 'pendiente').toLowerCase(),
             fecha: yyyyMMdd(v.fechaFactura || v.fecha),
             precioUnitario: v.precioUnitarioFactura ?? v.importe ?? '',
+            precioUnitarioNegro: v.precioUnitarioNegro ?? '',
             ivaPercentaje: v.ivaPercentaje || 0,
             file: null,
             loading: false,
             error: ''
         });
     };
-    const closeFactura = () => setFacturaModal({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', ivaPercentaje: 0, file: null, loading: false, error: '' });
+    const closeFactura = () => setFacturaModal({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', precioUnitarioNegro: '', ivaPercentaje: 0, file: null, loading: false, error: '' });
     const submitFactura = async () => {
         if (!facturaModal.id) return;
         setFacturaModal((m) => ({ ...m, loading: true, error: '' }));
@@ -78,6 +79,7 @@ export default function Administracion() {
                     facturaEstado: facturaModal.estado,
                     fechaFactura: facturaModal.fecha || null,
                     precioUnitario: String(facturaModal.precioUnitario || '').trim() !== '' ? Number(facturaModal.precioUnitario) : undefined,
+                    precioUnitarioNegro: String(facturaModal.precioUnitarioNegro || '').trim() !== '' ? Number(facturaModal.precioUnitarioNegro) : undefined,
                     ivaPercentaje: facturaModal.ivaPercentaje,
                 });
             }
@@ -696,6 +698,7 @@ export default function Administracion() {
                                         <th scope="col">Importe</th>
                                         <th scope="col">Acoplado</th>
                                         <th scope="col">Subtotal</th>
+                                        <th scope="col">Subtotal Negro</th>
                                         <th scope="col">NC</th>
                                         <th scope="col">Factura</th>
                                         <th scope="col">Estado factura</th>
@@ -737,6 +740,7 @@ export default function Administracion() {
                                                         return Number(total.toFixed(2));
                                                     })() : (v.precioUnitarioFactura ?? '-')}
                                                 </td>
+                                                <td>{v.precioUnitarioNegro ?? '-'}</td>
                                                 <td>
                                                     {v.notasCreditoCantidad > 0 ? (
                                                         <span className="badge bg-danger-subtle text-danger" title={`Total NC: $${v.notasCreditoTotal}`}>
@@ -898,6 +902,11 @@ export default function Administracion() {
                                     </div>
                                 </div>
                             )}
+                            <div className="mb-3">
+                                <label className="form-label">Precio Unitario en negro</label>
+                                <input type="number" min={0} step={0.01} className="form-control" value={facturaModal.precioUnitarioNegro}
+                                    onChange={(e) => setFacturaModal(m => ({ ...m, precioUnitarioNegro: e.target.value }))} />
+                            </div>
                             <div className="mb-0">
                                 <label className="form-label">Archivo (opcional)</label>
                                 <input type="file" className="form-control" accept="image/*,.pdf" onChange={(e) => setFacturaModal(m => ({ ...m, file: e.target.files?.[0] || null }))} />
