@@ -121,6 +121,34 @@ export const ensureSchema = async () => {
     } catch (e) {
         console.error('No se pudo asegurar esquema de camiones:', e);
     }
+
+    // Asegurar tabla notas_credito
+    try {
+        const descNC = await qi.describeTable('notas_credito');
+        // Tabla ya existe
+    } catch (e) {
+        if (e.message.includes('notas_credito')) {
+            // Tabla no existe, crearla
+            try {
+                await sequelize.query(`
+                    CREATE TABLE notas_credito (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        viajeId INT NOT NULL,
+                        motivo VARCHAR(255) NOT NULL,
+                        monto DECIMAL(10, 2) NOT NULL,
+                        descripcion LONGTEXT,
+                        fechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (viajeId) REFERENCES viajes(id) ON DELETE CASCADE
+                    )
+                `);
+                console.log("Tabla 'notas_credito' creada.");
+            } catch (err) {
+                console.error('Error al crear tabla notas_credito:', err);
+            }
+        } else {
+            console.error('Error al verificar tabla notas_credito:', e);
+        }
+    }
 };
 
 export default ensureSchema;
