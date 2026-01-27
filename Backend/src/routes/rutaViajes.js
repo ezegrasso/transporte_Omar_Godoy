@@ -12,6 +12,7 @@ import Camion from '../models/Camion.js';
 import { getAll as getAllAcoplados, getById as getAcopladoById } from '../models/Acoplado.js';
 import { authMiddleware, roleMiddleware } from '../middlewares/authMiddleware.js';
 import Notificacion from '../models/Notificacion.js';
+import NotaCredito from '../models/NotaCredito.js';
 import { sendEmailToCEO, sendEmailToCamioneros, sendEmail } from '../services/emailService.js';
 // (Se eliminó soporte WhatsApp)
 
@@ -561,6 +562,38 @@ router.get('/:id/factura/download',
             res.download(filePath, `factura_${viaje.id}.pdf`);
         } catch (e) {
             res.status(500).json({ error: 'Error al descargar factura' });
+        }
+    }
+);
+
+// Crear nota de crédito
+router.post('/:id/nota-credito',
+    authMiddleware,
+    roleMiddleware(['ceo']),
+    [
+        param('id').isInt(),
+        body('motivo').trim().notEmpty(),
+        body('monto').isFloat({ min: 0 }),
+        body('descripcion').optional().trim()
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+        try {
+            const viaje = await Viaje.findByPk(req.params.id);
+            if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
+            
+            const notaCredito = await NotaCredito.create({
+                viajeId: req.params.id,
+                motivo: req.body.motivo,
+                monto: req.body.monto,
+                descripcion: req.body.descripcion || null
+            });
+            
+            res.json({ ok: true, notaCredito });
+        } catch (e) {
+            console.error('Error al crear nota de crédito:', e);
+            res.status(500).json({ error: 'Error al crear nota de crédito' });
         }
     }
 );

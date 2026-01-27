@@ -92,6 +92,38 @@ export default function Administracion() {
     const [checkingVencidas, setCheckingVencidas] = useState(false);
     const openUploadRemitos = (v) => setRemitosUploadModal({ open: true, id: v.id, files: [], loading: false, error: '' });
     const closeUploadRemitos = () => setRemitosUploadModal({ open: false, id: null, files: [], loading: false, error: '' });
+    const [creditNoteModal, setCreditNoteModal] = useState({ open: false, id: null, motivo: '', monto: '', descripcion: '', loading: false, error: '' });
+    const openCreditNote = (v) => {
+        setCreditNoteModal({
+            open: true,
+            id: v.id,
+            motivo: '',
+            monto: '',
+            descripcion: '',
+            loading: false,
+            error: ''
+        });
+    };
+    const closeCreditNote = () => setCreditNoteModal({ open: false, id: null, motivo: '', monto: '', descripcion: '', loading: false, error: '' });
+    const submitCreditNote = async () => {
+        if (!creditNoteModal.id || !creditNoteModal.motivo || !creditNoteModal.monto) {
+            setCreditNoteModal(m => ({ ...m, error: 'Completa motivo y monto' }));
+            return;
+        }
+        setCreditNoteModal(m => ({ ...m, loading: true, error: '' }));
+        try {
+            await api.post(`/viajes/${creditNoteModal.id}/nota-credito`, {
+                motivo: creditNoteModal.motivo,
+                monto: Number(creditNoteModal.monto),
+                descripcion: creditNoteModal.descripcion || ''
+            });
+            showToast('Nota de crédito creada', 'success');
+            closeCreditNote();
+            fetchSemana();
+        } catch (e) {
+            setCreditNoteModal(m => ({ ...m, loading: false, error: e?.response?.data?.error || 'Error al crear nota de crédito' }));
+        }
+    };
 
     // Modal: Resumen Financiero Mensual
     const [finanzasModal, setFinanzasModal] = useState({ open: false, mes: '', clienteFiltro: 'todos' });
@@ -535,6 +567,7 @@ export default function Administracion() {
                         e.preventDefault();
                         if (facturaModal.open) closeFactura();
                         if (remitosUploadModal.open) closeUploadRemitos();
+                if (creditNoteModal.open) closeCreditNote();
                         if (remitosModal.open) closeRemitos();
                         if (iaModal.open) closeIa();
                         break;
@@ -551,7 +584,7 @@ export default function Administracion() {
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [viajesPagina, selectedRowId, facturaModal.open, remitosUploadModal.open, remitosModal.open, iaModal.open]);
+    }, [viajesPagina, selectedRowId, facturaModal.open, remitosUploadModal.open, remitosModal.open, iaModal.open, creditNoteModal.open]);
 
 
     return (
@@ -765,6 +798,10 @@ export default function Administracion() {
                                                             </button>
                                                             <button className="dropdown-item" onClick={() => { descargarFacturaPDF(v); setRowActionsOpen(null); }}>
                                                                 <i className="bi bi-file-earmark-pdf me-2"></i> Factura PDF
+                                                            </button>
+                                                            <div className="dropdown-divider"></div>
+                                                            <button className="dropdown-item" onClick={() => { openCreditNote(v); setRowActionsOpen(null); }}>
+                                                                <i className="bi bi-receipt-cutoff me-2"></i> Nota de crédito
                                                             </button>
                                                         </div>, document.body
                                                     )}
@@ -1090,6 +1127,46 @@ export default function Administracion() {
                         </div>
                         <div className="modal-footer">
                             <button type="button" className="btn btn-secondary" onClick={closeFinanzas}>Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modal: Nota de crédito */}
+            <div className={`modal ${creditNoteModal.open ? 'd-block show' : 'fade'}`} id="modalNotaCredito" tabIndex="-1" aria-hidden={!creditNoteModal.open} style={creditNoteModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
+                <div className="modal-dialog">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-6">Nota de crédito - Viaje #{creditNoteModal.id ?? ''}</h1>
+                            <button type="button" className="btn-close" aria-label="Close" onClick={closeCreditNote}></button>
+                        </div>
+                        <div className="modal-body">
+                            {creditNoteModal.error && <div className="alert alert-danger">{creditNoteModal.error}</div>}
+                            <div className="mb-3">
+                                <label className="form-label">Motivo *</label>
+                                <select className="form-select" value={creditNoteModal.motivo} onChange={(e) => setCreditNoteModal(m => ({ ...m, motivo: e.target.value }))}>
+                                    <option value="">-- Selecciona motivo --</option>
+                                    <option value="devolucion">Devolución de pago</option>
+                                    <option value="ajuste">Ajuste de tarifa</option>
+                                    <option value="error">Error en factura</option>
+                                    <option value="descuento">Descuento especial</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                            <div className="mb-3">
+                                <label className="form-label">Monto *</label>
+                                <input type="number" min={0} step={0.01} className="form-control" placeholder="Ej: 100.50" value={creditNoteModal.monto} onChange={(e) => setCreditNoteModal(m => ({ ...m, monto: e.target.value }))} />
+                            </div>
+                            <div className="mb-3">
+                                <label className="form-label">Descripción</label>
+                                <textarea className="form-control" rows="3" placeholder="Detalles adicionales..." value={creditNoteModal.descripcion} onChange={(e) => setCreditNoteModal(m => ({ ...m, descripcion: e.target.value }))}></textarea>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={closeCreditNote}>Cancelar</button>
+                            <button type="button" className="btn btn-primary" onClick={submitCreditNote} disabled={creditNoteModal.loading}>
+                                {creditNoteModal.loading ? <span><span className="spinner-border spinner-border-sm me-2" role="status"></span>Procesando...</span> : 'Crear nota de crédito'}
+                            </button>
                         </div>
                     </div>
                 </div>
