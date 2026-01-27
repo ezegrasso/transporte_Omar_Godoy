@@ -71,6 +71,14 @@ export const ensureSchema = async () => {
             await qi.addColumn('viajes', 'importe', { type: DataTypes.DECIMAL(10, 2), allowNull: true });
             console.log("Columna 'importe' añadida a 'viajes'.");
         }
+        if (!('ivaPercentaje' in descV)) {
+            await qi.addColumn('viajes', 'ivaPercentaje', { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 });
+            console.log("Columna 'ivaPercentaje' añadida a 'viajes'.");
+        }
+        if (!('precioUnitarioFactura' in descV)) {
+            await qi.addColumn('viajes', 'precioUnitarioFactura', { type: DataTypes.DECIMAL(10, 2), allowNull: true });
+            console.log("Columna 'precioUnitarioFactura' añadida a 'viajes'.");
+        }
 
         // Índices recomendados para escalar consultas en viajes
         try {

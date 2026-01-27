@@ -52,8 +52,8 @@ export default function Administracion() {
             id: v.id,
             estado: (v.facturaEstado || 'pendiente').toLowerCase(),
             fecha: yyyyMMdd(v.fechaFactura || v.fecha),
-            precioUnitario: v.importe ?? '',
-            ivaPercentaje: 0,
+            precioUnitario: v.precioUnitarioFactura ?? v.importe ?? '',
+            ivaPercentaje: v.ivaPercentaje || 0,
             file: null,
             loading: false,
             error: ''
@@ -567,7 +567,7 @@ export default function Administracion() {
                         e.preventDefault();
                         if (facturaModal.open) closeFactura();
                         if (remitosUploadModal.open) closeUploadRemitos();
-                if (creditNoteModal.open) closeCreditNote();
+                        if (creditNoteModal.open) closeCreditNote();
                         if (remitosModal.open) closeRemitos();
                         if (iaModal.open) closeIa();
                         break;
@@ -696,6 +696,7 @@ export default function Administracion() {
                                         <th scope="col">Importe</th>
                                         <th scope="col">Acoplado</th>
                                         <th scope="col">Subtotal</th>
+                                        <th scope="col">NC</th>
                                         <th scope="col">Factura</th>
                                         <th scope="col">Estado factura</th>
                                         <th scope="col">Fecha factura</th>
@@ -729,7 +730,20 @@ export default function Administracion() {
                                                 <td>{v.precioTonelada ?? '-'}</td>
                                                 <td>{v.importe ?? '-'}</td>
                                                 <td>{v.acoplado?.patente || v.acopladoPatente || '-'}</td>
-                                                <td>{v.importe ?? '-'}</td>
+                                                <td>
+                                                    {v.precioUnitarioFactura ? (() => {
+                                                        const base = v.precioUnitarioFactura * (1 + (v.ivaPercentaje || 0) / 100);
+                                                        const total = base - (v.notasCreditoTotal || 0);
+                                                        return Number(total.toFixed(2));
+                                                    })() : (v.precioUnitarioFactura ?? '-')}
+                                                </td>
+                                                <td>
+                                                    {v.notasCreditoCantidad > 0 ? (
+                                                        <span className="badge bg-danger-subtle text-danger" title={`Total NC: $${v.notasCreditoTotal}`}>
+                                                            {v.notasCreditoCantidad}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
                                                 <td>
                                                     {v.facturaUrl ? (
                                                         <button
@@ -868,6 +882,22 @@ export default function Administracion() {
                                     </select>
                                 </div>
                             </div>
+                            {facturaModal.precioUnitario && (
+                                <div className="alert alert-info mb-3">
+                                    <strong>Cálculo:</strong>
+                                    <div className="row g-2 mt-2">
+                                        <div className="col-6">
+                                            <small>Precio: <strong>${Number(facturaModal.precioUnitario).toFixed(2)}</strong></small>
+                                        </div>
+                                        <div className="col-6">
+                                            <small>IVA ({facturaModal.ivaPercentaje}%): <strong>${(Number(facturaModal.precioUnitario) * facturaModal.ivaPercentaje / 100).toFixed(2)}</strong></small>
+                                        </div>
+                                        <div className="col-12">
+                                            <small className="text-primary"><strong>Total con IVA: ${(Number(facturaModal.precioUnitario) * (1 + facturaModal.ivaPercentaje / 100)).toFixed(2)}</strong></small>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <div className="mb-0">
                                 <label className="form-label">Archivo (opcional)</label>
                                 <input type="file" className="form-control" accept="image/*,.pdf" onChange={(e) => setFacturaModal(m => ({ ...m, file: e.target.files?.[0] || null }))} />

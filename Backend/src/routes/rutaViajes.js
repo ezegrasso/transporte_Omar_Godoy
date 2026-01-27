@@ -90,9 +90,22 @@ router.get('/', authMiddleware, [
             const acs = await getAllAcoplados();
             acopladoMap = new Map(acs.map(a => [a.id, a.patente]));
         } catch { /* noop */ }
+
+        // Obtener suma de notas de crédito por viaje
+        const viajeIds = rows.map(v => v.id);
+        const notasCredito = await NotaCredito.findAll({
+            where: { viajeId: viajeIds },
+            attributes: ['viajeId', [sequelize.fn('SUM', sequelize.col('monto')), 'totalNC'], [sequelize.fn('COUNT', sequelize.col('id')), 'cantidadNC']],
+            group: ['viajeId'],
+            raw: true
+        });
+        const ncMap = new Map(notasCredito.map(nc => [nc.viajeId, { total: parseFloat(nc.totalNC) || 0, cantidad: parseInt(nc.cantidadNC) || 0 }]));
+
         const data = rows.map(v => ({
             ...v.toJSON?.() || v,
             acopladoPatente: v.acopladoId ? (acopladoMap.get(v.acopladoId) || null) : null,
+            notasCreditoTotal: ncMap.get(v.id)?.total || 0,
+            notasCreditoCantidad: ncMap.get(v.id)?.cantidad || 0
         }));
         res.json({ data, page, limit, total: count });
     } catch (error) {
@@ -418,7 +431,7 @@ router.post('/:id/remitos',
 router.patch('/:id/factura',
     authMiddleware,
     roleMiddleware(['ceo', 'administracion']),
-    [param('id').isInt(), body('facturaEstado').optional().isString(), body('fechaFactura').optional().isISO8601(), body('precioUnitario').optional().isFloat({ min: 0 }), body('conIVA').optional().isBoolean()],
+    [param('id').isInt(), body('facturaEstado').optional().isString(), body('fechaFactura').optional().isISO8601(), body('precioUnitario').optional().isFloat({ min: 0 }), body('ivaPercentaje').optional().isFloat({ min: 0 })],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -427,14 +440,14 @@ router.patch('/:id/factura',
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
             if (req.body.facturaEstado) viaje.facturaEstado = req.body.facturaEstado;
             if (req.body.fechaFactura) viaje.fechaFactura = new Date(req.body.fechaFactura);
-            // Calcular y persistir importe si se envía precioUnitario (con IVA opcional)
+            if (req.body.ivaPercentaje !== undefined) {
+                viaje.ivaPercentaje = parseFloat(String(req.body.ivaPercentaje)) || 0;
+            }
+            // Guardar precioUnitario en campo separado (NO modificar precioTonelada ni importe)
             if (req.body.precioUnitario !== undefined) {
                 const precioUnitario = parseFloat(String(req.body.precioUnitario));
-                const conIVA = (req.body.conIVA === true) || (String(req.body.conIVA).toLowerCase() === 'true');
                 if (!isNaN(precioUnitario) && precioUnitario >= 0) {
-                    const factorIVA = conIVA ? 1.21 : 1.0;
-                    const total = Number((precioUnitario * factorIVA).toFixed(2));
-                    viaje.importe = total;
+                    viaje.precioUnitarioFactura = precioUnitario;
                 }
             }
             await viaje.save();
@@ -569,7 +582,7 @@ router.get('/:id/factura/download',
 // Crear nota de crédito
 router.post('/:id/nota-credito',
     authMiddleware,
-    roleMiddleware(['ceo']),
+    roleMiddleware(['ceo', 'administracion']),
     [
         param('id').isInt(),
         body('motivo').trim().notEmpty(),
@@ -582,18 +595,39 @@ router.post('/:id/nota-credito',
         try {
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
-            
+
             const notaCredito = await NotaCredito.create({
                 viajeId: req.params.id,
                 motivo: req.body.motivo,
                 monto: req.body.monto,
                 descripcion: req.body.descripcion || null
             });
-            
+
             res.json({ ok: true, notaCredito });
         } catch (e) {
             console.error('Error al crear nota de crédito:', e);
             res.status(500).json({ error: 'Error al crear nota de crédito' });
+        }
+    }
+);
+
+// Obtener notas de crédito de un viaje
+router.get('/:id/notas-credito',
+    authMiddleware,
+    roleMiddleware(['ceo', 'administracion']),
+    [param('id').isInt()],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+        try {
+            const notasCredito = await NotaCredito.findAll({
+                where: { viajeId: req.params.id },
+                order: [['fechaCreacion', 'DESC']]
+            });
+            res.json(notasCredito);
+        } catch (e) {
+            console.error('Error al obtener notas de crédito:', e);
+            res.status(500).json({ error: 'Error al obtener notas de crédito' });
         }
     }
 );

@@ -68,6 +68,15 @@ const Viaje = sequelize.define('Viaje', {
         allowNull: false,
         defaultValue: false
     },
+    ivaPercentaje: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false,
+        defaultValue: 0
+    },
+    precioUnitarioFactura: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
     tipoMercaderia: {
         type: DataTypes.STRING,
         allowNull: true
