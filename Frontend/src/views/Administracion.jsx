@@ -38,7 +38,7 @@ export default function Administracion() {
         setRemitoPreviewUrl('');
     };
     const closeRemitos = () => setRemitosModal({ open: false, id: null, files: [] });
-    const [facturaModal, setFacturaModal] = useState({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', precioUnitarioNegro: '', conIVA: false, file: null, loading: false, error: '' });
+    const [facturaModal, setFacturaModal] = useState({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', precioUnitarioNegro: '', ivaPercentaje: 0, file: null, loading: false, error: '' });
     const openFactura = (v) => {
         const yyyyMMdd = (d) => {
             if (!d) return '';
@@ -886,18 +886,18 @@ export default function Administracion() {
                                     </select>
                                 </div>
                             </div>
-                            {facturaModal.precioUnitario && (
+                            {facturaModal.precioUnitario && !isNaN(Number(facturaModal.precioUnitario)) && Number(facturaModal.precioUnitario) > 0 && (
                                 <div className="alert alert-info mb-3">
                                     <strong>Cálculo:</strong>
                                     <div className="row g-2 mt-2">
                                         <div className="col-6">
-                                            <small>Precio: <strong>${Number(facturaModal.precioUnitario).toFixed(2)}</strong></small>
+                                            <small>Precio: <strong>{Number(facturaModal.precioUnitario).toFixed(2)} $</strong></small>
                                         </div>
                                         <div className="col-6">
-                                            <small>IVA ({facturaModal.ivaPercentaje}%): <strong>${(Number(facturaModal.precioUnitario) * facturaModal.ivaPercentaje / 100).toFixed(2)}</strong></small>
+                                            <small>IVA ({Number(facturaModal.ivaPercentaje || 0)} %): <strong>{(Number(facturaModal.precioUnitario) * Number(facturaModal.ivaPercentaje || 0) / 100).toFixed(2)} $</strong></small>
                                         </div>
                                         <div className="col-12">
-                                            <small className="text-primary"><strong>Total con IVA: ${(Number(facturaModal.precioUnitario) * (1 + facturaModal.ivaPercentaje / 100)).toFixed(2)}</strong></small>
+                                            <small className="text-primary"><strong>Total con IVA: $ {(Number(facturaModal.precioUnitario) * (1 + Number(facturaModal.ivaPercentaje || 0) / 100)).toFixed(2)}</strong></small>
                                         </div>
                                     </div>
                                 </div>

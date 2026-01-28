@@ -419,14 +419,22 @@ router.post('/:id/factura',
             viaje.facturaUrl = url;
             if (req.body.fechaFactura) viaje.fechaFactura = new Date(req.body.fechaFactura);
             if (req.body.facturaEstado) viaje.facturaEstado = req.body.facturaEstado;
-            // Calcular y persistir importe a partir de precioUnitario (+ IVA opcional)
+
+            // Guardar ivaPercentaje si viene
+            if (req.body.ivaPercentaje !== undefined) {
+                const iva = parseFloat(String(req.body.ivaPercentaje));
+                viaje.ivaPercentaje = (!isNaN(iva) && iva >= 0) ? iva : 0;
+            }
+
+            // Calcular y persistir importe a partir de precioUnitario + IVA
             if (req.body.precioUnitario !== undefined) {
                 const precioUnitario = parseFloat(String(req.body.precioUnitario));
-                const conIVA = String(req.body.conIVA || '').toLowerCase() === 'true';
                 if (!isNaN(precioUnitario) && precioUnitario >= 0) {
-                    const factorIVA = conIVA ? 1.21 : 1.0;
+                    const ivaPercent = viaje.ivaPercentaje || 0;
+                    const factorIVA = 1 + (ivaPercent / 100);
                     const total = Number((precioUnitario * factorIVA).toFixed(2));
                     viaje.importe = total;
+                    viaje.precioUnitarioFactura = precioUnitario;
                 }
             }
             // Guardar precio unitario negro si viene
