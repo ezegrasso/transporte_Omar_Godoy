@@ -3,7 +3,7 @@ import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { body, param, query, validationResult } from 'express-validator';
 import sequelize from '../config/db.js';
 import { Op } from 'sequelize';
@@ -705,37 +705,44 @@ router.get('/:id/factura/download',
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje || !viaje.facturaUrl) return res.status(404).json({ error: 'Factura no encontrada' });
 
-            // Si la URL es remota (S3 o similar), descargar desde BackBlaze y servir
+            // Si la URL es remota (S3 o similar), usar S3Client para descargar con credenciales
             if (/^https?:\/\//i.test(viaje.facturaUrl)) {
                 try {
-                    console.log('[factura/download] Descargando desde BackBlaze:', viaje.facturaUrl);
-                    const response = await fetch(viaje.facturaUrl);
-                    if (!response.ok) {
-                        return res.status(404).json({ error: 'No se pudo descargar la factura desde BackBlaze' });
+                    if (!s3Client) {
+                        return res.status(500).json({ error: 'S3 no está configurado' });
                     }
-                    // Obtener el tipo de contenido
-                    const contentType = response.headers.get('content-type') || 'application/pdf';
-                    // Establecer headers CORS y descarga
-                    res.setHeader('Content-Type', contentType);
+                    
+                    // Extraer el key de la URL
+                    // URL: https://s3.us-east-005.backblazeb2.com/TransporteOmar/viajes/40/factura_xxx.pdf
+                    // Key: viajes/40/factura_xxx.pdf
+                    const urlObj = new URL(viaje.facturaUrl);
+                    const key = urlObj.pathname.split('/').slice(2).join('/'); // Skip bucket name
+                    
+                    console.log('[factura/download] Descargando desde S3 con key:', key);
+                    
+                    const getCommand = new GetObjectCommand({
+                        Bucket: process.env.S3_BUCKET,
+                        Key: key,
+                    });
+                    
+                    const s3Response = await s3Client.send(getCommand);
+                    
+                    // Establecer headers
+                    res.setHeader('Content-Type', s3Response.ContentType || 'application/pdf');
                     res.setHeader('Content-Disposition', `attachment; filename="factura_${viaje.id}.pdf"`);
                     res.setHeader('Access-Control-Allow-Origin', '*');
                     
-                    // Enviar el stream del archivo
-                    const buffer = await response.arrayBuffer();
-                    res.send(Buffer.from(buffer));
+                    // Convertir stream a buffer y enviar
+                    const chunks = [];
+                    for await (const chunk of s3Response.Body) {
+                        chunks.push(chunk);
+                    }
+                    const buffer = Buffer.concat(chunks);
+                    res.send(buffer);
                     return;
-                } catch (fetchErr) {
-                    console.error('[factura/download] Error descargando de BackBlaze:', fetchErr.message);
-                    return res.status(500).json({ error: 'Error al descargar factura de BackBlaze' });
-                }
-            }
-
-            // Si es archivo local
-            const filePath = path.resolve(process.cwd(), 'uploads', viaje.facturaUrl);
-
-            if (!fs.existsSync(filePath)) {
-                return res.status(404).json({ error: 'Archivo no existe en el servidor' });
-            }
+                } catch (s3Err) {
+                    console.error('[factura/download] Error descargando de S3:', s3Err.message);
+                    return res.status(500).json({ error: 'Error al descargar factura de S3' });
 
             res.download(filePath, `factura_${viaje.id}.pdf`);
         } catch (e) {
