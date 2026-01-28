@@ -63,6 +63,8 @@ export default function Administracion() {
     const closeFactura = () => setFacturaModal({ open: false, id: null, estado: 'pendiente', fecha: '', precioUnitario: '', precioUnitarioNegro: '', ivaPercentaje: 0, file: null, loading: false, error: '' });
     const submitFactura = async () => {
         if (!facturaModal.id) return;
+        console.log('[submitFactura] file:', facturaModal.file);
+        console.log('[submitFactura] usando:', facturaModal.file ? 'POST' : 'PATCH');
         setFacturaModal((m) => ({ ...m, loading: true, error: '' }));
         try {
             // Si hay archivo, POST multipart; si no, PATCH solo estado/fecha
@@ -942,7 +944,13 @@ export default function Administracion() {
                             </div>
                             <div className="mb-0">
                                 <label className="form-label">Archivo (opcional)</label>
-                                <input type="file" className="form-control" accept="image/*,.pdf" onChange={(e) => setFacturaModal(m => ({ ...m, file: e.target.files?.[0] || null }))} />
+                                <input 
+                                    key={facturaModal.open ? 'file-input-open' : 'file-input-closed'}
+                                    type="file" 
+                                    className="form-control" 
+                                    accept="image/*,.pdf" 
+                                    onChange={(e) => setFacturaModal(m => ({ ...m, file: e.target.files?.[0] || null }))} 
+                                />
                                 <div className="form-text">Si no subís archivo, se actualizará solo el estado/fecha.</div>
                             </div>
                         </div>
