@@ -24,6 +24,16 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 const hasS3 = process.env.S3_BUCKET && process.env.S3_REGION && process.env.S3_ACCESS_KEY && process.env.S3_SECRET_KEY;
+
+if (hasS3) {
+    console.log('[S3 Config] Configuración detectada:');
+    console.log('[S3 Config] S3_BUCKET:', process.env.S3_BUCKET);
+    console.log('[S3 Config] S3_REGION:', process.env.S3_REGION);
+    console.log('[S3 Config] S3_ENDPOINT:', process.env.S3_ENDPOINT);
+    console.log('[S3 Config] S3_ACCESS_KEY (primeros 10 chars):', process.env.S3_ACCESS_KEY?.substring(0, 10));
+    console.log('[S3 Config] S3_SECRET_KEY existe:', !!process.env.S3_SECRET_KEY);
+}
+
 const s3Client = hasS3 ? new S3Client({
     region: process.env.S3_REGION,
     endpoint: process.env.S3_ENDPOINT || undefined,
