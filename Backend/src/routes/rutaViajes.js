@@ -403,6 +403,7 @@ router.post('/:id/factura',
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
+            console.log('[rutaViajes POST factura] Iniciando...', req.params.id);
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
             let url = viaje.facturaUrl;
@@ -424,15 +425,18 @@ router.post('/:id/factura',
             if (req.body.ivaPercentaje !== undefined) {
                 const iva = parseFloat(String(req.body.ivaPercentaje));
                 viaje.ivaPercentaje = (!isNaN(iva) && iva >= 0) ? iva : 0;
+                console.log('[rutaViajes POST factura] IVA asignado:', viaje.ivaPercentaje);
             }
 
             // Calcular y persistir importe a partir de precioUnitario + IVA
             if (req.body.precioUnitario !== undefined) {
                 const precioUnitario = parseFloat(String(req.body.precioUnitario));
+                console.log('[rutaViajes POST factura] Precio unitario:', precioUnitario);
                 if (!isNaN(precioUnitario) && precioUnitario >= 0) {
                     const ivaPercent = viaje.ivaPercentaje || 0;
                     const factorIVA = 1 + (ivaPercent / 100);
                     const total = Number((precioUnitario * factorIVA).toFixed(2));
+                    console.log('[rutaViajes POST factura] Cálculo IVA:', { precioUnitario, ivaPercent, total });
                     viaje.importe = total;
                     viaje.precioUnitarioFactura = precioUnitario;
                 }
@@ -446,10 +450,21 @@ router.post('/:id/factura',
                     viaje.precioUnitarioNegro = null;
                 }
             }
+            console.log('[rutaViajes POST factura] Guardando viaje con datos:', {
+                importe: viaje.importe,
+                ivaPercentaje: viaje.ivaPercentaje,
+                precioUnitarioFactura: viaje.precioUnitarioFactura,
+                facturaUrl: viaje.facturaUrl
+            });
             await viaje.save();
             res.json(viaje);
         } catch (e) {
-            res.status(500).json({ error: 'Error al subir factura' });
+            console.error('[rutaViajes POST factura] Error al procesar:', {
+                message: e?.message,
+                stack: e?.stack,
+                code: e?.code
+            });
+            res.status(500).json({ error: 'Error al subir factura', details: e?.message });
         }
     }
 );
