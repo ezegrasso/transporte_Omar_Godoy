@@ -27,7 +27,7 @@ const hasS3 = process.env.S3_BUCKET && process.env.S3_REGION && process.env.S3_A
 const s3Client = hasS3 ? new S3Client({
     region: process.env.S3_REGION,
     endpoint: process.env.S3_ENDPOINT || undefined,
-    forcePathStyle: Boolean(process.env.S3_ENDPOINT),
+    forcePathStyle: true, // BackBlaze B2 requiere path-style
     credentials: {
         accessKeyId: process.env.S3_ACCESS_KEY,
         secretAccessKey: process.env.S3_SECRET_KEY,
