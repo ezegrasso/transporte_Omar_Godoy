@@ -347,7 +347,7 @@ export default function Camionero() {
                                 </button>
                             </div>
                         </div>
-                        <small className="text-body-secondary d-block mt-2">Al finalizar, se registrará el km, el combustible y los kilos cargados y el CEO podrá verlo en su panel.</small>
+                        <small className="text-body-secondary d-block mt-2">Al finalizar, se registrará el km, el combustible y las toneladas cargadas y el CEO podrá verlo en su panel.</small>
                     </div>
                 </div>
             )}
@@ -585,7 +585,7 @@ export default function Camionero() {
                                             <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
                                             <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}
                                             </div>
-                                            <div><strong>Kilos cargados:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
+                                            <div><strong>Toneladas cargadas:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
                                         </div>
                                     </div>
                                     <hr />
@@ -602,7 +602,7 @@ export default function Camionero() {
                                         <input className="form-control" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} />
                                     </div>
                                     <div className="col-12">
-                                        <label className="form-label">Kilos cargados</label>
+                                        <label className="form-label">Toneladas cargadas</label>
 
                                         <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} />
                                         <small className="text-body-secondary">Si el CEO definió precio por tonelada, se calculará automáticamente el importe del viaje.</small>
@@ -621,7 +621,7 @@ export default function Camionero() {
                                         <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
                                         <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
                                         <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
-                                        <li><strong>Kilos a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
+                                        <li><strong>Toneladas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
                                     </ul>
                                     <div className="alert alert-danger py-2 small mb-2">
                                         Una vez finalizado el viaje, no podrás volverlo a "en curso" (solo cancelar antes de confirmar).
@@ -706,7 +706,7 @@ export default function Camionero() {
                                                     <th>Fecha</th>
                                                     <th>Origen</th>
                                                     <th>Destino</th>
-                                                    <th>Kilos</th>
+                                                    <th>Toneladas</th>
                                                     <th>Precio/Tn</th>
                                                     <th>Importe</th>
                                                 </tr>

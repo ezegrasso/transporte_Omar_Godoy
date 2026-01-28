@@ -334,7 +334,7 @@ export default function Ceo() {
     // Exportar listado a PDF
     const exportViajesPDF = (scope = 'filtro') => {
         const set = scope === 'pagina' ? viajesPagina : viajesOrdenados;
-        const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible', 'Kilos', 'Precio/Tn', 'Importe'];
+        const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible', 'Toneladas', 'Precio/Tn', 'Importe'];
         const rows = set.map(v => [
             formatDateOnly(v.fecha),
             v.estado || '',
@@ -1099,7 +1099,7 @@ export default function Ceo() {
                                 <table className={`table table-sm table-striped table-hover table-sticky table-cols-bordered`}>
                                     <thead>
                                         <tr>
-                                            {['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible', 'Kilos', 'Precio/Tn', 'Importe'].map((label) => (
+                                            {['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible', 'Toneladas', 'Precio/Tn', 'Importe'].map((label) => (
                                                 <th
                                                     key={label.toLowerCase()}
                                                     role="button"
@@ -1761,7 +1761,7 @@ export default function Ceo() {
                                             <div><strong>Cliente:</strong> {detalle.cliente ?? '-'}</div>
                                             <div><strong>Kilómetros:</strong> {detalle.km ?? '-'}</div>
                                             <div><strong>Combustible:</strong> {detalle.combustible ?? '-'}</div>
-                                            <div><strong>Kilos cargados:</strong> {detalle.kilosCargados ?? '-'}</div>
+                                            <div><strong>Toneladas cargadas:</strong> {detalle.kilosCargados ?? '-'}</div>
                                             <div><strong>Precio por tonelada:</strong> {detalle.precioTonelada ?? '-'}</div>
                                             <div><strong>Importe:</strong> {detalle.importe ?? '-'}</div>
                                         </div>
@@ -1874,7 +1874,7 @@ export default function Ceo() {
                                                         <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
                                                         <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
                                                         <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}</div>
-                                                        <div><strong>Kilos cargados:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
+                                                        <div><strong>Toneladas cargadas:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
                                                     </div>
                                                 </div>
                                                 <hr />
@@ -1890,7 +1890,7 @@ export default function Ceo() {
                                                         <input className="form-control" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} />
                                                     </div>
                                                     <div className="col-12">
-                                                        <label className="form-label">Kilos cargados</label>
+                                                        <label className="form-label">Toneladas cargadas</label>
                                                         <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} />
                                                         <small className="text-body-secondary">Si definiste precio por tonelada, se calculará automáticamente el importe del viaje.</small>
                                                     </div>
@@ -1908,7 +1908,7 @@ export default function Ceo() {
                                                         <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
                                                         <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
                                                         <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
-                                                        <li><strong>Kilos a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
+                                                        <li><strong>Toneladas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
                                                     </ul>
                                                     <div className="alert alert-danger py-2 small mb-2">
                                                         Una vez finalizado el viaje, no podrás volverlo a "en curso".

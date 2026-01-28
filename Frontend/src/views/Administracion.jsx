@@ -259,7 +259,7 @@ export default function Administracion() {
     const exportPDF = () => {
         try {
             const titulo = `Listado de viajes finalizados (${weekStart} a ${weekEnd})`;
-            const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Camionero', 'Tipo', 'Cliente', 'Kilos', 'Precio/Tn', 'Importe', 'Factura', 'Estado factura', 'Fecha factura', 'Remitos'];
+            const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Camionero', 'Tipo', 'Cliente', 'Toneladas', 'Precio/Tn', 'Importe', 'Factura', 'Estado factura', 'Fecha factura', 'Remitos'];
             const rows = (viajesFiltrados || []).map(v => [
                 formatDateOnly(v.fecha),
                 v.estado || '-',
@@ -693,7 +693,7 @@ export default function Administracion() {
                                         <th scope="col">Camionero</th>
                                         <th scope="col">Tipo</th>
                                         <th scope="col">Cliente</th>
-                                        <th scope="col">Kilos</th>
+                                        <th scope="col">Toneladas</th>
                                         <th scope="col">Precio/Tn</th>
                                         <th scope="col">Importe</th>
                                         <th scope="col">Acoplado</th>
@@ -1023,7 +1023,7 @@ export default function Administracion() {
                                 <input type="number" className="form-control" min="0" step="0.01" value={finalizarModal.combustible} onChange={e => setFinalizarModal(m => ({ ...m, combustible: e.target.value }))} />
                             </div>
                             <div className="mb-3">
-                                <label className="form-label">Kilos cargados (opcional)</label>
+                                <label className="form-label">Toneladas cargadas (opcional)</label>
                                 <input type="number" className="form-control" min="0" step="0.01" value={finalizarModal.kilos} onChange={e => setFinalizarModal(m => ({ ...m, kilos: e.target.value }))} />
                                 <div className="form-text">Si hay precio/tonelada, se recalcula el importe automáticamente.</div>
                             </div>
