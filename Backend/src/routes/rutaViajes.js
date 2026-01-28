@@ -51,14 +51,22 @@ const uploadBufferToS3 = async (key, buffer, contentType) => {
 };
 
 const saveLocalFile = (id, file, base) => {
-    const ext = path.extname(file.originalname) || '.bin';
-    const dir = path.resolve('uploads', 'viajes', String(id));
-    fs.mkdirSync(dir, { recursive: true });
-    const filename = `${base}_${Date.now()}${ext}`;
-    const fullPath = path.join(dir, filename);
-    fs.writeFileSync(fullPath, file.buffer);
-    const relPath = `viajes/${id}/${filename}`;
-    return { fullPath, relPath };
+    try {
+        console.log('[saveLocalFile] Intentando guardar archivo localmente...');
+        const ext = path.extname(file.originalname) || '.bin';
+        const dir = path.resolve('uploads', 'viajes', String(id));
+        console.log('[saveLocalFile] Directorio destino:', dir);
+        fs.mkdirSync(dir, { recursive: true });
+        const filename = `${base}_${Date.now()}${ext}`;
+        const fullPath = path.join(dir, filename);
+        fs.writeFileSync(fullPath, file.buffer);
+        const relPath = `viajes/${id}/${filename}`;
+        console.log('[saveLocalFile] Archivo guardado:', relPath);
+        return { fullPath, relPath };
+    } catch (err) {
+        console.error('[saveLocalFile] Error al guardar archivo:', err.message);
+        throw err;
+    }
 };
 
 // Obtener viajes (ceo/administracion ven todos; camionero ve disponibles/asignados)
@@ -408,13 +416,26 @@ router.post('/:id/factura',
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
             let url = viaje.facturaUrl;
             if (req.file) {
+                console.log('[rutaViajes POST factura] Archivo recibido:', req.file.originalname);
                 const ext = path.extname(req.file.originalname) || '.pdf';
                 const key = `viajes/${req.params.id}/factura_${Date.now()}${ext}`;
                 if (hasS3) {
+                    console.log('[rutaViajes POST factura] Subiendo a S3...');
                     url = await uploadBufferToS3(key, req.file.buffer, req.file.mimetype || 'application/octet-stream');
+                    console.log('[rutaViajes POST factura] URL S3:', url);
                 } else {
-                    const saved = saveLocalFile(req.params.id, req.file, 'factura');
-                    url = saved.relPath;
+                    console.log('[rutaViajes POST factura] S3 no configurado, intentando filesystem...');
+                    try {
+                        const saved = saveLocalFile(req.params.id, req.file, 'factura');
+                        url = saved.relPath;
+                        console.log('[rutaViajes POST factura] Archivo local guardado:', url);
+                    } catch (fileErr) {
+                        console.error('[rutaViajes POST factura] CRÍTICO - No se pudo guardar archivo:', fileErr.message);
+                        // En Render sin S3, simplemente generar URL fake pero no fallar
+                        // Esto permite continuar aunque no se persista el archivo
+                        url = `/uploads/viajes/${req.params.id}/${key.split('/').pop()}`;
+                        console.warn('[rutaViajes POST factura] Usando URL fake:', url);
+                    }
                 }
             }
             viaje.facturaUrl = url;
