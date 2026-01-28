@@ -705,11 +705,32 @@ router.get('/:id/factura/download',
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje || !viaje.facturaUrl) return res.status(404).json({ error: 'Factura no encontrada' });
 
-            // Si la URL es remota (S3 o similar), redirigimos
+            // Si la URL es remota (S3 o similar), descargar desde BackBlaze y servir
             if (/^https?:\/\//i.test(viaje.facturaUrl)) {
-                return res.redirect(viaje.facturaUrl);
+                try {
+                    console.log('[factura/download] Descargando desde BackBlaze:', viaje.facturaUrl);
+                    const response = await fetch(viaje.facturaUrl);
+                    if (!response.ok) {
+                        return res.status(404).json({ error: 'No se pudo descargar la factura desde BackBlaze' });
+                    }
+                    // Obtener el tipo de contenido
+                    const contentType = response.headers.get('content-type') || 'application/pdf';
+                    // Establecer headers CORS y descarga
+                    res.setHeader('Content-Type', contentType);
+                    res.setHeader('Content-Disposition', `attachment; filename="factura_${viaje.id}.pdf"`);
+                    res.setHeader('Access-Control-Allow-Origin', '*');
+                    
+                    // Enviar el stream del archivo
+                    const buffer = await response.arrayBuffer();
+                    res.send(Buffer.from(buffer));
+                    return;
+                } catch (fetchErr) {
+                    console.error('[factura/download] Error descargando de BackBlaze:', fetchErr.message);
+                    return res.status(500).json({ error: 'Error al descargar factura de BackBlaze' });
+                }
             }
 
+            // Si es archivo local
             const filePath = path.resolve(process.cwd(), 'uploads', viaje.facturaUrl);
 
             if (!fs.existsSync(filePath)) {
@@ -718,6 +739,7 @@ router.get('/:id/factura/download',
 
             res.download(filePath, `factura_${viaje.id}.pdf`);
         } catch (e) {
+            console.error('[factura/download] Error:', e.message);
             res.status(500).json({ error: 'Error al descargar factura' });
         }
     }
