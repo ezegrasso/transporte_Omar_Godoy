@@ -42,6 +42,9 @@ const s3Client = hasS3 ? new S3Client({
         accessKeyId: process.env.S3_ACCESS_KEY,
         secretAccessKey: process.env.S3_SECRET_KEY,
     },
+    // BackBlaze B2 configuración adicional
+    signerVersion: 'v4',
+    signatureVersion: 'v4',
 }) : null;
 
 const buildS3Url = (key) => {
