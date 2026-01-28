@@ -121,6 +121,10 @@ const Viaje = sequelize.define('Viaje', {
     camioneroEmail: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    observaciones: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 }, {
     tableName: 'viajes',

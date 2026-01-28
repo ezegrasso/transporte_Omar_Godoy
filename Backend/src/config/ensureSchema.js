@@ -83,6 +83,10 @@ export const ensureSchema = async () => {
             await qi.addColumn('viajes', 'precioUnitarioNegro', { type: DataTypes.DECIMAL(10, 2), allowNull: true });
             console.log("Columna 'precioUnitarioNegro' añadida a 'viajes'.");
         }
+        if (!('observaciones' in descV)) {
+            await qi.addColumn('viajes', 'observaciones', { type: DataTypes.TEXT, allowNull: true });
+            console.log("Columna 'observaciones' añadida a 'viajes'.");
+        }
 
         // Índices recomendados para escalar consultas en viajes
         try {

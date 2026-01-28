@@ -528,6 +528,26 @@ router.patch('/:id/factura',
     }
 );
 
+// Actualizar observaciones (ceo/administracion)
+router.patch('/:id/observaciones',
+    authMiddleware,
+    roleMiddleware(['ceo', 'administracion']),
+    [param('id').isInt(), body('observaciones').optional().isString()],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+        try {
+            const viaje = await Viaje.findByPk(req.params.id);
+            if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
+            viaje.observaciones = req.body.observaciones || null;
+            await viaje.save();
+            res.json(viaje);
+        } catch (e) {
+            res.status(500).json({ error: 'Error al actualizar observaciones' });
+        }
+    }
+);
+
 // Chequear facturas vencidas (>30 días sin cobrar) y notificar (ceo/administracion)
 router.post('/checkVencidas', authMiddleware, roleMiddleware(['ceo', 'administracion']), async (req, res) => {
     try {

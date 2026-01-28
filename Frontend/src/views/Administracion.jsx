@@ -136,6 +136,25 @@ export default function Administracion() {
     };
     const closeFinanzas = () => setFinanzasModal({ open: false, mes: '', clienteFiltro: 'todos' });
 
+    // Modal: Observaciones
+    const [observacionesModal, setObservacionesModal] = useState({ open: false, id: null, texto: '', loading: false, error: '' });
+    const openObservaciones = (v) => {
+        setObservacionesModal({ open: true, id: v.id, texto: v.observaciones || '', loading: false, error: '' });
+    };
+    const closeObservaciones = () => setObservacionesModal({ open: false, id: null, texto: '', loading: false, error: '' });
+    const submitObservaciones = async () => {
+        if (!observacionesModal.id) return;
+        setObservacionesModal(m => ({ ...m, loading: true, error: '' }));
+        try {
+            await api.patch(`/viajes/${observacionesModal.id}/observaciones`, { observaciones: observacionesModal.texto });
+            showToast('Observaciones guardadas', 'success');
+            closeObservaciones();
+            fetchSemana();
+        } catch (e) {
+            setObservacionesModal(m => ({ ...m, loading: false, error: e?.response?.data?.error || 'Error al guardar observaciones' }));
+        }
+    };
+
     // Modal: Finalizar viaje
     const [finalizarModal, setFinalizarModal] = useState({ open: false, id: null, km: '', combustible: '', kilos: '', loading: false, error: '' });
     const openFinalizar = (v) => {
@@ -565,6 +584,13 @@ export default function Administracion() {
                         e.preventDefault();
                         resumirSemana();
                         break;
+                    case 'o':
+                        e.preventDefault();
+                        if (selectedRowId) {
+                            const v = viajesPagina.find(v => v.id === selectedRowId);
+                            if (v) openObservaciones(v);
+                        }
+                        break;
                     case 'x':
                         e.preventDefault();
                         if (facturaModal.open) closeFactura();
@@ -572,6 +598,7 @@ export default function Administracion() {
                         if (creditNoteModal.open) closeCreditNote();
                         if (remitosModal.open) closeRemitos();
                         if (iaModal.open) closeIa();
+                        if (observacionesModal.open) closeObservaciones();
                         break;
                     default:
                         break;
@@ -586,7 +613,7 @@ export default function Administracion() {
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [viajesPagina, selectedRowId, facturaModal.open, remitosUploadModal.open, remitosModal.open, iaModal.open, creditNoteModal.open]);
+    }, [viajesPagina, selectedRowId, facturaModal.open, remitosUploadModal.open, remitosModal.open, iaModal.open, creditNoteModal.open, observacionesModal.open]);
 
 
     return (
@@ -776,6 +803,9 @@ export default function Administracion() {
                                                     <button className="btn btn-link p-0" onClick={() => openRemitos(v)} title="Ver remitos" aria-label={`Ver ${remitos.length} remitos del viaje ${v.id}`}>{remitos.length}</button>
                                                 </td>
                                                 <td className="text-end position-relative" style={{ position: 'sticky', right: 0, background: 'var(--bs-body-bg)' }}>
+                                                    {v.observaciones && (
+                                                        <i className="bi bi-chat-left-text-fill text-primary me-2" title="Tiene observaciones" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); openObservaciones(v); }}></i>
+                                                    )}
                                                     <button
                                                         className="btn btn-sm btn-outline-secondary"
                                                         title="Acciones"
@@ -818,6 +848,9 @@ export default function Administracion() {
                                                                 <i className="bi bi-file-earmark-pdf me-2"></i> Factura PDF
                                                             </button>
                                                             <div className="dropdown-divider"></div>
+                                                            <button className="dropdown-item" onClick={() => { openObservaciones(v); setRowActionsOpen(null); }}>
+                                                                <i className="bi bi-chat-left-text me-2"></i> Observaciones
+                                                            </button>
                                                             <button className="dropdown-item" onClick={() => { openCreditNote(v); setRowActionsOpen(null); }}>
                                                                 <i className="bi bi-receipt-cutoff me-2"></i> Nota de crédito
                                                             </button>
@@ -1210,6 +1243,58 @@ export default function Administracion() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal: Observaciones */}
+            <div className={`modal ${observacionesModal.open ? 'd-block show' : 'fade'}`} tabIndex="-1" aria-hidden={!observacionesModal.open} style={observacionesModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
+                <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-content">
+                        <div className="modal-header bg-light">
+                            <h1 className="modal-title fs-5">
+                                <i className="bi bi-chat-left-text me-2"></i>
+                                Observaciones del viaje #{observacionesModal.id}
+                            </h1>
+                            <button type="button" className="btn-close" aria-label="Close" onClick={closeObservaciones}></button>
+                        </div>
+                        <div className="modal-body">
+                            {observacionesModal.error && <div className="alert alert-danger">{observacionesModal.error}</div>}
+                            <div className="mb-0">
+                                <label className="form-label">Notas y comentarios</label>
+                                <textarea
+                                    className="form-control"
+                                    rows="6"
+                                    placeholder="Agregá observaciones, notas internas o cualquier detalle relevante del viaje..."
+                                    value={observacionesModal.texto}
+                                    onChange={(e) => setObservacionesModal(m => ({ ...m, texto: e.target.value }))}
+                                    disabled={observacionesModal.loading}
+                                ></textarea>
+                                <div className="form-text">
+                                    <i className="bi bi-info-circle me-1"></i>
+                                    Estas observaciones son privadas y solo visibles para CEO y Administración.
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={closeObservaciones} disabled={observacionesModal.loading}>
+                                Cancelar
+                            </button>
+                            <button type="button" className="btn btn-primary" onClick={submitObservaciones} disabled={observacionesModal.loading}>
+                                {observacionesModal.loading ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        Guardando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-check-lg me-1"></i>
+                                        Guardar
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </>
     );
 }
