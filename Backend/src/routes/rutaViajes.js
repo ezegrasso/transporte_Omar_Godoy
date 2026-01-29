@@ -106,10 +106,15 @@ router.get('/', authMiddleware, [
         if (estado) where.estado = estado;
         // Restricción por rol
         if (req.user.rol !== 'ceo' && req.user.rol !== 'administracion') {
-            if (estado === 'pendiente') {
+            // Solo mostrar el viaje pendiente asignado al camión del camionero
+            // Buscar el camión asignado a este camionero
+            const camionAsignado = await Camion.findOne({ where: { camioneroId: req.user.id } });
+            if (camionAsignado) {
                 where.estado = 'pendiente';
+                where.camionId = camionAsignado.id;
             } else {
-                where.camioneroId = req.user.id;
+                // Si no tiene camión asignado, no ve ningún viaje pendiente
+                where.id = -1; // No existe
             }
         }
         // Filtro por fechas
