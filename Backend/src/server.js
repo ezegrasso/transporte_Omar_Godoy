@@ -29,6 +29,7 @@ dotenv.config();
 
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(helmet());
 // Soporte de múltiples orígenes en CORS con expansión localhost <-> 127.0.0.1
 const corsEnv = process.env.CORS_ORIGIN;
