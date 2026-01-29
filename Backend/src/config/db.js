@@ -37,10 +37,13 @@ export default sequelize;
 // Sincronizar modelos con la base de datos (los modelos deben estar importados previamente desde server.js)
 export const syncModels = async () => {
     try {
-        // Por defecto evitamos alteraciones automáticas. Para desarrollo, habilita DB_ALTER_ON_BOOT=true
-        const doAlter = String(process.env.DB_ALTER_ON_BOOT || '').toLowerCase() === 'true';
-        await sequelize.sync({ alter: !!doAlter });
-        console.log('Modelos sincronizados con la base de datos.');
+        // Si DB_ALTER_ON_BOOT está explícitamente en false, no altera
+        // Si está en true O no está definido, altera (seguridad: alter añade columnas, no las borra)
+        const doAlterExplicitlyDisabled = String(process.env.DB_ALTER_ON_BOOT || '').toLowerCase() === 'false';
+        const shouldAlter = !doAlterExplicitlyDisabled;
+
+        await sequelize.sync({ alter: shouldAlter });
+        console.log(`Modelos sincronizados (alter: ${shouldAlter}).`);
     } catch (error) {
         console.error('Error al sincronizar los modelos:', error);
     }

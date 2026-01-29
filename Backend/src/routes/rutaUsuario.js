@@ -76,9 +76,11 @@ router.put('/me',
 );
 
 // Ver todos los usuarios (solo admin)
-router.get('/', authMiddleware, roleMiddleware(['ceo']), async (req, res) => {
+router.get('/', authMiddleware, roleMiddleware(['ceo', 'administracion']), async (req, res) => {
     try {
-        const usuarios = await Usuario.findAll();
+        const { rol } = req.query;
+        const where = rol ? { rol } : {};
+        const usuarios = await Usuario.findAll({ where });
         res.json(usuarios);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener usuarios' });

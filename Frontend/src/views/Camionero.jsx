@@ -45,6 +45,10 @@ export default function Camionero() {
     const [liqAdelanto, setLiqAdelanto] = useState('');
     const [liqRes, setLiqRes] = useState(null);
 
+    // Adelantos del mes
+    const [adelantos, setAdelantos] = useState([]);
+    const [adelantosLoading, setAdelantosLoading] = useState(false);
+
     // Helpers de fecha (DATEONLY -> local)
     const parseDateOnlyLocal = (s) => {
         if (!s) return 0;
@@ -66,11 +70,27 @@ export default function Camionero() {
         setMios(list);
     };
 
+    const fetchAdelantos = async () => {
+        try {
+            setAdelantosLoading(true);
+            const d = new Date();
+            const mesActual = String(d.getMonth() + 1).padStart(2, '0');
+            const anioActual = String(d.getFullYear());
+            const { data } = await api.get(`/adelantos/mis-adelantos?mes=${mesActual}&anio=${anioActual}`);
+            setAdelantos(data.adelantos || []);
+        } catch (e) {
+            console.error('Error cargando adelantos:', e?.message);
+            setAdelantos([]);
+        } finally {
+            setAdelantosLoading(false);
+        }
+    };
+
     useEffect(() => {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchPendientes(), fetchMios()]); }
+            try { await Promise.all([fetchPendientes(), fetchMios(), fetchAdelantos()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando viajes'); }
             finally { setLoading(false); }
         })();
@@ -351,6 +371,66 @@ export default function Camionero() {
                     </div>
                 </div>
             )}
+
+            {/* Tarjeta de Adelantos */}
+            {adelantosLoading ? (
+                <div className="card shadow-sm">
+                    <div className="card-body text-center">
+                        <span className="spinner-border spinner-border-sm text-secondary" role="status" />
+                    </div>
+                </div>
+            ) : adelantos.length > 0 ? (
+                <div className="card shadow-sm border-success">
+                    <div className="card-header bg-success bg-opacity-10 d-flex align-items-center gap-2 py-2">
+                        <i className="bi bi-cash-coin text-success" style={{ fontSize: '1.25rem' }}></i>
+                        <h6 className="mb-0 fw-bold">Adelantos del Mes - {new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h6>
+                    </div>
+                    <div className="card-body">
+                        <div className="table-responsive">
+                            <table className="table table-sm table-borderless mb-0">
+                                <tbody>
+                                    {adelantos.map(adelanto => (
+                                        <tr key={adelanto.id} className="border-bottom">
+                                            <td className="py-3" style={{ width: '40%' }}>
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <div className="bg-success bg-opacity-10 rounded p-2">
+                                                        <i className="bi bi-currency-dollar text-success"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div className="fw-bold text-success" style={{ fontSize: '1.1rem' }}>
+                                                            ${Number(adelanto.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </div>
+                                                        <small className="text-muted">
+                                                            {new Date(adelanto.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="py-3 text-muted">
+                                                {adelanto.descripcion || 'Adelanto registrado por administración'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="mt-3 p-3 bg-light rounded d-flex justify-content-between align-items-center">
+                            <div>
+                                <small className="text-muted d-block mb-1">Total adelantado en {new Date().toLocaleString('es-AR', { month: 'long' })}</small>
+                                <h4 className="mb-0 text-success fw-bold">
+                                    ${adelantos.reduce((sum, a) => sum + parseFloat(a.monto || 0), 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </h4>
+                            </div>
+                            <div className="text-end">
+                                <small className="text-muted">
+                                    <i className="bi bi-info-circle me-1"></i>
+                                    Se reinicia cada mes
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             <div className="card shadow-sm">
                 <div className="card-body">

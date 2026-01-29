@@ -14,12 +14,14 @@ import usuariosRouter from './routes/rutaUsuario.js';
 import authRouter from './routes/auth.js';
 import notificacionesRouter from './routes/notificaciones.js';
 import iaRouter from './routes/rutaIA.js';
+import adelantosRouter from './routes/rutaAdelantos.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import rutaAcoplados from './routes/rutaAcoplados.js';
 import Usuario from './models/Usuario.js';
 import './models/Camion.js';
 import Viaje from './models/Viajes.js';
 import Notificacion from './models/Notificacion.js';
+import Adelanto from './models/Adelanto.js';
 import { setupSwagger } from './config/swagger.js';
 
 dotenv.config();
@@ -73,6 +75,7 @@ app.use('/api/acoplados', rutaAcoplados);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/notificaciones', notificacionesRouter);
 app.use('/api/ia', iaRouter);
+app.use('/api/adelantos', adelantosRouter);
 
 // Healthcheck simple
 app.get('/health', (req, res) => {

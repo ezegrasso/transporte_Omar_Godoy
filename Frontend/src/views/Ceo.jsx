@@ -705,6 +705,115 @@ export default function Ceo() {
     const [modalFinalizarId, setModalFinalizarId] = useState(null);
     const [finishingId, setFinishingId] = useState(null);
 
+    // Estados para modal de adelantos
+    const [adelantoModal, setAdelantoModal] = useState({ open: false, camioneroId: null, camioneroNombre: '', monto: '', descripcion: '', mes: '', anio: '', loading: false, error: '' });
+    const openAdelantoModal = (camioneroId, camioneroNombre) => {
+        const hoy = new Date();
+        setAdelantoModal({
+            open: true,
+            camioneroId,
+            camioneroNombre,
+            monto: '',
+            descripcion: '',
+            mes: String(hoy.getMonth() + 1).padStart(2, '0'),
+            anio: String(hoy.getFullYear()),
+            loading: false,
+            error: ''
+        });
+    };
+    const closeAdelantoModal = () => setAdelantoModal({ open: false, camioneroId: null, camioneroNombre: '', monto: '', descripcion: '', mes: '', anio: '', loading: false, error: '' });
+
+    // Modal para gestionar adelantos existentes
+    const [gestionAdelantosModal, setGestionAdelantosModal] = useState({ open: false, adelantos: [], loading: false, editando: null, montoEdit: '', descripcionEdit: '' });
+    const openGestionAdelantos = async () => {
+        setGestionAdelantosModal({ open: true, adelantos: [], loading: true, editando: null, montoEdit: '', descripcionEdit: '' });
+        try {
+            const hoy = new Date();
+            const mesActual = hoy.getMonth() + 1;
+            const anioActual = hoy.getFullYear();
+
+            // Obtener adelantos de todos los camioneros del mes actual
+            const adelantosPromises = camioneros.map(async (c) => {
+                try {
+                    const { data } = await api.get(`/adelantos/camionero/${c.id}`);
+                    return data.filter(a => a.mes === mesActual && a.anio === anioActual).map(a => ({ ...a, camioneroNombre: c.nombre }));
+                } catch {
+                    return [];
+                }
+            });
+            const resultados = await Promise.all(adelantosPromises);
+            const todosAdelantos = resultados.flat().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            setGestionAdelantosModal(m => ({ ...m, adelantos: todosAdelantos, loading: false }));
+        } catch (e) {
+            setGestionAdelantosModal(m => ({ ...m, loading: false }));
+            showToast('Error cargando adelantos', 'error');
+        }
+    };
+    const closeGestionAdelantos = () => setGestionAdelantosModal({ open: false, adelantos: [], loading: false, editando: null, montoEdit: '', descripcionEdit: '' });
+    const startEditAdelanto = (adelanto) => {
+        setGestionAdelantosModal(m => ({
+            ...m,
+            editando: adelanto.id,
+            montoEdit: adelanto.monto,
+            descripcionEdit: adelanto.descripcion || ''
+        }));
+    };
+    const cancelEditAdelanto = () => {
+        setGestionAdelantosModal(m => ({ ...m, editando: null, montoEdit: '', descripcionEdit: '' }));
+    };
+    const saveEditAdelanto = async (id) => {
+        try {
+            await api.patch(`/adelantos/${id}`, {
+                monto: parseFloat(gestionAdelantosModal.montoEdit),
+                descripcion: gestionAdelantosModal.descripcionEdit
+            });
+            showToast('Adelanto actualizado', 'success');
+            // Recargar
+            openGestionAdelantos();
+        } catch (e) {
+            showToast('Error actualizando adelanto', 'error');
+        }
+    };
+    const deleteAdelanto = async (id) => {
+        if (!confirm('¿Eliminar este adelanto?')) return;
+        try {
+            await api.delete(`/adelantos/${id}`);
+            showToast('Adelanto eliminado', 'success');
+            // Recargar
+            openGestionAdelantos();
+        } catch (e) {
+            showToast('Error eliminando adelanto', 'error');
+        }
+    };
+
+    const submitAdelanto = async () => {
+        if (!adelantoModal.camioneroId) {
+            setAdelantoModal(m => ({ ...m, error: 'Debes seleccionar un camionero' }));
+            return;
+        }
+        if (!adelantoModal.monto || !adelantoModal.mes || !adelantoModal.anio) {
+            setAdelantoModal(m => ({ ...m, error: 'Monto, mes y año son requeridos' }));
+            return;
+        }
+        setAdelantoModal(m => ({ ...m, loading: true, error: '' }));
+        try {
+            await api.post('/adelantos', {
+                camioneroId: adelantoModal.camioneroId,
+                monto: parseFloat(adelantoModal.monto),
+                mes: parseInt(adelantoModal.mes),
+                anio: parseInt(adelantoModal.anio),
+                descripcion: adelantoModal.descripcion || null
+            });
+            showToast('Adelanto registrado y email enviado', 'success');
+            closeAdelantoModal();
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error al registrar adelanto';
+            setAdelantoModal(m => ({ ...m, loading: false, error: msg }));
+            showToast(msg, 'error');
+        }
+    };
+
     const startEditUsuario = (u) => {
         setEditUsuarioId(u.id);
         setEditUsuarioData({ nombre: u.nombre || '', email: u.email || '', rol: u.rol || 'camionero', password: '', changePassword: false, showPassword: false });
@@ -827,67 +936,79 @@ export default function Ceo() {
                     <div className="d-flex align-items-center gap-2">
                         {loading && <span className="spinner-border spinner-border-sm text-secondary" role="status" />}
                         {user?.rol === 'ceo' && (
-                            <div className="position-relative">
-                                <button className={`btn btn-outline-secondary position-relative ${bellPulse ? 'notif-pulse' : ''}`} onClick={() => { setNotisOpen(v => !v); if (!notisOpen) fetchNotis(); }}>
-                                    <i className="bi bi-bell"></i>
-                                    {unreadCount > 0 && <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{unreadCount}</span>}
+                            <>
+                                {/* Botón de Adelantos */}
+                                <button className="btn btn-success" onClick={() => openAdelantoModal(null, '')} title="Registrar adelanto">
+                                    <i className="bi bi-cash-coin me-1"></i>
+                                    Adelanto
                                 </button>
-                                {notisOpen && (
-                                    <div className="card position-absolute end-0 mt-2 shadow" style={{ minWidth: 420, zIndex: 1000 }}>
-                                        <div className="card-header d-flex align-items-center py-2 gap-2">
-                                            <strong>Notificaciones</strong>
-                                            <span className={`badge ${unreadCount > 0 ? 'text-bg-danger' : 'text-bg-secondary'} ms-1`}>{unreadCount} sin leer</span>
-                                            <div className="ms-auto d-flex gap-1">
-                                                <button className="btn btn-sm btn-outline-warning" title="Borrar leídas" onClick={async () => {
-                                                    if (!confirm('¿Borrar todas las notificaciones leídas?')) return;
-                                                    try { await api.delete('/notificaciones/leidas/all'); } catch { }
-                                                    finally { fetchNotis(); }
-                                                }}>
-                                                    <i className="bi bi-check2-square me-1"></i> Borrar leídas
-                                                </button>
+                                {/* Botón de Gestionar Adelantos */}
+                                <button className="btn btn-outline-success" onClick={openGestionAdelantos} title="Gestionar adelantos del mes">
+                                    <i className="bi bi-pencil-square me-1"></i>
+                                    Gestionar
+                                </button>
+                                <div className="position-relative">
+                                    <button className={`btn btn-outline-secondary position-relative ${bellPulse ? 'notif-pulse' : ''}`} onClick={() => { setNotisOpen(v => !v); if (!notisOpen) fetchNotis(); }}>
+                                        <i className="bi bi-bell"></i>
+                                        {unreadCount > 0 && <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{unreadCount}</span>}
+                                    </button>
+                                    {notisOpen && (
+                                        <div className="card position-absolute end-0 mt-2 shadow" style={{ minWidth: 420, zIndex: 1000 }}>
+                                            <div className="card-header d-flex align-items-center py-2 gap-2">
+                                                <strong>Notificaciones</strong>
+                                                <span className={`badge ${unreadCount > 0 ? 'text-bg-danger' : 'text-bg-secondary'} ms-1`}>{unreadCount} sin leer</span>
+                                                <div className="ms-auto d-flex gap-1">
+                                                    <button className="btn btn-sm btn-outline-warning" title="Borrar leídas" onClick={async () => {
+                                                        if (!confirm('¿Borrar todas las notificaciones leídas?')) return;
+                                                        try { await api.delete('/notificaciones/leidas/all'); } catch { }
+                                                        finally { fetchNotis(); }
+                                                    }}>
+                                                        <i className="bi bi-check2-square me-1"></i> Borrar leídas
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="list-group list-group-flush" style={{ maxHeight: 380, overflowY: 'auto' }}>
+                                                {(notis || []).length === 0 ? (
+                                                    <div className="text-center text-body-secondary p-3">Sin notificaciones</div>
+                                                ) : (
+                                                    (notis || []).map(n => {
+                                                        const cfg = getTipoCfg(n.tipo);
+                                                        return (
+                                                            <div key={n.id} className={`list-group-item d-flex align-items-start gap-2`}>
+                                                                <div className={`rounded-circle d-flex align-items-center justify-content-center ${cfg.bg}`} style={{ width: 36, height: 36, position: 'relative' }}>
+                                                                    <i className={`bi ${cfg.icon}`}></i>
+                                                                    {!n.leida && <span className={`position-absolute top-0 end-0 translate-middle p-1 border border-light rounded-circle ${cfg.dot}`}></span>}
+                                                                </div>
+                                                                <div className="flex-grow-1">
+                                                                    <div className="d-flex align-items-center gap-2 mb-1">
+                                                                        <span className="badge text-bg-light text-capitalize border">{n.tipo.replaceAll('_', ' ')}</span>
+                                                                        {!n.leida && <span className="badge text-bg-warning">Nuevo</span>}
+                                                                        <span className="text-body-secondary small ms-auto">{relTime(n.fecha)} · {new Date(n.fecha).toLocaleString()}</span>
+                                                                    </div>
+                                                                    <div className="small">{n.mensaje}</div>
+                                                                </div>
+                                                                <div className="d-flex flex-column gap-1 align-items-end">
+                                                                    {!n.leida && (
+                                                                        <button className="btn btn-sm btn-outline-primary" onClick={async () => { await api.patch(`/notificaciones/${n.id}/leida`); setNotis(prev => prev.map(x => x.id === n.id ? { ...x, leida: true } : x)); }}>
+                                                                            <i className="bi bi-check2 me-1"></i> Leída
+                                                                        </button>
+                                                                    )}
+                                                                    <button className="btn btn-sm btn-outline-danger" title="Eliminar" onClick={async () => {
+                                                                        if (!confirm('¿Eliminar esta notificación?')) return;
+                                                                        try { await api.delete(`/notificaciones/${n.id}`); setNotis(prev => prev.filter(x => x.id !== n.id)); } catch { }
+                                                                    }}>
+                                                                        <i className="bi bi-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
                                             </div>
                                         </div>
-                                        <div className="list-group list-group-flush" style={{ maxHeight: 380, overflowY: 'auto' }}>
-                                            {(notis || []).length === 0 ? (
-                                                <div className="text-center text-body-secondary p-3">Sin notificaciones</div>
-                                            ) : (
-                                                (notis || []).map(n => {
-                                                    const cfg = getTipoCfg(n.tipo);
-                                                    return (
-                                                        <div key={n.id} className={`list-group-item d-flex align-items-start gap-2`}>
-                                                            <div className={`rounded-circle d-flex align-items-center justify-content-center ${cfg.bg}`} style={{ width: 36, height: 36, position: 'relative' }}>
-                                                                <i className={`bi ${cfg.icon}`}></i>
-                                                                {!n.leida && <span className={`position-absolute top-0 end-0 translate-middle p-1 border border-light rounded-circle ${cfg.dot}`}></span>}
-                                                            </div>
-                                                            <div className="flex-grow-1">
-                                                                <div className="d-flex align-items-center gap-2 mb-1">
-                                                                    <span className="badge text-bg-light text-capitalize border">{n.tipo.replaceAll('_', ' ')}</span>
-                                                                    {!n.leida && <span className="badge text-bg-warning">Nuevo</span>}
-                                                                    <span className="text-body-secondary small ms-auto">{relTime(n.fecha)} · {new Date(n.fecha).toLocaleString()}</span>
-                                                                </div>
-                                                                <div className="small">{n.mensaje}</div>
-                                                            </div>
-                                                            <div className="d-flex flex-column gap-1 align-items-end">
-                                                                {!n.leida && (
-                                                                    <button className="btn btn-sm btn-outline-primary" onClick={async () => { await api.patch(`/notificaciones/${n.id}/leida`); setNotis(prev => prev.map(x => x.id === n.id ? { ...x, leida: true } : x)); }}>
-                                                                        <i className="bi bi-check2 me-1"></i> Leída
-                                                                    </button>
-                                                                )}
-                                                                <button className="btn btn-sm btn-outline-danger" title="Eliminar" onClick={async () => {
-                                                                    if (!confirm('¿Eliminar esta notificación?')) return;
-                                                                    try { await api.delete(`/notificaciones/${n.id}`); setNotis(prev => prev.filter(x => x.id !== n.id)); } catch { }
-                                                                }}>
-                                                                    <i className="bi bi-trash"></i>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
+                            </>
                         )}
                     </div>
                 )} />
@@ -1946,6 +2067,299 @@ export default function Ceo() {
                     </div>
                 </div>
                 {showFinalizarModal && <div className="modal-backdrop show"></div>}
+
+                {/* Modal: Registrar Adelanto */}
+                <div className={`modal ${adelantoModal.open ? 'd-block show' : 'fade'}`} tabIndex="-1" aria-hidden={!adelantoModal.open} style={adelantoModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
+                    <div className="modal-dialog modal-lg">
+                        <div className="modal-content border-0 shadow-lg">
+                            <div className="modal-header border-0 py-4" style={{ background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' }}>
+                                <div className="w-100">
+                                    <h5 className="text-white mb-1" style={{ fontSize: '1.3rem', fontWeight: '600' }}>
+                                        <i className="bi bi-cash-coin me-2"></i>
+                                        Registrar Adelanto
+                                    </h5>
+                                    <small className="text-white" style={{ opacity: 0.95, fontSize: '0.85rem' }}>Registra un adelanto para un camionero</small>
+                                </div>
+                                <button type="button" className="btn-close btn-close-white ms-3" onClick={closeAdelantoModal} disabled={adelantoModal.loading}></button>
+                            </div>
+                            <div className="modal-body">
+                                {adelantoModal.error && <div className="alert alert-danger">{adelantoModal.error}</div>}
+                                <div className="row g-3">
+                                    <div className="col-12">
+                                        <label className="form-label">
+                                            <strong>Camionero</strong>
+                                        </label>
+                                        <select
+                                            className="form-select"
+                                            value={adelantoModal.camioneroId || ''}
+                                            onChange={e => {
+                                                const id = e.target.value ? Number(e.target.value) : null;
+                                                const camionero = camioneros.find(c => c.id === id);
+                                                setAdelantoModal(m => ({
+                                                    ...m,
+                                                    camioneroId: id,
+                                                    camioneroNombre: camionero?.nombre || ''
+                                                }));
+                                            }}
+                                            disabled={adelantoModal.loading}
+                                        >
+                                            <option value="">Seleccionar camionero...</option>
+                                            {camioneros.map(c => (
+                                                <option key={c.id} value={c.id}>{c.nombre} ({c.email})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="col-12">
+                                        <label className="form-label">
+                                            <strong>Monto ($)</strong>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            min="0"
+                                            step="100"
+                                            placeholder="Ej: 5000"
+                                            value={adelantoModal.monto}
+                                            onChange={e => setAdelantoModal(m => ({ ...m, monto: e.target.value }))}
+                                            disabled={adelantoModal.loading}
+                                        />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label">
+                                            <strong>Mes</strong>
+                                        </label>
+                                        <select
+                                            className="form-select"
+                                            value={adelantoModal.mes}
+                                            onChange={e => setAdelantoModal(m => ({ ...m, mes: e.target.value }))}
+                                            disabled={adelantoModal.loading}
+                                        >
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => {
+                                                const date = new Date(adelantoModal.anio, m - 1, 1);
+                                                const label = date.toLocaleString('es-AR', { month: 'long' });
+                                                return <option key={m} value={String(m).padStart(2, '0')}>{label}</option>;
+                                            })}
+                                        </select>
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label">
+                                            <strong>Año</strong>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            min="2020"
+                                            value={adelantoModal.anio}
+                                            onChange={e => setAdelantoModal(m => ({ ...m, anio: e.target.value }))}
+                                            disabled={adelantoModal.loading}
+                                        />
+                                    </div>
+                                    <div className="col-12">
+                                        <label className="form-label">Descripción (opcional)</label>
+                                        <textarea
+                                            className="form-control"
+                                            rows="2"
+                                            placeholder="Ej: Adelanto por viajes próximos"
+                                            value={adelantoModal.descripcion}
+                                            onChange={e => setAdelantoModal(m => ({ ...m, descripcion: e.target.value }))}
+                                            disabled={adelantoModal.loading}
+                                        ></textarea>
+                                    </div>
+                                </div>
+                                <div className="mt-3 p-3 bg-light rounded">
+                                    <small className="text-muted">
+                                        <i className="bi bi-info-circle me-1"></i>
+                                        Se enviará un email al camionero informando del adelanto registrado.
+                                    </small>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={closeAdelantoModal} disabled={adelantoModal.loading}>
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-success"
+                                    onClick={submitAdelanto}
+                                    disabled={adelantoModal.loading || !adelantoModal.monto || !adelantoModal.camioneroId}
+                                >
+                                    {adelantoModal.loading ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            Guardando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-check-lg me-1"></i>
+                                            Registrar Adelanto
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Modal gestionar adelantos */}
+                <div className={`modal fade ${gestionAdelantosModal.open ? 'show' : ''}`} style={{ display: gestionAdelantosModal.open ? 'block' : 'none' }} tabIndex="-1">
+                    <div className="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div className="modal-content border-0 shadow-lg">
+                            <div className="modal-header border-0 py-4" style={{ background: 'linear-gradient(135deg, #20c997 0%, #17a2b8 100%)' }}>
+                                <div className="w-100">
+                                    <h5 className="text-white mb-1" style={{ fontSize: '1.3rem', fontWeight: '600' }}>
+                                        <i className="bi bi-pencil-square me-2"></i>
+                                        Gestionar Adelantos del Mes
+                                    </h5>
+                                    <small className="text-white" style={{ opacity: 0.95, fontSize: '0.85rem' }}>Edita o elimina adelantos registrados</small>
+                                </div>
+                                <button type="button" className="btn-close btn-close-white ms-3" onClick={closeGestionAdelantos}></button>
+                            </div>
+                            <div className="modal-body p-0">
+                                {gestionAdelantosModal.loading ? (
+                                    <div className="text-center py-5">
+                                        <div className="spinner-border text-success" role="status">
+                                            <span className="visually-hidden">Cargando...</span>
+                                        </div>
+                                        <p className="text-muted mt-3">Cargando adelantos...</p>
+                                    </div>
+                                ) : gestionAdelantosModal.adelantos.length === 0 ? (
+                                    <div className="p-5 text-center">
+                                        <i className="bi bi-inbox text-muted" style={{ fontSize: '3rem' }}></i>
+                                        <h6 className="mt-3 text-muted">Sin adelantos</h6>
+                                        <p className="text-muted small">No hay adelantos registrados en el mes actual</p>
+                                    </div>
+                                ) : (
+                                    <div style={{ overflow: 'hidden' }}>
+                                        <table className="table table-hover mb-0" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+                                            <thead>
+                                                <tr className="bg-light border-bottom border-2">
+                                                    <th className="ps-4 py-3">
+                                                        <i className="bi bi-person-fill text-muted me-2" style={{ fontSize: '0.9rem' }}></i>
+                                                        <strong>Camionero</strong>
+                                                    </th>
+                                                    <th className="py-3 text-center">
+                                                        <i className="bi bi-cash-coin text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
+                                                        <strong>Monto</strong>
+                                                    </th>
+                                                    <th className="py-3">
+                                                        <i className="bi bi-calendar-event text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
+                                                        <strong>Fecha</strong>
+                                                    </th>
+                                                    <th className="py-3">
+                                                        <i className="bi bi-chat-left-text text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
+                                                        <strong>Descripción</strong>
+                                                    </th>
+                                                    <th className="pe-4 py-3 text-end">
+                                                        <strong>Acciones</strong>
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {gestionAdelantosModal.adelantos.map((a, idx) => (
+                                                    <tr key={a.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-light'} style={{ borderBottom: '1px solid #e9ecef' }}>
+                                                        <td className="ps-4 py-3 align-middle">
+                                                            <div className="d-flex align-items-center gap-2">
+                                                                <div className="avatar rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
+                                                                    <i className="bi bi-person text-success"></i>
+                                                                </div>
+                                                                <strong className="mb-0">{a.camioneroNombre}</strong>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3 align-middle text-center">
+                                                            {gestionAdelantosModal.editando === a.id ? (
+                                                                <input
+                                                                    type="number"
+                                                                    className="form-control form-control-sm"
+                                                                    value={gestionAdelantosModal.montoEdit}
+                                                                    onChange={e => setGestionAdelantosModal(m => ({ ...m, montoEdit: e.target.value }))}
+                                                                    style={{ width: '140px', margin: '0 auto' }}
+                                                                />
+                                                            ) : (
+                                                                <span className="text-success fw-bold" style={{ fontSize: '1.1rem' }}>
+                                                                    ${parseFloat(a.monto).toLocaleString('es-AR')}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3 align-middle">
+                                                            <small className="text-muted">
+                                                                {new Date(a.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                                            </small>
+                                                        </td>
+                                                        <td className="py-3 align-middle">
+                                                            {gestionAdelantosModal.editando === a.id ? (
+                                                                <input
+                                                                    type="text"
+                                                                    className="form-control form-control-sm"
+                                                                    value={gestionAdelantosModal.descripcionEdit}
+                                                                    onChange={e => setGestionAdelantosModal(m => ({ ...m, descripcionEdit: e.target.value }))}
+                                                                    placeholder="Descripción"
+                                                                    style={{ maxWidth: '200px' }}
+                                                                />
+                                                            ) : (
+                                                                <small className="text-dark d-block" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.descripcion}>
+                                                                    {a.descripcion || <span className="text-secondary">-</span>}
+                                                                </small>
+                                                            )}
+                                                        </td>
+                                                        <td className="pe-4 py-3 align-middle text-end">
+                                                            {gestionAdelantosModal.editando === a.id ? (
+                                                                <div className="d-flex gap-2 justify-content-end">
+                                                                    <button
+                                                                        className="btn btn-sm btn-success"
+                                                                        onClick={() => saveEditAdelanto(a.id)}
+                                                                        title="Guardar cambios"
+                                                                        style={{ width: '36px', height: '36px', padding: '0' }}
+                                                                    >
+                                                                        <i className="bi bi-check-lg"></i>
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn btn-sm btn-outline-secondary"
+                                                                        onClick={cancelEditAdelanto}
+                                                                        title="Cancelar edición"
+                                                                        style={{ width: '36px', height: '36px', padding: '0' }}
+                                                                    >
+                                                                        <i className="bi bi-x-lg"></i>
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="d-flex gap-2 justify-content-end">
+                                                                    <button
+                                                                        className="btn btn-sm btn-primary"
+                                                                        onClick={() => startEditAdelanto(a)}
+                                                                        title="Editar adelanto"
+                                                                        style={{ width: '36px', height: '36px', padding: '0' }}
+                                                                    >
+                                                                        <i className="bi bi-pencil"></i>
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn btn-sm btn-danger"
+                                                                        onClick={() => deleteAdelanto(a.id)}
+                                                                        title="Eliminar adelanto"
+                                                                        style={{ width: '36px', height: '36px', padding: '0' }}
+                                                                    >
+                                                                        <i className="bi bi-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer bg-light border-top">
+                                <small className="text-muted me-auto">
+                                    Total de adelantos: <strong>{gestionAdelantosModal.adelantos.length}</strong>
+                                </small>
+                                <button type="button" className="btn btn-secondary" onClick={closeGestionAdelantos}>
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </>
     );
