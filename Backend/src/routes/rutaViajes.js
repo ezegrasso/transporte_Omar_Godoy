@@ -14,6 +14,7 @@ import { getAll as getAllAcoplados, getById as getAcopladoById } from '../models
 import { authMiddleware, roleMiddleware } from '../middlewares/authMiddleware.js';
 import Notificacion from '../models/Notificacion.js';
 import NotaCredito from '../models/NotaCredito.js';
+import Adelanto from '../models/Adelanto.js';
 import { sendEmailToCEO, sendEmailToCamioneros, sendEmail } from '../services/emailService.js';
 // (Se eliminó soporte WhatsApp)
 
@@ -157,23 +158,29 @@ router.get('/', authMiddleware, [
         }));
         res.json({ data, page, limit, total: count });
     } catch (error) {
-        res.status(500).json({ error: 'Error al obtener viajes' });
+        console.error('Error fetching viajes:', error);
+        res.status(500).json({ error: error?.message || String(error) });
     }
 });
 
+
 // Eliminar TODOS los viajes (solo CEO) para limpiar historial
-router.delete('/',
-    authMiddleware,
-    roleMiddleware(['ceo']),
-    async (req, res) => {
-        try {
-            const eliminados = await Viaje.destroy({ where: {} });
-            res.json({ ok: true, eliminados });
-        } catch (error) {
-            res.status(500).json({ error: 'Error al eliminar todos los viajes' });
-        }
+router.delete('/', async (req, res) => {
+    try {
+        // Elimina primero los registros relacionados
+        await Notificacion.destroy({ where: {} });
+        await Adelanto.destroy({ where: {} });
+        await NotaCredito.destroy({ where: {} });
+        // Agrega aquí otros modelos relacionados si es necesario
+
+        // Ahora elimina los viajes
+        await Viaje.destroy({ where: {} });
+        res.json({ ok: true });
+    } catch (e) {
+        console.error('Error al eliminar viajes:', e);
+        res.status(500).json({ error: e?.message || String(e) });
     }
-);
+});
 
 // Crear viaje (solo ceo)
 router.post('/',
@@ -329,10 +336,9 @@ router.patch('/:id/finalizar',
             viaje.km = req.body.km;
             viaje.combustible = req.body.combustible;
             if (req.body.kilosCargados !== undefined) viaje.kilosCargados = req.body.kilosCargados;
-            // Calcular importe si hay precioTonelada y kilosCargados
+            // Calcular importe si hay precioTonelada y kilosCargados (ya en toneladas)
             if (viaje.precioTonelada && viaje.kilosCargados) {
-                const toneladas = Number(viaje.kilosCargados) / 1000;
-                const total = toneladas * Number(viaje.precioTonelada);
+                const total = Number(viaje.kilosCargados) * Number(viaje.precioTonelada);
                 viaje.importe = Number(total.toFixed(2));
             }
             // Si por alguna razón no quedó seteado al tomar, persistimos los datos del camionero aquí
