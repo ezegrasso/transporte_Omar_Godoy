@@ -618,8 +618,14 @@ export default function Administracion() {
     // Estadísticas para las cards (solo finalizados)
     const stats = useMemo(() => {
         const total = viajesFinalizados.length;
-        const conFactura = viajesFinalizados.filter(v => v.facturaUrl).length;
-        const cobradas = viajesFinalizados.filter(v => (v.facturaEstado || '').toLowerCase() === 'cobrada').length;
+        const conFactura = viajesFinalizados.filter(v => {
+            const estado = (v.facturaEstado || 'pendiente').toLowerCase();
+            return !!v.facturaUrl || estado !== 'pendiente';
+        }).length;
+        const cobradas = viajesFinalizados.filter(v => {
+            const estado = (v.facturaEstado || '').toLowerCase();
+            return estado === 'cobrada' || estado === 'cobrado';
+        }).length;
         const sinRemitos = viajesFinalizados.filter(v => !v.remitosJson || v.remitosJson === '[]').length;
         return { total, conFactura, cobradas, sinRemitos };
     }, [viajesFinalizados]);
