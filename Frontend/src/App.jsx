@@ -102,28 +102,22 @@ export default function App() {
       const nav = document.querySelector('.navbar.fixed-top')
       if (nav) {
         const h = Math.ceil(nav.getBoundingClientRect().height)
-        document.documentElement.style.setProperty('--app-navbar-offset', `${h}px`)
+        document.documentElement.style.setProperty(
+          '--app-navbar-offset',
+          `${h}px`
+        )
       }
     }
 
-    // Inicial
     updateOffset()
 
-    // Recalcular en resize de ventana
     window.addEventListener('resize', updateOffset)
 
-    // Recalcular cuando cambia la altura del navbar (apertura/cierre del colapsable)
-    const nav = document.querySelector('.navbar.fixed-top')
-    let ro
-    if (nav && 'ResizeObserver' in window) {
-      ro = new ResizeObserver(() => updateOffset())
-      ro.observe(nav)
-    }
-
-    // Escuchar eventos de Bootstrap del colapsable si existen
     const collapseEl = document.getElementById('navbarSupportedContent')
+
     const onShown = () => updateOffset()
     const onHidden = () => updateOffset()
+
     if (collapseEl) {
       collapseEl.addEventListener('shown.bs.collapse', onShown)
       collapseEl.addEventListener('hidden.bs.collapse', onHidden)
@@ -131,13 +125,14 @@ export default function App() {
 
     return () => {
       window.removeEventListener('resize', updateOffset)
-      if (ro) ro.disconnect()
+
       if (collapseEl) {
         collapseEl.removeEventListener('shown.bs.collapse', onShown)
         collapseEl.removeEventListener('hidden.bs.collapse', onHidden)
       }
     }
   }, [])
+
   useEffect(() => {
     const base = 'Omar Godoy Transporte'
     const map = {
