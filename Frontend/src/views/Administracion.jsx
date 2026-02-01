@@ -498,8 +498,11 @@ export default function Administracion() {
         return monday.toISOString().slice(0, 10);
     });
     const [weekEnd, setWeekEnd] = useState(() => {
-        const start = new Date(weekStart);
-        const sunday = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+        const d = new Date();
+        const day = d.getDay(); // 0=Dom
+        const diff = (day === 0 ? 6 : day - 1); // Lunes como inicio
+        const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - diff);
+        const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
         return sunday.toISOString().slice(0, 10);
     });
 
