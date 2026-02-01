@@ -106,13 +106,18 @@ router.get('/', authMiddleware, [
         if (estado) where.estado = estado;
         // Restricción por rol
         if (req.user.rol !== 'ceo' && req.user.rol !== 'administracion') {
-            // Mostrar todos los viajes (pendientes, en curso y finalizados) del camión asignado al camionero
+            // Mostrar todos los viajes asignados al camionero (por camioneroId) 
+            // O los viajes del camión actualmente asignado al camionero
             const camionAsignado = await Camion.findOne({ where: { camioneroId: req.user.id } });
             if (camionAsignado) {
-                where.camionId = camionAsignado.id;
+                // Mostrar viajes donde el camioneroId coincide O el camionId coincide
+                where[Op.or] = [
+                    { camioneroId: req.user.id },
+                    { camionId: camionAsignado.id }
+                ];
             } else {
-                // Si no tiene camión asignado, no ve ningún viaje
-                where.id = -1; // No existe
+                // Si no tiene camión asignado actualmente, mostrar solo sus viajes asignados directamente
+                where.camioneroId = req.user.id;
             }
         }
         // Filtro por fechas
@@ -320,7 +325,7 @@ router.patch('/:id/finalizar',
     authMiddleware,
     // Permitir que el camionero finalice su propio viaje y que el CEO/Administración pueda finalizar desde su panel
     roleMiddleware(['camionero', 'ceo', 'administracion']),
-    [param('id').isInt(), body('km').isInt({ min: 0 }), body('combustible').isFloat({ min: 0 }), body('kilosCargados').optional().isFloat({ min: 0 })],
+    [param('id').isInt(), body('km').isInt({ min: 0 }), body('combustible').isFloat({ min: 0 }), body('kilosCargados').optional().isFloat({ min: 0 }), body('importe').optional().isFloat({ min: 0 })],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -335,14 +340,30 @@ router.patch('/:id/finalizar',
             if (req.user.rol === 'camionero' && viaje.camioneroId !== req.user.id) {
                 return res.status(400).json({ error: 'No autorizado' });
             }
+
+            // Si el CEO/Administración finaliza un viaje pendiente, asignar automáticamente el camionero del camión
+            if (isManager && viaje.estado === 'pendiente' && !viaje.camioneroId) {
+                const camion = await Camion.findByPk(viaje.camionId);
+                if (camion && camion.camioneroId) {
+                    // Asignar el camionero del camión al viaje
+                    viaje.camioneroId = camion.camioneroId;
+
+                    // Obtener los datos del camionero para guardar nombre y email
+                    const camionero = await Usuario.findByPk(camion.camioneroId);
+                    if (camionero) {
+                        viaje.camioneroNombre = camionero.nombre;
+                        viaje.camioneroEmail = camionero.email;
+                    }
+                }
+            }
+
             viaje.estado = 'finalizado';
             viaje.km = req.body.km;
             viaje.combustible = req.body.combustible;
             if (req.body.kilosCargados !== undefined) viaje.kilosCargados = req.body.kilosCargados;
-            // Calcular importe si hay precioTonelada y kilosCargados (ya en toneladas)
-            if (viaje.precioTonelada && viaje.kilosCargados) {
-                const total = Number(viaje.kilosCargados) * Number(viaje.precioTonelada);
-                viaje.importe = Number(total.toFixed(2));
+            // Usar el importe enviado manualmente desde el frontend
+            if (req.body.importe !== undefined) {
+                viaje.importe = Number(req.body.importe);
             }
             // Si por alguna razón no quedó seteado al tomar, persistimos los datos del camionero aquí
             if (!viaje.camioneroNombre) viaje.camioneroNombre = req.user?.nombre;
@@ -354,6 +375,27 @@ router.patch('/:id/finalizar',
             res.json(viaje);
         } catch (error) {
             res.status(500).json({ error: 'Error al finalizar viaje' });
+        }
+    });
+
+// Editar importe de un viaje finalizado (solo CEO/Administración)
+router.patch('/:id/editar-importe',
+    authMiddleware,
+    roleMiddleware(['ceo', 'administracion']),
+    [param('id').isInt(), body('importe').isFloat({ min: 0 })],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+        try {
+            const viaje = await Viaje.findByPk(req.params.id);
+            if (!viaje || viaje.estado !== 'finalizado') {
+                return res.status(400).json({ error: 'Viaje no válido o no está finalizado' });
+            }
+            viaje.importe = Number(req.body.importe);
+            await viaje.save();
+            res.json(viaje);
+        } catch (error) {
+            res.status(500).json({ error: 'Error al actualizar importe' });
         }
     });
 

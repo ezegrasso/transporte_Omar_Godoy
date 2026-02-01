@@ -10,7 +10,7 @@ export default function Camionero() {
     const [mios, setMios] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [finalizarData, setFinalizarData] = useState({ km: '', combustible: '', kilosCargados: '' });
+    const [finalizarData, setFinalizarData] = useState({ km: '', combustible: '', kilosCargados: '', importe: '' });
     const [takingId, setTakingId] = useState(null);
     const [finishingId, setFinishingId] = useState(null);
     // Paso extra de confirmación antes de ejecutar la finalización
@@ -206,7 +206,7 @@ export default function Camionero() {
 
     const openFinalizarModal = (id) => {
         setModalId(id);
-        setFinalizarData({ km: '', combustible: '', kilosCargados: '' });
+        setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
         setFinalizarPasoConfirm(false);
         setConfirmChecked(false);
         // Abrir modal: si hay Bootstrap JS lo usa; si no, fallback por estado
@@ -278,10 +278,10 @@ export default function Camionero() {
         // Segunda pulsación: enviar
         setFinishingId(id);
         try {
-            const body = { km: Number(finalizarData.km), combustible: Number(finalizarData.combustible) };
+            const body = { km: Number(finalizarData.km), combustible: Number(finalizarData.combustible), importe: Number(finalizarData.importe) };
             if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = Number(finalizarData.kilosCargados);
             await api.patch(`/viajes/${id}/finalizar`, body);
-            setFinalizarData({ km: '', combustible: '', kilosCargados: '' });
+            setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
             setSavedMioId(id);
             await new Promise(r => setTimeout(r, 400));
             await Promise.all([fetchPendientes(), fetchMios()]);
@@ -683,9 +683,11 @@ export default function Camionero() {
                                     </div>
                                     <div className="col-12">
                                         <label className="form-label">Toneladas cargadas</label>
-
                                         <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} />
-                                        <small className="text-body-secondary">Si el CEO definió precio por tonelada, se calculará automáticamente el importe del viaje.</small>
+                                    </div>
+                                    <div className="col-12">
+                                        <label className="form-label">Importe</label>
+                                        <input className="form-control" type="number" min={0} step={0.01} value={finalizarData.importe} onChange={e => setFinalizarData(x => ({ ...x, importe: e.target.value }))} placeholder="Ingresa el importe del viaje" />
                                     </div>
                                     <div className="col-12 mt-2">
                                         <div className="alert alert-warning py-2 mb-0 small">
@@ -700,8 +702,9 @@ export default function Camionero() {
                                     <ul className="small mb-2">
                                         <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
                                         <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
-                                        <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
                                         <li><strong>Toneladas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
+                                        <li><strong>Importe a registrar:</strong> {finalizarData.importe || '—'}</li>
+                                        <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
                                     </ul>
                                     <div className="alert alert-danger py-2 small mb-2">
                                         Una vez finalizado el viaje, no podrás volverlo a "en curso" (solo cancelar antes de confirmar).

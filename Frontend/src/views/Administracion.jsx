@@ -296,6 +296,25 @@ export default function Administracion() {
         }
     };
 
+    // Modal: Editar Importe
+    const [editarImporteModal, setEditarImporteModal] = useState({ open: false, id: null, viaje: null, nuevoImporte: '', loading: false, error: '' });
+    const openEditarImporte = (v) => {
+        setEditarImporteModal({ open: true, id: v.id, viaje: v, nuevoImporte: v.importe || '', loading: false, error: '' });
+    };
+    const closeEditarImporte = () => setEditarImporteModal({ open: false, id: null, viaje: null, nuevoImporte: '', loading: false, error: '' });
+    const submitEditarImporte = async () => {
+        if (!editarImporteModal.id) return;
+        setEditarImporteModal(m => ({ ...m, loading: true, error: '' }));
+        try {
+            await api.patch(`/viajes/${editarImporteModal.id}/editar-importe`, { importe: Number(editarImporteModal.nuevoImporte) });
+            showToast('Importe actualizado', 'success');
+            closeEditarImporte();
+            fetchSemana();
+        } catch (e) {
+            setEditarImporteModal(m => ({ ...m, loading: false, error: e?.response?.data?.error || 'Error al actualizar importe' }));
+        }
+    };
+
     // Modal: Finalizar viaje
     const [finalizarModal, setFinalizarModal] = useState({ open: false, id: null, km: '', combustible: '', kilos: '', loading: false, error: '' });
     const openFinalizar = (v) => {
@@ -746,6 +765,7 @@ export default function Administracion() {
                         if (remitosModal.open) closeRemitos();
                         if (iaModal.open) closeIa();
                         if (observacionesModal.open) closeObservaciones();
+                        if (editarImporteModal.open) closeEditarImporte();
                         break;
                     default:
                         break;
@@ -760,7 +780,7 @@ export default function Administracion() {
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [viajesPagina, selectedRowId, facturaModal.open, remitosUploadModal.open, remitosModal.open, iaModal.open, creditNoteModal.open, observacionesModal.open]);
+    }, [viajesPagina, selectedRowId, facturaModal.open, remitosUploadModal.open, remitosModal.open, iaModal.open, creditNoteModal.open, observacionesModal.open, editarImporteModal.open]);
 
 
     return (
@@ -1003,6 +1023,9 @@ export default function Administracion() {
                                                                 <i className="bi bi-file-earmark-pdf me-2"></i> Factura PDF
                                                             </button>
                                                             <div className="dropdown-divider"></div>
+                                                            <button className="dropdown-item" onClick={() => { openEditarImporte(v); setRowActionsOpen(null); }}>
+                                                                <i className="bi bi-currency-dollar me-2"></i> Editar importe
+                                                            </button>
                                                             <button className="dropdown-item" onClick={() => { openObservaciones(v); setRowActionsOpen(null); }}>
                                                                 <i className="bi bi-chat-left-text me-2"></i> Observaciones
                                                             </button>
@@ -1440,6 +1463,63 @@ export default function Administracion() {
                             </button>
                             <button type="button" className="btn btn-primary" onClick={submitObservaciones} disabled={observacionesModal.loading}>
                                 {observacionesModal.loading ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        Guardando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-check-lg me-1"></i>
+                                        Guardar
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modal: Editar Importe */}
+            <div className={`modal ${editarImporteModal.open ? 'd-block show' : 'fade'}`} tabIndex="-1" aria-hidden={!editarImporteModal.open} style={editarImporteModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
+                <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-content">
+                        <div className="modal-header bg-light">
+                            <h1 className="modal-title fs-5">
+                                <i className="bi bi-currency-dollar me-2"></i>
+                                Editar importe del viaje #{editarImporteModal.id}
+                            </h1>
+                            <button type="button" className="btn-close" aria-label="Close" onClick={closeEditarImporte}></button>
+                        </div>
+                        <div className="modal-body">
+                            {editarImporteModal.error && <div className="alert alert-danger">{editarImporteModal.error}</div>}
+                            {editarImporteModal.viaje && (
+                                <div className="mb-3">
+                                    <div className="small text-muted">
+                                        <div><strong>Viaje:</strong> {editarImporteModal.viaje.origen} → {editarImporteModal.viaje.destino}</div>
+                                        <div><strong>Importe actual:</strong> ${editarImporteModal.viaje.importe || 0}</div>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="mb-0">
+                                <label className="form-label">Nuevo importe *</label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    min={0}
+                                    step={0.01}
+                                    placeholder="Ingresá el nuevo importe"
+                                    value={editarImporteModal.nuevoImporte}
+                                    onChange={(e) => setEditarImporteModal(m => ({ ...m, nuevoImporte: e.target.value }))}
+                                    disabled={editarImporteModal.loading}
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={closeEditarImporte} disabled={editarImporteModal.loading}>
+                                Cancelar
+                            </button>
+                            <button type="button" className="btn btn-primary" onClick={submitEditarImporte} disabled={editarImporteModal.loading || !editarImporteModal.nuevoImporte}>
+                                {editarImporteModal.loading ? (
                                     <>
                                         <span className="spinner-border spinner-border-sm me-2" role="status"></span>
                                         Guardando...

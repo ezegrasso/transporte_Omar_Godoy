@@ -266,7 +266,7 @@ export default function Ceo() {
 
     const openFinalizarModal = (id) => {
         setModalFinalizarId(id);
-        setFinalizarData({ km: '', combustible: '', kilosCargados: '' });
+        setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
         setFinalizarPasoConfirm(false);
         setConfirmChecked(false);
         setTimeout(() => {
@@ -306,10 +306,10 @@ export default function Ceo() {
         }
         setFinishingId(id);
         try {
-            const body = { km: Number(finalizarData.km), combustible: Number(finalizarData.combustible) };
+            const body = { km: Number(finalizarData.km), combustible: Number(finalizarData.combustible), importe: Number(finalizarData.importe) };
             if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = Number(finalizarData.kilosCargados);
             await api.patch(`/viajes/${id}/finalizar`, body);
-            setFinalizarData({ km: '', combustible: '', kilosCargados: '' });
+            setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
             await new Promise(r => setTimeout(r, 400));
             await fetchViajes();
             showToast('Viaje finalizado', 'success');
@@ -698,12 +698,69 @@ export default function Ceo() {
     const [savedUsuarioId, setSavedUsuarioId] = useState(null);
 
     // Estados para finalizar viaje (CEO puede finalizar viajes en curso)
-    const [finalizarData, setFinalizarData] = useState({ km: '', combustible: '', kilosCargados: '' });
+    const [finalizarData, setFinalizarData] = useState({ km: '', combustible: '', kilosCargados: '', importe: '' });
     const [finalizarPasoConfirm, setFinalizarPasoConfirm] = useState(false);
     const [confirmChecked, setConfirmChecked] = useState(false);
     const [showFinalizarModal, setShowFinalizarModal] = useState(false);
     const [modalFinalizarId, setModalFinalizarId] = useState(null);
     const [finishingId, setFinishingId] = useState(null);
+
+    // Estados para editar importe de viaje finalizado
+    const [editarImporteModal, setEditarImporteModal] = useState({ show: false, viajeId: null, importeActual: '', nuevoImporte: '', loading: false });
+
+    // Estados para observaciones
+    const [observacionesModal, setObservacionesModal] = useState({ show: false, viajeId: null, texto: '', loading: false, error: '' });
+
+    const openEditarImporteModal = (v) => {
+        setEditarImporteModal({ show: true, viajeId: v.id, viaje: v, importeActual: v.importe, nuevoImporte: v.importe || '', loading: false });
+    };
+
+    const closeEditarImporteModal = () => {
+        setEditarImporteModal({ show: false, viajeId: null, viaje: null, importeActual: '', nuevoImporte: '', loading: false });
+    };
+
+    const guardarNuevoImporte = async () => {
+        const { viajeId, nuevoImporte } = editarImporteModal;
+        if (!nuevoImporte || Number(nuevoImporte) < 0) {
+            showToast('Ingresa un importe válido', 'error');
+            return;
+        }
+        setEditarImporteModal(prev => ({ ...prev, loading: true }));
+        try {
+            await api.patch(`/viajes/${viajeId}/editar-importe`, { importe: Number(nuevoImporte) });
+            showToast('Importe actualizado correctamente', 'success');
+            await fetchViajes();
+            closeEditarImporteModal();
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error actualizando importe';
+            showToast(msg, 'error');
+        } finally {
+            setEditarImporteModal(prev => ({ ...prev, loading: false }));
+        }
+    };
+
+    const openObservaciones = (v) => {
+        setObservacionesModal({ show: true, viajeId: v.id, viaje: v, texto: v.observaciones || '', loading: false, error: '' });
+    };
+
+    const closeObservaciones = () => {
+        setObservacionesModal({ show: false, viajeId: null, viaje: null, texto: '', loading: false, error: '' });
+    };
+
+    const guardarObservaciones = async () => {
+        const { viajeId, texto } = observacionesModal;
+        if (!viajeId) return;
+        setObservacionesModal(prev => ({ ...prev, loading: true, error: '' }));
+        try {
+            await api.patch(`/viajes/${viajeId}/observaciones`, { observaciones: texto });
+            showToast('Observaciones guardadas correctamente', 'success');
+            await fetchViajes();
+            closeObservaciones();
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error al guardar observaciones';
+            setObservacionesModal(prev => ({ ...prev, loading: false, error: msg }));
+        }
+    };
 
     // Estados para modal de adelantos
     const [adelantoModal, setAdelantoModal] = useState({ open: false, camioneroId: null, camioneroNombre: '', monto: '', descripcion: '', mes: '', anio: '', loading: false, error: '' });
@@ -1275,54 +1332,233 @@ export default function Ceo() {
                                                 <td className="text-end">{v.kilosCargados ?? '-'}</td>
                                                 <td className="text-end">{v.precioTonelada ?? '-'}</td>
                                                 <td className="text-end">{v.importe ?? '-'}</td>
-                                                <td className="text-end" style={{ width: 180 }}>
-                                                    <div className="btn-group btn-group-sm">
-                                                        <button className="btn btn-outline-secondary" onClick={() => abrirDetalle(v.id)} title="Ver detalle">
+                                                <td className="text-end" style={{ width: 200 }}>
+                                                    <div className="d-flex gap-2 justify-content-end align-items-center">
+                                                        <button
+                                                            className="btn btn-sm d-inline-flex align-items-center justify-content-center"
+                                                            onClick={() => abrirDetalle(v.id)}
+                                                            title="Ver detalle"
+                                                            style={{
+                                                                width: '32px',
+                                                                height: '32px',
+                                                                background: 'linear-gradient(135deg, #67e8f9 0%, #22d3ee 100%)',
+                                                                color: '#164e63',
+                                                                border: 'none',
+                                                                borderRadius: '0.375rem',
+                                                                boxShadow: '0 2px 8px rgba(103, 232, 249, 0.25)',
+                                                                transition: 'all 0.2s ease',
+                                                                cursor: 'pointer',
+                                                                padding: 0
+                                                            }}
+                                                            onMouseEnter={(e) => {
+                                                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(103, 232, 249, 0.35)';
+                                                                e.currentTarget.style.transform = 'translateY(-1px)';
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                e.currentTarget.style.boxShadow = '0 2px 8px rgba(103, 232, 249, 0.25)';
+                                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                            }}
+                                                        >
                                                             <i className="bi bi-eye"></i>
                                                         </button>
                                                         {v.estado === 'pendiente' && (
                                                             <>
-                                                                <button className="btn btn-outline-primary" onClick={() => openEditViaje(v)} title="Editar">
+                                                                <button
+                                                                    className="btn btn-sm d-inline-flex align-items-center justify-content-center"
+                                                                    onClick={() => openEditViaje(v)}
+                                                                    title="Editar"
+                                                                    style={{
+                                                                        width: '32px',
+                                                                        height: '32px',
+                                                                        background: 'linear-gradient(135deg, #6ee7b7 0%, #34d399 100%)',
+                                                                        color: '#064e3b',
+                                                                        border: 'none',
+                                                                        borderRadius: '0.375rem',
+                                                                        boxShadow: '0 2px 8px rgba(110, 231, 183, 0.25)',
+                                                                        transition: 'all 0.2s ease',
+                                                                        cursor: 'pointer',
+                                                                        padding: 0
+                                                                    }}
+                                                                    onMouseEnter={(e) => {
+                                                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(110, 231, 183, 0.35)';
+                                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                                    }}
+                                                                    onMouseLeave={(e) => {
+                                                                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(110, 231, 183, 0.25)';
+                                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                                    }}
+                                                                >
                                                                     <i className="bi bi-pencil"></i>
                                                                 </button>
-                                                                <button className="btn btn-outline-danger" title="Eliminar" onClick={() => {
-                                                                    setConfirmModal({
-                                                                        show: true,
-                                                                        title: 'Eliminar viaje',
-                                                                        message: '¿Estás seguro de eliminar este viaje pendiente? Esta acción no se puede deshacer.',
-                                                                        onConfirm: async () => {
-                                                                            try { await api.delete(`/viajes/${v.id}`); showToast('Viaje eliminado', 'success'); await fetchViajes(); }
-                                                                            catch (e) { const msg = e?.response?.data?.error || 'Error eliminando viaje'; setError(msg); showToast(msg, 'error'); }
-                                                                            finally { setConfirmModal({ show: false }); }
-                                                                        },
-                                                                        onCancel: () => setConfirmModal({ show: false })
-                                                                    });
-                                                                }}>
+                                                                <button
+                                                                    className="btn btn-sm d-inline-flex align-items-center justify-content-center"
+                                                                    title="Eliminar"
+                                                                    onClick={() => {
+                                                                        setConfirmModal({
+                                                                            show: true,
+                                                                            title: 'Eliminar viaje',
+                                                                            message: '¿Estás seguro de eliminar este viaje pendiente? Esta acción no se puede deshacer.',
+                                                                            onConfirm: async () => {
+                                                                                try { await api.delete(`/viajes/${v.id}`); showToast('Viaje eliminado', 'success'); await fetchViajes(); }
+                                                                                catch (e) { const msg = e?.response?.data?.error || 'Error eliminando viaje'; setError(msg); showToast(msg, 'error'); }
+                                                                                finally { setConfirmModal({ show: false }); }
+                                                                            },
+                                                                            onCancel: () => setConfirmModal({ show: false })
+                                                                        });
+                                                                    }}
+                                                                    style={{
+                                                                        width: '32px',
+                                                                        height: '32px',
+                                                                        background: 'linear-gradient(135deg, #fca5a5 0%, #f87171 100%)',
+                                                                        color: '#7f1d1d',
+                                                                        border: 'none',
+                                                                        borderRadius: '0.375rem',
+                                                                        boxShadow: '0 2px 8px rgba(252, 165, 165, 0.25)',
+                                                                        transition: 'all 0.2s ease',
+                                                                        cursor: 'pointer',
+                                                                        padding: 0
+                                                                    }}
+                                                                    onMouseEnter={(e) => {
+                                                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(252, 165, 165, 0.35)';
+                                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                                    }}
+                                                                    onMouseLeave={(e) => {
+                                                                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(252, 165, 165, 0.25)';
+                                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                                    }}
+                                                                >
                                                                     <i className="bi bi-trash"></i>
                                                                 </button>
                                                             </>
                                                         )}
                                                         {(v.estado === 'en curso' || v.estado === 'pendiente') && (
-                                                            <>
-                                                                <button className="btn btn-success" onClick={() => openFinalizarModal(v.id)} title="Finalizar viaje">
-                                                                    <i className="bi bi-check-circle"></i>
-                                                                </button>
-                                                                {v.estado === 'en curso' && (
-                                                                    <button className="btn btn-danger" onClick={async () => {
-                                                                        if (!confirm('¿Liberar este viaje? Volverá a pendientes.')) return;
-                                                                        try {
-                                                                            await api.patch(`/viajes/${v.id}/liberar`);
-                                                                            showToast('Viaje liberado', 'success');
-                                                                            await fetchViajes();
-                                                                        } catch (e) {
-                                                                            const msg = e?.response?.data?.error || 'Error liberando viaje';
-                                                                            setError(msg);
-                                                                            showToast(msg, 'error');
-                                                                        }
-                                                                    }}>Liberar</button>
-                                                                )}
-                                                            </>
+                                                            <button
+                                                                className="btn btn-sm d-inline-flex align-items-center gap-2 px-3"
+                                                                onClick={() => openFinalizarModal(v.id)}
+                                                                title="Finalizar viaje"
+                                                                style={{
+                                                                    background: 'linear-gradient(135deg, #86efac 0%, #4ade80 100%)',
+                                                                    color: '#14532d',
+                                                                    fontWeight: '600',
+                                                                    fontSize: '0.9rem',
+                                                                    border: 'none',
+                                                                    borderRadius: '0.375rem',
+                                                                    boxShadow: '0 2px 8px rgba(134, 239, 172, 0.25)',
+                                                                    transition: 'all 0.2s ease',
+                                                                    cursor: 'pointer',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.target.style.boxShadow = '0 4px 12px rgba(134, 239, 172, 0.35)';
+                                                                    e.target.style.transform = 'translateY(-1px)';
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.target.style.boxShadow = '0 2px 8px rgba(134, 239, 172, 0.25)';
+                                                                    e.target.style.transform = 'translateY(0)';
+                                                                }}
+                                                            >
+                                                                <i className="bi bi-check-circle-fill"></i>
+                                                                <span className="d-none d-lg-inline">Finalizar</span>
+                                                            </button>
                                                         )}
+                                                        {v.estado === 'en curso' && (
+                                                            <button
+                                                                className="btn btn-sm d-inline-flex align-items-center justify-content-center"
+                                                                onClick={async () => {
+                                                                    if (!confirm('¿Liberar este viaje? Volverá a pendientes.')) return;
+                                                                    try {
+                                                                        await api.patch(`/viajes/${v.id}/liberar`);
+                                                                        showToast('Viaje liberado', 'success');
+                                                                        await fetchViajes();
+                                                                    } catch (e) {
+                                                                        const msg = e?.response?.data?.error || 'Error liberando viaje';
+                                                                        setError(msg);
+                                                                        showToast(msg, 'error');
+                                                                    }
+                                                                }}
+                                                                title="Liberar"
+                                                                style={{
+                                                                    width: '32px',
+                                                                    height: '32px',
+                                                                    background: 'linear-gradient(135deg, #fdba74 0%, #fb923c 100%)',
+                                                                    color: '#7c2d12',
+                                                                    border: 'none',
+                                                                    borderRadius: '0.375rem',
+                                                                    boxShadow: '0 2px 8px rgba(253, 186, 116, 0.25)',
+                                                                    transition: 'all 0.2s ease',
+                                                                    cursor: 'pointer',
+                                                                    padding: 0
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(253, 186, 116, 0.35)';
+                                                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(253, 186, 116, 0.25)';
+                                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                                }}
+                                                            >
+                                                                <i className="bi bi-unlock"></i>
+                                                            </button>
+                                                        )}
+                                                        {v.estado === 'finalizado' && (
+                                                            <button
+                                                                className="btn btn-sm d-inline-flex align-items-center gap-2 px-3"
+                                                                onClick={() => openEditarImporteModal(v)}
+                                                                title="Editar importe"
+                                                                style={{
+                                                                    background: 'linear-gradient(135deg, #fde68a 0%, #fcd34d 100%)',
+                                                                    color: '#713f12',
+                                                                    fontWeight: '600',
+                                                                    fontSize: '0.9rem',
+                                                                    border: 'none',
+                                                                    borderRadius: '0.375rem',
+                                                                    boxShadow: '0 2px 8px rgba(253, 230, 138, 0.25)',
+                                                                    transition: 'all 0.2s ease',
+                                                                    cursor: 'pointer',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.target.style.boxShadow = '0 4px 12px rgba(253, 230, 138, 0.35)';
+                                                                    e.target.style.transform = 'translateY(-1px)';
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.target.style.boxShadow = '0 2px 8px rgba(253, 230, 138, 0.25)';
+                                                                    e.target.style.transform = 'translateY(0)';
+                                                                }}
+                                                            >
+                                                                <i className="bi bi-pencil-square"></i>
+                                                                <span className="d-none d-lg-inline">Editar $</span>
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            className="btn btn-sm d-inline-flex align-items-center gap-2 px-3"
+                                                            onClick={() => openObservaciones(v)}
+                                                            title={v.observaciones ? "Ver/editar observaciones" : "Agregar observaciones"}
+                                                            style={{
+                                                                background: 'linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%)',
+                                                                color: '#581c87',
+                                                                fontWeight: '600',
+                                                                fontSize: '0.9rem',
+                                                                border: 'none',
+                                                                borderRadius: '0.375rem',
+                                                                boxShadow: '0 2px 8px rgba(233, 213, 255, 0.25)',
+                                                                transition: 'all 0.2s ease',
+                                                                cursor: 'pointer',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                            onMouseEnter={(e) => {
+                                                                e.target.style.boxShadow = '0 4px 12px rgba(233, 213, 255, 0.35)';
+                                                                e.target.style.transform = 'translateY(-1px)';
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                e.target.style.boxShadow = '0 2px 8px rgba(233, 213, 255, 0.25)';
+                                                                e.target.style.transform = 'translateY(0)';
+                                                            }}
+                                                        >
+                                                            <i className={`bi ${v.observaciones ? 'bi-chat-left-text-fill' : 'bi-chat-left-text'}`}></i>
+                                                            {v.observaciones && <span className="d-none d-lg-inline">Ver nota</span>}
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -2012,8 +2248,11 @@ export default function Ceo() {
                                                     </div>
                                                     <div className="col-12">
                                                         <label className="form-label">Toneladas cargadas</label>
-                                                        <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} />
-                                                        <small className="text-body-secondary">Si definiste precio por tonelada, se calculará automáticamente el importe del viaje.</small>
+                                                        <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} placeholder="Ingresa las toneladas cargadas" />
+                                                    </div>
+                                                    <div className="col-12">
+                                                        <label className="form-label">Importe del viaje *</label>
+                                                        <input className="form-control" type="number" min={0} step={0.01} value={finalizarData.importe} onChange={e => setFinalizarData(x => ({ ...x, importe: e.target.value }))} placeholder="Ingresa el importe del viaje" />
                                                     </div>
                                                     <div className="col-12 mt-2">
                                                         <div className="alert alert-warning py-2 mb-0 small">
@@ -2030,6 +2269,7 @@ export default function Ceo() {
                                                         <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
                                                         <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
                                                         <li><strong>Toneladas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
+                                                        <li><strong>Importe del viaje:</strong> ${finalizarData.importe || '0'}</li>
                                                     </ul>
                                                     <div className="alert alert-danger py-2 small mb-2">
                                                         Una vez finalizado el viaje, no podrás volverlo a "en curso".
@@ -2361,6 +2601,113 @@ export default function Ceo() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal Editar Importe */}
+            {editarImporteModal.show && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Editar importe del viaje</h5>
+                                <button type="button" className="btn-close" onClick={closeEditarImporteModal}></button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="mb-3">
+                                    <label className="form-label">Viaje</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={`#${editarImporteModal.viaje?.id} - ${editarImporteModal.viaje?.origen} → ${editarImporteModal.viaje?.destino}`}
+                                        disabled
+                                    />
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label">Importe actual</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={`$${editarImporteModal.viaje?.importe || 0}`}
+                                        disabled
+                                    />
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label">Nuevo importe *</label>
+                                    <input
+                                        type="number"
+                                        className="form-control"
+                                        min={0}
+                                        step={0.01}
+                                        value={editarImporteModal.nuevoImporte}
+                                        onChange={(e) => setEditarImporteModal(prev => ({ ...prev, nuevoImporte: e.target.value }))}
+                                        placeholder="Ingresá el nuevo importe"
+                                    />
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={closeEditarImporteModal} disabled={editarImporteModal.loading}>
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={guardarNuevoImporte}
+                                    disabled={editarImporteModal.loading || !editarImporteModal.nuevoImporte}
+                                >
+                                    {editarImporteModal.loading ? 'Guardando...' : 'Guardar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Observaciones */}
+            {observacionesModal.show && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Observaciones del viaje</h5>
+                                <button type="button" className="btn-close" onClick={closeObservaciones}></button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="mb-3">
+                                    <label className="form-label">Viaje</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={`#${observacionesModal.viaje?.id} - ${observacionesModal.viaje?.origen} → ${observacionesModal.viaje?.destino}`}
+                                        disabled
+                                    />
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label">Observaciones</label>
+                                    <textarea
+                                        className="form-control"
+                                        rows={5}
+                                        value={observacionesModal.texto}
+                                        onChange={(e) => setObservacionesModal(prev => ({ ...prev, texto: e.target.value }))}
+                                        placeholder="Ingresá las observaciones del viaje (opcional)"
+                                    />
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={closeObservaciones} disabled={observacionesModal.loading}>
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={guardarObservaciones}
+                                    disabled={observacionesModal.loading}
+                                >
+                                    {observacionesModal.loading ? 'Guardando...' : 'Guardar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
