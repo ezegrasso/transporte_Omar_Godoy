@@ -740,7 +740,7 @@ export default function Ceo() {
     };
 
     const openObservaciones = (v) => {
-        setObservacionesModal({ show: true, viajeId: v.id, viaje: v, texto: v.observaciones || '', loading: false, error: '' });
+        setObservacionesModal({ show: true, viajeId: v.id, viaje: v, texto: v.observacionesCeo || '', loading: false, error: '' });
     };
 
     const closeObservaciones = () => {
@@ -752,7 +752,7 @@ export default function Ceo() {
         if (!viajeId) return;
         setObservacionesModal(prev => ({ ...prev, loading: true, error: '' }));
         try {
-            await api.patch(`/viajes/${viajeId}/observaciones`, { observaciones: texto });
+            await api.patch(`/viajes/${viajeId}/observaciones`, { observaciones: texto, panel: 'ceo' });
             showToast('Observaciones guardadas correctamente', 'success');
             await fetchViajes();
             closeObservaciones();
@@ -1534,7 +1534,7 @@ export default function Ceo() {
                                                         <button
                                                             className="btn btn-sm d-inline-flex align-items-center gap-2 px-3"
                                                             onClick={() => openObservaciones(v)}
-                                                            title={v.observaciones ? "Ver/editar observaciones" : "Agregar observaciones"}
+                                                            title={v.observacionesCeo ? "Ver/editar observaciones" : "Agregar observaciones"}
                                                             style={{
                                                                 background: 'linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%)',
                                                                 color: '#581c87',
@@ -1556,8 +1556,8 @@ export default function Ceo() {
                                                                 e.target.style.transform = 'translateY(0)';
                                                             }}
                                                         >
-                                                            <i className={`bi ${v.observaciones ? 'bi-chat-left-text-fill' : 'bi-chat-left-text'}`}></i>
-                                                            {v.observaciones && <span className="d-none d-lg-inline">Ver nota</span>}
+                                                            <i className={`bi ${v.observacionesCeo ? 'bi-chat-left-text-fill' : 'bi-chat-left-text'}`}></i>
+                                                            {v.observacionesCeo && <span className="d-none d-lg-inline">Ver nota</span>}
                                                         </button>
                                                     </div>
                                                 </td>

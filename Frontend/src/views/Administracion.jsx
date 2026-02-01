@@ -280,14 +280,14 @@ export default function Administracion() {
     // Modal: Observaciones
     const [observacionesModal, setObservacionesModal] = useState({ open: false, id: null, texto: '', loading: false, error: '' });
     const openObservaciones = (v) => {
-        setObservacionesModal({ open: true, id: v.id, texto: v.observaciones || '', loading: false, error: '' });
+        setObservacionesModal({ open: true, id: v.id, texto: v.observacionesAdmin || '', loading: false, error: '' });
     };
     const closeObservaciones = () => setObservacionesModal({ open: false, id: null, texto: '', loading: false, error: '' });
     const submitObservaciones = async () => {
         if (!observacionesModal.id) return;
         setObservacionesModal(m => ({ ...m, loading: true, error: '' }));
         try {
-            await api.patch(`/viajes/${observacionesModal.id}/observaciones`, { observaciones: observacionesModal.texto });
+            await api.patch(`/viajes/${observacionesModal.id}/observaciones`, { observaciones: observacionesModal.texto, panel: 'administracion' });
             showToast('Observaciones guardadas', 'success');
             closeObservaciones();
             fetchSemana();

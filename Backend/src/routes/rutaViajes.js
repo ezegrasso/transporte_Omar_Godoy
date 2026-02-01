@@ -628,18 +628,28 @@ router.patch('/:id/factura',
     }
 );
 
-// Actualizar observaciones (ceo/administracion)
+// Actualizar observaciones por panel (ceo/administracion/camionero)
 router.patch('/:id/observaciones',
     authMiddleware,
-    roleMiddleware(['ceo', 'administracion']),
-    [param('id').isInt(), body('observaciones').optional().isString()],
+    [param('id').isInt(), body('observaciones').optional().isString(), body('panel').optional().isString()],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
-            viaje.observaciones = req.body.observaciones || null;
+
+            const panel = req.body.panel || req.user.role;
+
+            // Cada panel actualiza sus propias observaciones
+            if (panel === 'ceo') {
+                viaje.observacionesCeo = req.body.observaciones || null;
+            } else if (panel === 'administracion') {
+                viaje.observacionesAdmin = req.body.observaciones || null;
+            } else if (panel === 'camionero') {
+                viaje.observacionesCamionero = req.body.observaciones || null;
+            }
+
             await viaje.save();
             res.json(viaje);
         } catch (e) {

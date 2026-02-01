@@ -122,6 +122,19 @@ const Viaje = sequelize.define('Viaje', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    observacionesAdmin: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    observacionesCeo: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    observacionesCamionero: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    // Campo legacy para compatibilidad
     observaciones: {
         type: DataTypes.TEXT,
         allowNull: true

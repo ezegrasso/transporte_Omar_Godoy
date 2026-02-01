@@ -87,6 +87,18 @@ export const ensureSchema = async () => {
             await qi.addColumn('viajes', 'observaciones', { type: DataTypes.TEXT, allowNull: true });
             console.log("Columna 'observaciones' añadida a 'viajes'.");
         }
+        if (!('observacionesAdmin' in descV)) {
+            await qi.addColumn('viajes', 'observacionesAdmin', { type: DataTypes.TEXT, allowNull: true });
+            console.log("Columna 'observacionesAdmin' añadida a 'viajes'.");
+        }
+        if (!('observacionesCeo' in descV)) {
+            await qi.addColumn('viajes', 'observacionesCeo', { type: DataTypes.TEXT, allowNull: true });
+            console.log("Columna 'observacionesCeo' añadida a 'viajes'.");
+        }
+        if (!('observacionesCamionero' in descV)) {
+            await qi.addColumn('viajes', 'observacionesCamionero', { type: DataTypes.TEXT, allowNull: true });
+            console.log("Columna 'observacionesCamionero' añadida a 'viajes'.");
+        }
 
         // Índices recomendados para escalar consultas en viajes
         try {
