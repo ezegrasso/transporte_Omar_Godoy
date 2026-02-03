@@ -533,8 +533,11 @@ export default function Ceo() {
 
     const porCamioneroTop = useMemo(() => {
         const map = viajes.reduce((acc, v) => {
-            const key = v.camionero?.nombre || '-';
-            acc[key] = (acc[key] || 0) + 1;
+            const nombre = v.camionero?.nombre || v.camioneroNombre || '';
+            // Solo contar si tiene nombre
+            if (nombre.trim()) {
+                acc[nombre] = (acc[nombre] || 0) + 1;
+            }
             return acc;
         }, {});
         const list = Object.entries(map).map(([label, value]) => ({ label, value }));
