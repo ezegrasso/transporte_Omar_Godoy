@@ -209,6 +209,35 @@ router.post('/',
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
             const payload = { ...req.body, estado: 'pendiente' };
+            
+            // Asignar automáticamente el camionero si el camión tiene uno asignado
+            let camPatente = '';
+            let camioneroEmail = '';
+            let camioneroNombre = '';
+            let camioneroId = null;
+            
+            if (payload.camionId) {
+                try {
+                    const cam = await Camion.findByPk(payload.camionId);
+                    camPatente = cam?.patente || '';
+                    // Si el camión tiene un camionero asignado, asignarlo automáticamente al viaje
+                    if (cam && cam.camioneroId) {
+                        const camionero = await Usuario.findOne({ where: { rol: 'camionero', id: cam.camioneroId } });
+                        if (camionero) {
+                            camioneroId = camionero.id;
+                            camioneroEmail = camionero.email || '';
+                            camioneroNombre = camionero.nombre || '';
+                            // Agregar al payload para que se guarde en el viaje
+                            payload.camioneroId = camioneroId;
+                            payload.camioneroNombre = camioneroNombre;
+                            payload.camioneroEmail = camioneroEmail;
+                        }
+                    }
+                } catch (err) {
+                    console.error('[viajes] Error buscando camión/camionero:', err.message);
+                }
+            }
+            
             const nuevoViaje = await Viaje.create(payload);
 
             // (Eliminado: antes se disparaba broadcast WhatsApp y notificación resumen)
@@ -216,19 +245,6 @@ router.post('/',
 
             // Aviso por email solo al camionero asignado al camión
             try {
-                let camPatente = '';
-                let camioneroEmail = '';
-                let camioneroNombre = '';
-                try {
-                    const cam = await Camion.findByPk(nuevoViaje.camionId);
-                    camPatente = cam?.patente || '';
-                    // Buscar camionero asignado al camión
-                    if (cam && cam.id) {
-                        const camionero = await Usuario.findOne({ where: { rol: 'camionero', id: cam.camioneroId } });
-                        camioneroEmail = camionero?.email || '';
-                        camioneroNombre = camionero?.nombre || '';
-                    }
-                } catch { }
                 if (camioneroEmail) {
                     const subject = `Nuevo viaje asignado a tu camión #${nuevoViaje.id} ${nuevoViaje.origen} -> ${nuevoViaje.destino}`;
                     const partes = [
