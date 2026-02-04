@@ -367,7 +367,8 @@ export default function Administracion() {
                 const to = `${anio}-${mes}-${String(lastDay).padStart(2, '0')}`;
 
                 const { data } = await api.get(`/viajes?limit=1000&from=${from}&to=${to}&order=DESC&sortBy=fecha`);
-                setViajesMesFinanzas(data.data || data.items || []);
+                const viajes = data.data || data.items || [];
+                setViajesMesFinanzas(viajes);
             } catch (e) {
                 console.error('Error cargando viajes del mes:', e);
                 setViajesMesFinanzas([]);

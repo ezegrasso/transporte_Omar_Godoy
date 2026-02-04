@@ -89,7 +89,7 @@ router.get('/', authMiddleware, [
     query('from').optional().isISO8601(),
     query('to').optional().isISO8601(),
     query('page').optional().isInt({ min: 1 }),
-    query('limit').optional().isInt({ min: 1, max: 100 }),
+    query('limit').optional().isInt({ min: 1, max: 5000 }),
     query('sortBy').optional().isIn(['id', 'fecha', 'estado']),
     query('order').optional().isIn(['ASC', 'DESC'])
 ], async (req, res) => {
@@ -123,13 +123,9 @@ router.get('/', authMiddleware, [
         // Filtro por fechas
         if (req.query.from || req.query.to) {
             where.fecha = {};
-            if (req.query.from) where.fecha[Op.gte] = new Date(req.query.from);
-            if (req.query.to) {
-                // Incluir todo el día final añadiendo 23:59:59 para evitar excluir viajes del último día
-                const endDate = new Date(req.query.to);
-                endDate.setHours(23, 59, 59, 999);
-                where.fecha[Op.lte] = endDate;
-            }
+            // Como fecha es DATEONLY, comparar solo con el string de fecha (YYYY-MM-DD)
+            if (req.query.from) where.fecha[Op.gte] = req.query.from;
+            if (req.query.to) where.fecha[Op.lte] = req.query.to;
         }
         const { rows, count } = await Viaje.findAndCountAll({
             where,
@@ -209,13 +205,13 @@ router.post('/',
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
             const payload = { ...req.body, estado: 'pendiente' };
-            
+
             // Asignar automáticamente el camionero si el camión tiene uno asignado
             let camPatente = '';
             let camioneroEmail = '';
             let camioneroNombre = '';
             let camioneroId = null;
-            
+
             if (payload.camionId) {
                 try {
                     const cam = await Camion.findByPk(payload.camionId);
@@ -237,7 +233,7 @@ router.post('/',
                     console.error('[viajes] Error buscando camión/camionero:', err.message);
                 }
             }
-            
+
             const nuevoViaje = await Viaje.create(payload);
 
             // (Eliminado: antes se disparaba broadcast WhatsApp y notificación resumen)
