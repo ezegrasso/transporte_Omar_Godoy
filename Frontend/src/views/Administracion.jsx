@@ -358,9 +358,12 @@ export default function Administracion() {
             setLoadingFinanzas(true);
             try {
                 const [anio, mes] = finanzasModal.mes.split('-');
+                // Calcular el último día del mes
+                const mesNum = parseInt(mes) - 1; // JavaScript months are 0-indexed
+                const anioNum = parseInt(anio);
+                const lastDay = new Date(anioNum, mesNum + 1, 0).getDate();
+
                 const from = `${anio}-${mes}-01`;
-                // Calcular último día del mes
-                const lastDay = new Date(parseInt(anio), parseInt(mes), 0).getDate();
                 const to = `${anio}-${mes}-${String(lastDay).padStart(2, '0')}`;
 
                 const { data } = await api.get(`/viajes?limit=1000&from=${from}&to=${to}&order=DESC&sortBy=fecha`);
