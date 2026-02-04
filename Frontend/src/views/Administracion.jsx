@@ -346,24 +346,44 @@ export default function Administracion() {
         }
     };
 
+    // Estado para viajes del modal de finanzas
+    const [viajesMesFinanzas, setViajesMesFinanzas] = useState([]);
+    const [loadingFinanzas, setLoadingFinanzas] = useState(false);
+
+    // Cargar viajes cuando se abre o cambia el mes en el modal de finanzas
+    useEffect(() => {
+        if (!finanzasModal.open || !finanzasModal.mes) return;
+
+        const cargarViajesMes = async () => {
+            setLoadingFinanzas(true);
+            try {
+                const [anio, mes] = finanzasModal.mes.split('-');
+                const from = `${anio}-${mes}-01`;
+                // Calcular último día del mes
+                const lastDay = new Date(parseInt(anio), parseInt(mes), 0).getDate();
+                const to = `${anio}-${mes}-${String(lastDay).padStart(2, '0')}`;
+
+                const { data } = await api.get(`/viajes?limit=1000&from=${from}&to=${to}&order=DESC&sortBy=fecha`);
+                setViajesMesFinanzas(data.data || data.items || []);
+            } catch (e) {
+                console.error('Error cargando viajes del mes:', e);
+                setViajesMesFinanzas([]);
+            } finally {
+                setLoadingFinanzas(false);
+            }
+        };
+
+        cargarViajesMes();
+    }, [finanzasModal.open, finanzasModal.mes]);
+
     // Cálculos del resumen financiero mensual
     const datosFinanzas = useMemo(() => {
-        const { mes, clienteFiltro } = finanzasModal;
-        if (!mes) return { totalFacturado: 0, totalPendiente: 0, porCliente: {} };
+        const { clienteFiltro } = finanzasModal;
 
-        // Filtrar viajes del mes seleccionado
-        const [anio, mesNum] = mes.split('-').map(Number);
-        const viajesMes = (viajes || []).filter(v => {
-            if ((v.estado || '').toLowerCase() !== 'finalizado') return false;
-            if (!v.fecha) return false;
-            const [y, m] = String(v.fecha).split('-').map(Number);
-            return y === anio && m === mesNum;
+        // Filtrar solo viajes finalizados
+        const viajesMes = (viajesMesFinanzas || []).filter(v => {
+            return (v.estado || '').toLowerCase() === 'finalizado';
         });
-
-        // Filtrar por cliente si no es "todos"
-        const viajesFiltro = clienteFiltro === 'todos'
-            ? viajesMes
-            : viajesMes.filter(v => v.cliente === clienteFiltro);
 
         // Calcular totales
         let totalFacturado = 0;
@@ -389,7 +409,7 @@ export default function Administracion() {
         });
 
         return { totalFacturado, totalPendiente, porCliente, viajesMes: viajesFiltro.length };
-    }, [finanzasModal, viajes]);
+    }, [finanzasModal.clienteFiltro, viajesMesFinanzas]);
 
     const submitUploadRemitos = async () => {
         if (!remitosUploadModal.id || !(remitosUploadModal.files?.length)) return;
