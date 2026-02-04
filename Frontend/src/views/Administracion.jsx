@@ -385,6 +385,11 @@ export default function Administracion() {
             return (v.estado || '').toLowerCase() === 'finalizado';
         });
 
+        // Filtrar por cliente si no es "todos"
+        const viajesFiltro = clienteFiltro === 'todos'
+            ? viajesMes
+            : viajesMes.filter(v => v.cliente === clienteFiltro);
+
         // Calcular totales
         let totalFacturado = 0;
         let totalPendiente = 0;
