@@ -131,12 +131,36 @@ export default function Administracion() {
 
     // Modal: Resumen Financiero Mensual
     const [finanzasModal, setFinanzasModal] = useState({ open: false, mes: '', clienteFiltro: 'todos' });
+    const [detalleClienteModal, setDetalleClienteModal] = useState({ open: false, cliente: '', viajes: [] });
     const openFinanzas = () => {
-        const hoy = new Date();
-        const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
-        setFinanzasModal({ open: true, mes: mesActual, clienteFiltro: 'todos' });
+        const obtenerMesDefault = () => {
+            try {
+                const base = (viajes || []).filter(v => v?.fecha);
+                if (base.length > 0) {
+                    const last = base
+                        .slice()
+                        .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0];
+                    const [y, m] = String(last.fecha).split('-');
+                    if (y && m) return `${y}-${m}`;
+                }
+            } catch { /* ignore */ }
+            const hoy = new Date();
+            return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+        };
+        setFinanzasModal({ open: true, mes: obtenerMesDefault(), clienteFiltro: 'todos' });
     };
     const closeFinanzas = () => setFinanzasModal({ open: false, mes: '', clienteFiltro: 'todos' });
+
+    const openDetalleCliente = (cliente) => {
+        // Filtrar viajes del mes y cliente seleccionado
+        const viajesCliente = (viajesMesFinanzas || [])
+            .filter(v => (v.estado || '').toLowerCase() === 'finalizado' && v.cliente === cliente)
+            .sort((a, b) => String(a.fecha || '').localeCompare(String(b.fecha || '')));
+
+        setDetalleClienteModal({ open: true, cliente, viajes: viajesCliente });
+    };
+
+    const closeDetalleCliente = () => setDetalleClienteModal({ open: false, cliente: '', viajes: [] });
 
     // Estados para adelantos
     const [camioneros, setCamioneros] = useState([]);
@@ -349,6 +373,7 @@ export default function Administracion() {
     // Estado para viajes del modal de finanzas
     const [viajesMesFinanzas, setViajesMesFinanzas] = useState([]);
     const [loadingFinanzas, setLoadingFinanzas] = useState(false);
+    const [errorFinanzas, setErrorFinanzas] = useState('');
 
     // Cargar viajes cuando se abre o cambia el mes en el modal de finanzas
     useEffect(() => {
@@ -356,6 +381,7 @@ export default function Administracion() {
 
         const cargarViajesMes = async () => {
             setLoadingFinanzas(true);
+            setErrorFinanzas('');
             try {
                 const [anio, mes] = finanzasModal.mes.split('-');
                 // Calcular el último día del mes
@@ -372,6 +398,7 @@ export default function Administracion() {
             } catch (e) {
                 console.error('Error cargando viajes del mes:', e);
                 setViajesMesFinanzas([]);
+                setErrorFinanzas(e?.response?.data?.error || 'No se pudieron cargar los viajes del mes');
             } finally {
                 setLoadingFinanzas(false);
             }
@@ -666,20 +693,39 @@ export default function Administracion() {
 
     const viajesSemana = useMemo(() => viajes || [], [viajes]);
     const viajesFinalizados = useMemo(() => viajesSemana.filter(v => (v.estado || '').toLowerCase() === 'finalizado'), [viajesSemana]);
-    // Estadísticas para las cards (solo finalizados)
+    // Estadísticas para las cards
     const stats = useMemo(() => {
-        const total = viajesFinalizados.length;
-        const conFactura = viajesFinalizados.filter(v => {
-            const estado = (v.facturaEstado || 'pendiente').toLowerCase();
-            return !!v.facturaUrl || estado !== 'pendiente';
-        }).length;
-        const cobradas = viajesFinalizados.filter(v => {
+        // Viajes que deben tener factura: pendiente, en curso o finalizados
+        const viajesRelevantes = viajesSemana.filter(v => {
+            const estado = (v.estado || '').toLowerCase();
+            return estado === 'pendiente' || estado === 'en curso' || estado === 'finalizado';
+        });
+
+        // Facturas SUBIDAS (con facturaUrl)
+        const conFactura = viajesRelevantes.filter(v => !!v.facturaUrl).length;
+
+        // Viajes SIN factura subida
+        const sinFactura = viajesRelevantes.filter(v => !v.facturaUrl).length;
+
+        // Viajes cobrados (estado === 'cobrada')
+        const cobradas = viajesRelevantes.filter(v => {
             const estado = (v.facturaEstado || '').toLowerCase();
             return estado === 'cobrada' || estado === 'cobrado';
         }).length;
+
+        // Pendientes de cobro (tienen datos de factura pero NO están cobradas)
+        const pendientesCobro = viajesRelevantes.filter(v => {
+            const estado = (v.facturaEstado || '').toLowerCase();
+            // Contar si tiene algún dato de factura (estado, fecha, precio) y NO está cobrada
+            const tieneDatosFactura = v.facturaEstado || v.fechaFactura || v.precioUnitarioFactura;
+            return tieneDatosFactura && estado !== 'cobrada' && estado !== 'cobrado';
+        }).length;
+
+        // Viajes sin remitos (solo finalizados)
         const sinRemitos = viajesFinalizados.filter(v => !v.remitosJson || v.remitosJson === '[]').length;
-        return { total, conFactura, cobradas, sinRemitos };
-    }, [viajesFinalizados]);
+
+        return { conFactura, sinFactura, cobradas, pendientesCobro, sinRemitos, totalRelevantes: viajesRelevantes.length };
+    }, [viajesSemana, viajesFinalizados]);
     // Filtros avanzados
     const [fCliente, setFCliente] = useState('todos');
     const opcionesEstadoFactura = useMemo(() => {
@@ -895,13 +941,10 @@ export default function Administracion() {
             {/* Cards de estadísticas */}
             <div className="row g-3 mb-3">
                 <div className="col-12 col-sm-6 col-lg-3">
-                    <StatCard icon={<i className="bi bi-truck"></i>} label="Viajes finalizados" value={stats.total} />
+                    <StatCard icon={<i className="bi bi-receipt"></i>} label="Facturas subidas" value={stats.conFactura} hint={`${stats.sinFactura} sin factura`} />
                 </div>
                 <div className="col-12 col-sm-6 col-lg-3">
-                    <StatCard icon={<i className="bi bi-receipt"></i>} label="Facturas subidas" value={stats.conFactura} hint={`${stats.total - stats.conFactura} sin factura`} />
-                </div>
-                <div className="col-12 col-sm-6 col-lg-3">
-                    <StatCard icon={<i className="bi bi-cash-coin"></i>} label="Cobradas" value={stats.cobradas} hint={`${stats.total - stats.cobradas} pendientes`} />
+                    <StatCard icon={<i className="bi bi-cash-coin"></i>} label="Cobradas" value={stats.cobradas} hint={`${stats.pendientesCobro} pendientes`} />
                 </div>
                 <div className="col-12 col-sm-6 col-lg-3">
                     <StatCard icon={<i className="bi bi-files"></i>} label="Viajes sin remitos" value={stats.sinRemitos} />
@@ -933,6 +976,7 @@ export default function Administracion() {
                                         <th scope="col">Acoplado</th>
                                         <th scope="col">Subtotal</th>
                                         <th scope="col">Subtotal Negro</th>
+                                        <th scope="col">Total a cobrar</th>
                                         <th scope="col">NC</th>
                                         <th scope="col">Factura</th>
                                         <th scope="col">Estado factura</th>
@@ -945,6 +989,15 @@ export default function Administracion() {
                                     {viajesPagina.map(v => {
                                         const remitos = (() => { try { return JSON.parse(v.remitosJson || '[]') } catch { return [] } })();
                                         const vencidaVisual = (v.facturaEstado || '').toLowerCase() === 'vencida';
+                                        const hasSubtotal = v.precioUnitarioFactura != null;
+                                        const subtotalCalc = hasSubtotal ? (() => {
+                                            const base = Number(v.precioUnitarioFactura) * (1 + (v.ivaPercentaje || 0) / 100);
+                                            const total = base - (v.notasCreditoTotal || 0);
+                                            return Number(total.toFixed(2));
+                                        })() : null;
+                                        const hasNegro = v.precioUnitarioNegro != null;
+                                        const subtotalNegroCalc = hasNegro ? Number(v.precioUnitarioNegro) || 0 : null;
+                                        const totalCobrar = (hasSubtotal ? subtotalCalc : 0) + (hasNegro ? subtotalNegroCalc : 0);
                                         return (
                                             <tr
                                                 key={v.id}
@@ -968,13 +1021,10 @@ export default function Administracion() {
                                                 <td>{v.importe ?? '-'}</td>
                                                 <td>{v.acoplado?.patente || v.acopladoPatente || '-'}</td>
                                                 <td>
-                                                    {v.precioUnitarioFactura ? (() => {
-                                                        const base = v.precioUnitarioFactura * (1 + (v.ivaPercentaje || 0) / 100);
-                                                        const total = base - (v.notasCreditoTotal || 0);
-                                                        return Number(total.toFixed(2));
-                                                    })() : (v.precioUnitarioFactura ?? '-')}
+                                                    {hasSubtotal ? subtotalCalc : (v.precioUnitarioFactura ?? '-')}
                                                 </td>
-                                                <td>{v.precioUnitarioNegro ?? '-'}</td>
+                                                <td>{hasNegro ? subtotalNegroCalc : '-'}</td>
+                                                <td>{(hasSubtotal || hasNegro) ? Number(totalCobrar.toFixed(2)) : '-'}</td>
                                                 <td>
                                                     {v.notasCreditoCantidad > 0 ? (
                                                         <span className="badge bg-danger-subtle text-danger" title={`Total NC: $${v.notasCreditoTotal}`}>
@@ -1299,6 +1349,13 @@ export default function Administracion() {
                             <button type="button" className="btn-close" aria-label="Close" onClick={closeFinanzas}></button>
                         </div>
                         <div className="modal-body">
+                            {errorFinanzas && <div className="alert alert-danger">{errorFinanzas}</div>}
+                            {loadingFinanzas && (
+                                <div className="alert alert-info d-flex align-items-center gap-2">
+                                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    Cargando viajes del mes...
+                                </div>
+                            )}
                             {/* Filtros */}
                             <div className="row g-3 mb-4">
                                 <div className="col-md-6">
@@ -1387,7 +1444,7 @@ export default function Administracion() {
                                             </thead>
                                             <tbody>
                                                 {Object.entries(datosFinanzas.porCliente).sort(([a], [b]) => a.localeCompare(b)).map(([cliente, datos]) => (
-                                                    <tr key={cliente}>
+                                                    <tr key={cliente} style={{ cursor: 'pointer' }} onClick={() => openDetalleCliente(cliente)}>
                                                         <td>{cliente}</td>
                                                         <td className="text-end text-success">
                                                             ${datos.cobrado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
@@ -1415,6 +1472,89 @@ export default function Administracion() {
                         </div>
                         <div className="modal-footer">
                             <button type="button" className="btn btn-secondary" onClick={closeFinanzas}>Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modal: Detalle de Viajes por Cliente */}
+            <div className={`modal ${detalleClienteModal.open ? 'd-block show' : 'fade'}`} tabIndex="-1" aria-hidden={!detalleClienteModal.open} style={detalleClienteModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
+                <div className="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-5">
+                                <i className="bi bi-truck me-2"></i>
+                                Viajes de {detalleClienteModal.cliente}
+                            </h1>
+                            <button type="button" className="btn-close" aria-label="Close" onClick={closeDetalleCliente}></button>
+                        </div>
+                        <div className="modal-body">
+                            {detalleClienteModal.viajes.length === 0 ? (
+                                <div className="alert alert-info">No hay viajes para mostrar</div>
+                            ) : (
+                                <div className="table-responsive">
+                                    <table className="table table-sm table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th>Origen - Destino</th>
+                                                <th className="text-end">Total a cobrar</th>
+                                                <th>Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {detalleClienteModal.viajes.map(v => {
+                                                const subtotal = v.precioUnitarioFactura
+                                                    ? Number(v.precioUnitarioFactura) * (1 + (v.ivaPercentaje || 0) / 100) - (v.notasCreditoTotal || 0)
+                                                    : 0;
+                                                const subtotalNegro = Number(v.precioUnitarioNegro) || 0;
+                                                const totalCobrar = subtotal + subtotalNegro;
+                                                const fechaFormateada = v.fecha
+                                                    ? new Date(v.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                                    : '-';
+                                                const estadoFactura = v.facturaEstado || 'pendiente';
+
+                                                return (
+                                                    <tr key={v.id}>
+                                                        <td>{fechaFormateada}</td>
+                                                        <td>{v.origen} - {v.destino}</td>
+                                                        <td className="text-end fw-bold">
+                                                            ${totalCobrar.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td>
+                                                            <span className={`badge ${estadoFactura.toLowerCase() === 'cobrada' ? 'bg-success' :
+                                                                    estadoFactura.toLowerCase() === 'emitida' ? 'bg-info' :
+                                                                        estadoFactura.toLowerCase() === 'vencida' ? 'bg-danger' :
+                                                                            'bg-warning'
+                                                                }`}>
+                                                                {estadoFactura}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr className="table-primary fw-bold">
+                                                <td colspan="2" className="text-end">Total:</td>
+                                                <td className="text-end">
+                                                    ${detalleClienteModal.viajes.reduce((sum, v) => {
+                                                        const subtotal = v.precioUnitarioFactura
+                                                            ? Number(v.precioUnitarioFactura) * (1 + (v.ivaPercentaje || 0) / 100) - (v.notasCreditoTotal || 0)
+                                                            : 0;
+                                                        const subtotalNegro = Number(v.precioUnitarioNegro) || 0;
+                                                        return sum + subtotal + subtotalNegro;
+                                                    }, 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={closeDetalleCliente}>Cerrar</button>
                         </div>
                     </div>
                 </div>

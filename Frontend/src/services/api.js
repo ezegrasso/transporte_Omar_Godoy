@@ -46,7 +46,9 @@ export const downloadFactura = async (viajeId) => {
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        if (a.parentNode) {
+            a.parentNode.removeChild(a);
+        }
     } catch (error) {
         throw new Error(error?.response?.data?.error || 'Error al descargar la factura');
     }
