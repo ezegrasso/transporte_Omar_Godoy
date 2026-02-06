@@ -871,11 +871,37 @@ export default function Administracion() {
                 <div className="card-body d-flex flex-wrap align-items-end gap-2">
                     <div>
                         <label className="form-label mb-1">Semana (inicio)</label>
-                        <input type="date" className="form-control" value={weekStart} onChange={e => setWeekStart(e.target.value)} />
+                        <input
+                            type="date"
+                            className="form-control"
+                            value={weekStart}
+                            onChange={e => {
+                                const selectedDate = new Date(e.target.value);
+                                const day = selectedDate.getDay(); // 0=Dom
+                                const diff = (day === 0 ? 6 : day - 1); // Lunes como inicio
+                                const monday = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() - diff);
+                                const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+                                setWeekStart(monday.toISOString().slice(0, 10));
+                                setWeekEnd(sunday.toISOString().slice(0, 10));
+                            }}
+                        />
                     </div>
                     <div>
                         <label className="form-label mb-1">Semana (fin)</label>
-                        <input type="date" className="form-control" value={weekEnd} onChange={e => setWeekEnd(e.target.value)} />
+                        <input
+                            type="date"
+                            className="form-control"
+                            value={weekEnd}
+                            onChange={e => {
+                                const selectedDate = new Date(e.target.value);
+                                const day = selectedDate.getDay(); // 0=Dom
+                                const diff = (day === 0 ? 6 : day - 1); // Lunes como inicio
+                                const monday = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() - diff);
+                                const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+                                setWeekStart(monday.toISOString().slice(0, 10));
+                                setWeekEnd(sunday.toISOString().slice(0, 10));
+                            }}
+                        />
                     </div>
                     <div className="d-flex gap-2">
                         <button className="btn btn-outline-secondary" title="Semana anterior" onClick={() => {
@@ -1523,9 +1549,9 @@ export default function Administracion() {
                                                         </td>
                                                         <td>
                                                             <span className={`badge ${estadoFactura.toLowerCase() === 'cobrada' ? 'bg-success' :
-                                                                    estadoFactura.toLowerCase() === 'emitida' ? 'bg-info' :
-                                                                        estadoFactura.toLowerCase() === 'vencida' ? 'bg-danger' :
-                                                                            'bg-warning'
+                                                                estadoFactura.toLowerCase() === 'emitida' ? 'bg-info' :
+                                                                    estadoFactura.toLowerCase() === 'vencida' ? 'bg-danger' :
+                                                                        'bg-warning'
                                                                 }`}>
                                                                 {estadoFactura}
                                                             </span>
