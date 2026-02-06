@@ -11,6 +11,7 @@ import { SkeletonText } from '../components/UI/Skeleton';
 import { ConfirmModal } from '../components/UI/ConfirmModal';
 import { useToast } from '../context/ToastContext';
 import DashboardCharts from '../components/UI/DashboardCharts';
+import Ceo from './Ceo';
 
 export default function Administracion() {
 
@@ -385,9 +386,9 @@ export default function Administracion() {
             try {
                 const [anio, mes] = finanzasModal.mes.split('-');
                 // Calcular el último día del mes
-                const mesNum = parseInt(mes) - 1; // JavaScript months are 0-indexed
+                const mesNum = parseInt(mes); // mes es 1-12
                 const anioNum = parseInt(anio);
-                const lastDay = new Date(anioNum, mesNum + 1, 0).getDate();
+                const lastDay = new Date(anioNum, mesNum, 0).getDate();
 
                 const from = `${anio}-${mes}-01`;
                 const to = `${anio}-${mes}-${String(lastDay).padStart(2, '0')}`;
@@ -1535,8 +1536,12 @@ export default function Administracion() {
                                                     : 0;
                                                 const subtotalNegro = Number(v.precioUnitarioNegro) || 0;
                                                 const totalCobrar = subtotal + subtotalNegro;
+                                                // Formatear fecha sin conversión de zona horaria
                                                 const fechaFormateada = v.fecha
-                                                    ? new Date(v.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                                    ? (() => {
+                                                        const [year, month, day] = v.fecha.split('-');
+                                                        return `${day}/${month}/${year}`;
+                                                    })()
                                                     : '-';
                                                 const estadoFactura = v.facturaEstado || 'pendiente';
 
@@ -1562,7 +1567,7 @@ export default function Administracion() {
                                         </tbody>
                                         <tfoot>
                                             <tr className="table-primary fw-bold">
-                                                <td colspan="2" className="text-end">Total:</td>
+                                                <td colSpan="2" className="text-end">Total:</td>
                                                 <td className="text-end">
                                                     ${detalleClienteModal.viajes.reduce((sum, v) => {
                                                         const subtotal = v.precioUnitarioFactura
@@ -2018,8 +2023,6 @@ export default function Administracion() {
                     </div>
                 </div>
             </div>
-
         </>
     );
 }
-

@@ -137,6 +137,7 @@ router.get('/', authMiddleware, [
                 { model: Usuario, as: 'camionero', attributes: ['id', 'nombre', 'email'] }
             ]
         });
+
         // Adjuntar patente de acoplado sin N+1: cargar todos y mapear
         let acopladoMap = new Map();
         try {
