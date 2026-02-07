@@ -147,6 +147,7 @@ export default function Ceo() {
     const [acoplados, setAcoplados] = useState([]);
     const [viajes, setViajes] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
+    const [clientes, setClientes] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -154,9 +155,11 @@ export default function Ceo() {
     const [camionErrors, setCamionErrors] = useState({});
     const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '', tipoMercaderia: '', cliente: '', precioTonelada: '' });
     const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '', rol: 'camionero' });
+    const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', cuit: '' });
     const [savingCamion, setSavingCamion] = useState(false);
     const [savingViaje, setSavingViaje] = useState(false);
     const [savingUsuario, setSavingUsuario] = useState(false);
+    const [savingCliente, setSavingCliente] = useState(false);
     const { showToast } = useToast();
     const [filtroEstado, setFiltroEstado] = useState('');
     const [busqueda, setBusqueda] = useState('');
@@ -262,6 +265,18 @@ export default function Ceo() {
         const list = Array.isArray(data) ? data : (data.items || []);
         setUsuarios(list);
         return list;
+    };
+
+    const fetchClientes = async () => {
+        try {
+            const { data } = await api.get('/clientes');
+            const list = Array.isArray(data) ? data : (data.data || []);
+            setClientes(list);
+            return list;
+        } catch (e) {
+            console.error('Error cargando clientes:', e);
+            return [];
+        }
     };
 
     const openFinalizarModal = (id) => {
@@ -388,7 +403,7 @@ export default function Ceo() {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchCamiones(), fetchAcoplados(), fetchViajes(), fetchUsuarios()]); }
+            try { await Promise.all([fetchCamiones(), fetchAcoplados(), fetchViajes(), fetchUsuarios(), fetchClientes()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando datos'); }
             finally { setLoading(false); }
         })();
@@ -506,6 +521,35 @@ export default function Ceo() {
         }
     };
 
+    const crearCliente = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSavingCliente(true);
+        try {
+            const body = {
+                nombre: (nuevoCliente.nombre || '').trim(),
+                cuit: (nuevoCliente.cuit || '').trim() || null
+            };
+
+            if (!body.nombre) {
+                showToast('El nombre del cliente es requerido', 'error');
+                setSavingCliente(false);
+                return;
+            }
+
+            await api.post('/clientes', body);
+            setNuevoCliente({ nombre: '', cuit: '' });
+            await fetchClientes();
+            showToast('Cliente creado', 'success');
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error creando cliente';
+            setError(msg);
+            showToast(msg, 'error');
+        } finally {
+            setSavingCliente(false);
+        }
+    };
+
     const reporte = useMemo(() => {
         const total = viajes.length;
         const porEstado = viajes.reduce((acc, v) => { acc[v.estado] = (acc[v.estado] || 0) + 1; return acc; }, {});
@@ -529,7 +573,7 @@ export default function Ceo() {
             return seg;
         });
         return { total, items, bg: `conic-gradient(${stops.join(',')})` };
-    }, [reporte.porEstado, viajes.length]);
+    }, [reporte, viajes]);
 
     const porCamioneroTop = useMemo(() => {
         const map = viajes.reduce((acc, v) => {
@@ -569,7 +613,6 @@ export default function Ceo() {
             return okEstado && okTexto && okCamion && okCamionero && okTipo && okCliente;
         });
     }, [viajes, filtroEstado, busqueda, filtroCamion, filtroCamionero, filtroTipo, filtroCliente]);
-
     // Helpers de fecha (DATEONLY -> local)
     const parseDateOnlyLocal = (s) => {
         if (!s) return 0;
@@ -1119,7 +1162,12 @@ export default function Ceo() {
                                     <div className="col-6"><input className="form-control" placeholder="Origen" value={nuevoViaje.origen} onChange={e => setNuevoViaje(v => ({ ...v, origen: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" placeholder="Destino" value={nuevoViaje.destino} onChange={e => setNuevoViaje(v => ({ ...v, destino: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" placeholder="Tipo de mercadería" value={nuevoViaje.tipoMercaderia} onChange={e => setNuevoViaje(v => ({ ...v, tipoMercaderia: e.target.value }))} /></div>
-                                    <div className="col-6"><input className="form-control" placeholder="Cliente" value={nuevoViaje.cliente} onChange={e => setNuevoViaje(v => ({ ...v, cliente: e.target.value }))} /></div>
+                                    <div className="col-6">
+                                        <select className="form-select" value={nuevoViaje.cliente} onChange={e => setNuevoViaje(v => ({ ...v, cliente: e.target.value }))}>
+                                            <option value="">Seleccioná cliente</option>
+                                            {clientes.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
+                                        </select>
+                                    </div>
                                     <div className="col-6"><input className="form-control" type="date" placeholder="Fecha" value={nuevoViaje.fecha} onChange={e => setNuevoViaje(v => ({ ...v, fecha: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" type="number" min={0} step={0.01} placeholder="Precio por tonelada" value={nuevoViaje.precioTonelada} onChange={e => setNuevoViaje(v => ({ ...v, precioTonelada: e.target.value }))} /></div>
                                     <div className="col-6">
@@ -1814,6 +1862,57 @@ export default function Ceo() {
                                                                     <button className="btn btn-outline-danger" onClick={() => deleteUsuario(u.id)} title="Eliminar"><i className="bi bi-trash"></i></button>
                                                                 </div>
                                                             )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="row g-3 mt-3">
+                    <div className="col-12">
+                        <div className="card shadow-sm">
+                            <div className="card-body">
+                                <h3 className="h5">Clientes</h3>
+                                <form onSubmit={crearCliente} className="row g-2 mt-2" style={{ opacity: savingCliente ? 0.85 : 1 }}>
+                                    <div className="col-8"><input className="form-control" placeholder="Nombre del cliente" value={nuevoCliente.nombre} onChange={e => setNuevoCliente(v => ({ ...v, nombre: e.target.value }))} /></div>
+                                    <div className="col-4"><input className="form-control" placeholder="CUIT" value={nuevoCliente.cuit} onChange={e => setNuevoCliente(v => ({ ...v, cuit: e.target.value }))} /></div>
+                                    <div className="col-12"><button className="btn btn-primary" disabled={savingCliente}>{savingCliente ? 'Creando…' : 'Crear cliente'}</button></div>
+                                </form>
+                                <div className="table-responsive mt-3">
+                                    {clientes.length === 0 ? (
+                                        <EmptyState title="Sin clientes" description="Todavía no cargaste clientes" />
+                                    ) : (
+                                        <table className={`table table-sm table-hover align-middle mb-0 table-sticky table-cols-bordered`}>
+                                            <thead>
+                                                <tr>
+                                                    <th className="text-uppercase small">Nombre</th>
+                                                    <th className="text-uppercase small">CUIT</th>
+                                                    <th className="text-end text-uppercase small" style={{ minWidth: 100 }}>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {clientes.map(c => (
+                                                    <tr key={c.id}>
+                                                        <td>{c.nombre}</td>
+                                                        <td>{c.cuit || '-'}</td>
+                                                        <td className="text-end">
+                                                            <button className="btn btn-sm btn-outline-danger" onClick={async () => {
+                                                                if (window.confirm(`¿Eliminar cliente "${c.nombre}"?`)) {
+                                                                    try {
+                                                                        await api.delete(`/clientes/${c.id}`);
+                                                                        await fetchClientes();
+                                                                        showToast('Cliente eliminado', 'success');
+                                                                    } catch (e) {
+                                                                        showToast(e?.response?.data?.error || 'Error al eliminar', 'error');
+                                                                    }
+                                                                }
+                                                            }} title="Eliminar"><i className="bi bi-trash"></i></button>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -2712,9 +2811,5 @@ export default function Ceo() {
                 </div>
             )}
         </>
-    );
+    )
 }
-
-
-
-
