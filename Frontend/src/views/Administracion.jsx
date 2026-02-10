@@ -832,21 +832,22 @@ export default function Administracion() {
         return viajesFiltrados.slice(start, start + pageSize);
     }, [viajesFiltrados, curPage, pageSize]);
 
-    // DESACTIVADO: Tooltips de Bootstrap causan errores removeChild
-    // useEffect(() => {
-    //     try {
-    //         const els = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    //         const instances = els
-    //             .map(el => window.bootstrap?.Tooltip ? window.bootstrap.Tooltip.getOrCreateInstance(el) : null)
-    //             .filter(Boolean);
-    //         return () => {
-    //             instances.forEach(inst => {
-    //                 try { inst.hide(); } catch { }
-    //                 try { inst.dispose(); } catch { }
-    //             });
-    //         };
-    //     } catch { }
-    // }, [viajesPagina, viajesFiltrados, term, fEstado, fCliente]);
+    // Inicialización de tooltips de Bootstrap (por si hay elementos con data-bs-toggle="tooltip")
+    // Ubicado después de calcular viajesPagina para evitar RefererenceError (TDZ)
+    useEffect(() => {
+        try {
+            const els = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const instances = els
+                .map(el => window.bootstrap?.Tooltip ? window.bootstrap.Tooltip.getOrCreateInstance(el) : null)
+                .filter(Boolean);
+            return () => {
+                instances.forEach(inst => {
+                    try { inst.hide(); } catch { }
+                    try { inst.dispose(); } catch { }
+                });
+            };
+        } catch { }
+    }, [viajesPagina, viajesFiltrados, term, fEstado, fCliente]);
 
     // Cerrar menú al hacer scroll o resize para evitar desalineación
     useEffect(() => {
