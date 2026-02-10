@@ -169,3 +169,8 @@ const Viaje = sequelize.define('Viaje', {
             return results;
         }
     }
+});
+
+export default Viaje;
+import Usuario from './Usuario.js';
+Viaje.belongsTo(Usuario, { as: 'camionero', foreignKey: 'camioneroId' });
