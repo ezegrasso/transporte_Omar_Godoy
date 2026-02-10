@@ -27,19 +27,31 @@ function NavBar() {
     try {
       const nodes = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
       const tips = nodes
-        .map(n => window.bootstrap?.Tooltip ? window.bootstrap.Tooltip.getOrCreateInstance(n) : null)
+        .map(n => {
+          try {
+            return window.bootstrap?.Tooltip ? window.bootstrap.Tooltip.getOrCreateInstance(n) : null
+          } catch {
+            return null
+          }
+        })
         .filter(Boolean)
       return () => {
         tips.forEach(t => {
           try {
-            t.hide()
-          } catch { }
+            if (t && typeof t.hide === 'function') t.hide()
+          } catch (e) {
+            console.warn('Error hiding tooltip:', e)
+          }
           try {
-            t.dispose()
-          } catch { }
+            if (t && typeof t.dispose === 'function') t.dispose()
+          } catch (e) {
+            console.warn('Error disposing tooltip:', e)
+          }
         })
       }
-    } catch { }
+    } catch (e) {
+      console.warn('Error initializing tooltips:', e)
+    }
   }, [location.pathname])
   useEffect(() => {
     // Cerrar el menú colapsable al cambiar de ruta
