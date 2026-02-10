@@ -429,8 +429,11 @@ export default function Administracion() {
                 const from = `${anio}-${mesPadded}-01`;
                 const to = `${anio}-${mesPadded}-${lastDayPadded}`;
 
+                console.log('[Finanzas] Cargando viajes del mes:', { from, to });
                 const { data } = await api.get(`/viajes?limit=1000&from=${from}&to=${to}&order=DESC&sortBy=fecha`);
                 const viajes = data.data || data.items || [];
+                console.log('[Finanzas] Viajes cargados:', { cantidad: viajes.length, viajes });
+                console.log('[Finanzas] Primera viaje:', viajes[0] ? { id: viajes[0].id, estado: viajes[0].estado, importe: viajes[0].importe, facturaEstado: viajes[0].facturaEstado } : 'Sin viajes');
                 setViajesMesFinanzas(viajes);
             } catch (e) {
                 console.error('Error cargando viajes del mes:', e);
@@ -448,15 +451,23 @@ export default function Administracion() {
     const datosFinanzas = useMemo(() => {
         const { clienteFiltro } = finanzasModal;
 
+        console.log('[datosFinanzas] Iniciando cálculo - viajesMesFinanzas:', viajesMesFinanzas?.length ?? 0, 'viajes');
+
         // Filtrar solo viajes finalizados
         const viajesMes = (viajesMesFinanzas || []).filter(v => {
-            return (v.estado || '').toLowerCase() === 'finalizado';
+            const esFinalizdo = (v.estado || '').toLowerCase() === 'finalizado';
+            console.log('[datosFinanzas] Viaje ID:', v.id, 'estado:', v.estado, 'esFinalizdo:', esFinalizdo);
+            return esFinalizdo;
         });
+
+        console.log('[datosFinanzas] Total de viajes cargados:', viajesMesFinanzas?.length, 'Finalizados:', viajesMes.length);
 
         // Filtrar por cliente si no es "todos"
         const viajesFiltro = clienteFiltro === 'todos'
             ? viajesMes
             : viajesMes.filter(v => v.cliente === clienteFiltro);
+
+        console.log('[datosFinanzas] Viajes filtro:', viajesFiltro.length, 'clienteFiltro:', clienteFiltro);
 
         // Calcular totales
         let totalFacturado = 0;
@@ -464,9 +475,13 @@ export default function Administracion() {
         const porCliente = {};
 
         viajesFiltro.forEach(v => {
-            const importe = safeParseNumber(v.importe);
+            const importeStr = v.importe;
+            const importe = safeParseNumber(importeStr);
             const cliente = v.cliente || 'Sin cliente';
-            const estado = (v.facturaEstado || 'pendiente').toLowerCase();
+            const facturaEstadoRaw = v.facturaEstado || 'pendiente';
+            const estado = facturaEstadoRaw.toLowerCase();
+
+            console.log('[datosFinanzas] Viaje:', { id: v.id, facturaEstado: facturaEstadoRaw, estado, importeStr, importeParsed: importe });
 
             if (!porCliente[cliente]) {
                 porCliente[cliente] = { facturado: 0, pendiente: 0, cobrado: 0 };
@@ -480,6 +495,8 @@ export default function Administracion() {
                 porCliente[cliente].pendiente += importe;
             }
         });
+
+        console.log('[datosFinanzas] Totales calculados:', { totalFacturado, totalPendiente, cantidadViajesProcesados: viajesFiltro.length });
 
         return { totalFacturado, totalPendiente, porCliente, viajesMes: viajesFiltro.length };
     }, [finanzasModal.clienteFiltro, viajesMesFinanzas]);
