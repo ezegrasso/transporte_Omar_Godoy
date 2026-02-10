@@ -203,31 +203,6 @@ export default function Camionero() {
         return miosOrdenados.slice(start, start + pageSize);
     }, [miosOrdenados, curMios]);
 
-    // Inicialización de tooltips de Bootstrap para celdas con data-bs-toggle="tooltip"
-    // Ubicado después de calcular pendientesPagina/miosPagina para evitar TDZ
-    useEffect(() => {
-        try {
-            const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const instances = tooltipTriggerList
-                .map(el => {
-                    if (window.bootstrap?.Tooltip) {
-                        return window.bootstrap.Tooltip.getOrCreateInstance(el);
-                    }
-                    return null;
-                })
-                .filter(Boolean);
-            return () => {
-                instances.forEach(inst => {
-                    try { inst.hide(); } catch { }
-                    try { inst.dispose(); } catch { }
-                });
-            };
-        } catch {
-            // noop
-        }
-        // Re-ejecutar cuando cambien los datos/paginación/orden
-    }, [pendientesPagina, pendientesOrdenados, pendientesFiltrados, sortPend, curPend, miosPagina, miosOrdenados, miosFiltrados, sortMios, curMios]);
-
     // Viaje en curso actual (normalmente hay 1). Tomamos el más reciente por fecha.
     const viajeEnCursoActual = useMemo(() => {
         const enCurso = mios.filter(v => v.estado === 'en curso');
@@ -529,11 +504,11 @@ export default function Camionero() {
                                                         : 'badge-estado-pendiente'
                                                     } text-capitalize`}>{v.estado}</span>
                                             </td>
-                                            <td title={v.origen} data-bs-toggle="tooltip">{v.origen}</td>
-                                            <td title={v.destino} data-bs-toggle="tooltip">{v.destino}</td>
-                                            <td title={v.tipoMercaderia || ''} data-bs-toggle="tooltip">{v.tipoMercaderia || '-'}</td>
-                                            <td title={v.cliente || ''} data-bs-toggle="tooltip">{v.cliente || '-'}</td>
-                                            <td title={v.camion ? `${v.camion.patente} • ${v.camion.marca} ${v.camion.modelo}` : v.camionId} data-bs-toggle="tooltip">
+                                            <td title={v.origen}>{v.origen}</td>
+                                            <td title={v.destino}>{v.destino}</td>
+                                            <td title={v.tipoMercaderia || ''}>{v.tipoMercaderia || '-'}</td>
+                                            <td title={v.cliente || ''}>{v.cliente || '-'}</td>
+                                            <td title={v.camion ? `${v.camion.patente} • ${v.camion.marca} ${v.camion.modelo}` : v.camionId}>
                                                 {v.camion ? (
                                                     <span>{v.camion.patente} <small className="text-body-secondary">({v.camion.marca})</small></span>
                                                 ) : v.camionId}
@@ -643,11 +618,11 @@ export default function Camionero() {
                                                         : 'badge-estado-pendiente'
                                                     } text-capitalize`}>{v.estado}</span>
                                             </td>
-                                            <td title={v.origen} data-bs-toggle="tooltip">{v.origen}</td>
-                                            <td title={v.destino} data-bs-toggle="tooltip">{v.destino}</td>
-                                            <td title={v.tipoMercaderia || ''} data-bs-toggle="tooltip">{v.tipoMercaderia || '-'}</td>
-                                            <td title={v.cliente || ''} data-bs-toggle="tooltip">{v.cliente || '-'}</td>
-                                            <td title={v.camion?.patente || v.camionId} data-bs-toggle="tooltip">{v.camion?.patente || v.camionId}</td>
+                                            <td title={v.origen}>{v.origen}</td>
+                                            <td title={v.destino}>{v.destino}</td>
+                                            <td title={v.tipoMercaderia || ''}>{v.tipoMercaderia || '-'}</td>
+                                            <td title={v.cliente || ''}>{v.cliente || '-'}</td>
+                                            <td title={v.camion?.patente || v.camionId}>{v.camion?.patente || v.camionId}</td>
                                             <td>{v.km ?? '-'}</td>
                                             <td>{v.combustible ?? '-'}</td>
                                             <td className="text-end">

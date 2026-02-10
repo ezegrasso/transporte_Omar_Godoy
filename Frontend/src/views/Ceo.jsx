@@ -694,29 +694,6 @@ export default function Ceo() {
 
     // (Se reemplaza CSV por PDF)
 
-    // Inicialización de tooltips de Bootstrap para elementos con data-bs-toggle="tooltip"
-    useEffect(() => {
-        try {
-            const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const instances = tooltipTriggerList
-                .map(el => {
-                    if (window.bootstrap?.Tooltip) {
-                        return window.bootstrap.Tooltip.getOrCreateInstance(el);
-                    }
-                    return null;
-                })
-                .filter(Boolean);
-            return () => {
-                instances.forEach(inst => {
-                    try { inst.hide(); } catch { }
-                    try { inst.dispose(); } catch { }
-                });
-            };
-        } catch {
-            // noop
-        }
-    }, [viajesPagina, viajesOrdenados, viajesFiltrados, sortKey, sortDir, currentPage]);
-
     // Edición inline de camiones
     const [editCamionId, setEditCamionId] = useState(null);
     const [editCamionData, setEditCamionData] = useState({ patente: '', marca: '', modelo: '', anio: '' });
@@ -1400,17 +1377,17 @@ export default function Ceo() {
                                                             : 'badge-estado-pendiente'
                                                         } text-capitalize`}>{v.estado}</span>
                                                 </td>
-                                                <td title={v.origen} data-bs-toggle="tooltip">{v.origen}</td>
-                                                <td title={v.destino} data-bs-toggle="tooltip">{v.destino}</td>
-                                                <td title={v.camion ? `${v.camion.patente} • ${v.camion.marca} ${v.camion.modelo}` : v.camionId} data-bs-toggle="tooltip">
+                                                <td title={v.origen}>{v.origen}</td>
+                                                <td title={v.destino}>{v.destino}</td>
+                                                <td title={v.camion ? `${v.camion.patente} • ${v.camion.marca} ${v.camion.modelo}` : v.camionId}>
                                                     {v.camion ? (
                                                         <span>{v.camion.patente} <small className="text-body-secondary">({v.camion.marca})</small></span>
                                                     ) : v.camionId}
                                                 </td>
-                                                <td title={v.acoplado ? v.acoplado.patente : (v.acopladoPatente || '-')} data-bs-toggle="tooltip">{v.acoplado ? v.acoplado.patente : (v.acopladoPatente || '-')}</td>
-                                                <td title={v.camionero?.nombre || '-'} data-bs-toggle="tooltip">{v.camionero?.nombre || '-'}</td>
-                                                <td title={v.tipoMercaderia || '-'} data-bs-toggle="tooltip">{v.tipoMercaderia || '-'}</td>
-                                                <td title={v.cliente || '-'} data-bs-toggle="tooltip">{v.cliente || '-'}</td>
+                                                <td title={v.acoplado ? v.acoplado.patente : (v.acopladoPatente || '-')}>{v.acoplado ? v.acoplado.patente : (v.acopladoPatente || '-')}</td>
+                                                <td title={v.camionero?.nombre || '-'}>{v.camionero?.nombre || '-'}</td>
+                                                <td title={v.tipoMercaderia || '-'}>{v.tipoMercaderia || '-'}</td>
+                                                <td title={v.cliente || '-'}>{v.cliente || '-'}</td>
                                                 <td className="text-end">{v.km ?? '-'}</td>
                                                 <td className="text-end">{v.combustible ?? '-'}</td>
                                                 <td className="text-end">{v.kilosCargados ?? '-'}</td>
