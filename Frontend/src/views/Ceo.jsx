@@ -8,6 +8,39 @@ import { generarListadoViajesPDF, generarDetalleViajePDF, generarFacturaViajePDF
 import { ConfirmModal } from '../components/UI/ConfirmModal';
 import React from 'react';
 
+// Función segura para parsear números sin importar el formato local
+const safeParseNumber = (val) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const str = String(val).trim();
+    if (!str) return 0;
+    // Remover espacios
+    let clean = str.replace(/\s/g, '');
+    // Si tiene coma y punto, determinar cuál es separador decimal vs miles
+    const lastComma = clean.lastIndexOf(',');
+    const lastDot = clean.lastIndexOf('.');
+    if (lastComma > -1 && lastDot > -1) {
+        // Ambos existen - el último es decimal
+        if (lastComma > lastDot) {
+            // Formato: 1.234,56 (español)
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        } else {
+            // Formato: 1,234.56 (inglés)
+            clean = clean.replace(/,/g, '');
+        }
+    } else if (lastComma > -1 && lastComma === clean.length - 3) {
+        // Formato: 1234,56 (español sin miles)
+        clean = clean.replace(',', '.');
+    } else if (lastDot > -1 && lastDot === clean.length - 3) {
+        // Formato: 1234.56 (inglés sin miles) - mantener como está
+    } else if (lastComma > -1) {
+        // Solo coma - probablemente es decimal
+        clean = clean.replace(',', '.');
+    }
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+};
+
 function AcopladosCrud({ acoplados, onCreated, onUpdated, onDeleted }) {
     const [nuevo, setNuevo] = useState({ patente: '' });
     const [saving, setSaving] = useState(false);
@@ -306,8 +339,8 @@ export default function Ceo() {
                 showToast('Complet\u00e1 km y combustible', 'error');
                 return;
             }
-            const kmNum = Number(finalizarData.km);
-            const combNum = Number(finalizarData.combustible);
+            const kmNum = safeParseNumber(finalizarData.km);
+            const combNum = safeParseNumber(finalizarData.combustible);
             if (isNaN(kmNum) || kmNum <= 0) {
                 showToast('Ingres\u00e1 KM mayor a 0', 'error');
                 return;
@@ -321,8 +354,8 @@ export default function Ceo() {
         }
         setFinishingId(id);
         try {
-            const body = { km: Number(finalizarData.km), combustible: Number(finalizarData.combustible), importe: Number(finalizarData.importe) };
-            if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = Number(finalizarData.kilosCargados);
+            const body = { km: safeParseNumber(finalizarData.km), combustible: safeParseNumber(finalizarData.combustible), importe: safeParseNumber(finalizarData.importe) };
+            if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = safeParseNumber(finalizarData.kilosCargados);
             await api.patch(`/viajes/${id}/finalizar`, body);
             setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
             await new Promise(r => setTimeout(r, 400));
@@ -553,8 +586,8 @@ export default function Ceo() {
     const reporte = useMemo(() => {
         const total = viajes.length;
         const porEstado = viajes.reduce((acc, v) => { acc[v.estado] = (acc[v.estado] || 0) + 1; return acc; }, {});
-        const km = viajes.reduce((sum, v) => sum + (Number(v.km) || 0), 0);
-        const combustible = viajes.reduce((sum, v) => sum + (Number(v.combustible) || 0), 0);
+        const km = viajes.reduce((sum, v) => sum + safeParseNumber(v.km), 0);
+        const combustible = viajes.reduce((sum, v) => sum + safeParseNumber(v.combustible), 0);
         return { total, porEstado, km, combustible };
     }, [viajes]);
 
@@ -638,8 +671,8 @@ export default function Ceo() {
                     case 'camionero': return (v.camionero?.nombre || '').toLowerCase();
                     case 'tipo': return (v.tipoMercaderia || '').toLowerCase();
                     case 'cliente': return (v.cliente || '').toLowerCase();
-                    case 'km': return Number(v.km) || 0;
-                    case 'combustible': return Number(v.combustible) || 0;
+                    case 'km': return safeParseNumber(v.km);
+                    case 'combustible': return safeParseNumber(v.combustible);
                     default: return '';
                 }
             }

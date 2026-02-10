@@ -5,6 +5,39 @@ import EmptyState from '../components/UI/EmptyState';
 import { useToast } from '../context/ToastContext';
 import { downloadCSV } from '../utils/csv';
 
+// Función segura para parsear números sin importar el formato local
+const safeParseNumber = (val) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const str = String(val).trim();
+    if (!str) return 0;
+    // Remover espacios
+    let clean = str.replace(/\s/g, '');
+    // Si tiene coma y punto, determinar cuál es separador decimal vs miles
+    const lastComma = clean.lastIndexOf(',');
+    const lastDot = clean.lastIndexOf('.');
+    if (lastComma > -1 && lastDot > -1) {
+        // Ambos existen - el último es decimal
+        if (lastComma > lastDot) {
+            // Formato: 1.234,56 (español)
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        } else {
+            // Formato: 1,234.56 (inglés)
+            clean = clean.replace(/,/g, '');
+        }
+    } else if (lastComma > -1 && lastComma === clean.length - 3) {
+        // Formato: 1234,56 (español sin miles)
+        clean = clean.replace(',', '.');
+    } else if (lastDot > -1 && lastDot === clean.length - 3) {
+        // Formato: 1234.56 (inglés sin miles) - mantener como está
+    } else if (lastComma > -1) {
+        // Solo coma - probablemente es decimal
+        clean = clean.replace(',', '.');
+    }
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+};
+
 export default function Camionero() {
     const [pendientes, setPendientes] = useState([]);
     const [mios, setMios] = useState([]);
@@ -262,8 +295,8 @@ export default function Camionero() {
                 return;
             }
             // Validar datos mínimos antes de pasar a confirmación
-            const kmNum = Number(finalizarData.km);
-            const combNum = Number(finalizarData.combustible);
+            const kmNum = safeParseNumber(finalizarData.km);
+            const combNum = safeParseNumber(finalizarData.combustible);
             if (isNaN(kmNum) || kmNum <= 0) {
                 showToast('Ingresá KM mayor a 0', 'error');
                 return;
@@ -278,8 +311,8 @@ export default function Camionero() {
         // Segunda pulsación: enviar
         setFinishingId(id);
         try {
-            const body = { km: Number(finalizarData.km), combustible: Number(finalizarData.combustible), importe: Number(finalizarData.importe) };
-            if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = Number(finalizarData.kilosCargados);
+            const body = { km: safeParseNumber(finalizarData.km), combustible: safeParseNumber(finalizarData.combustible), importe: safeParseNumber(finalizarData.importe) };
+            if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = safeParseNumber(finalizarData.kilosCargados);
             await api.patch(`/viajes/${id}/finalizar`, body);
             setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
             setSavedMioId(id);
@@ -398,7 +431,7 @@ export default function Camionero() {
                                                     </div>
                                                     <div>
                                                         <div className="fw-bold text-success" style={{ fontSize: '1.1rem' }}>
-                                                            ${Number(adelanto.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            ${safeParseNumber(adelanto.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </div>
                                                         <small className="text-muted">
                                                             {new Date(adelanto.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
@@ -722,14 +755,14 @@ export default function Camionero() {
                             {!finalizarPasoConfirm ? (
                                 <>
                                     <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowFinalizarModal(false)}>Cerrar</button>
-                                    <button type="button" className="btn btn-primary" disabled={!modalId || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalId && finalizar(modalId)}>
+                                    <button type="button" className="btn btn-primary" disabled={!modalId || safeParseNumber(finalizarData.km) <= 0 || safeParseNumber(finalizarData.combustible) <= 0} onClick={() => modalId && finalizar(modalId)}>
                                         Continuar
                                     </button>
                                 </>
                             ) : (
                                 <>
                                     <button type="button" className="btn btn-outline-secondary" onClick={() => setFinalizarPasoConfirm(false)} disabled={finishingId === modalId}>Volver</button>
-                                    <button type="button" className="btn btn-danger" disabled={!modalId || finishingId === modalId || !confirmChecked || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalId && finalizar(modalId)}>
+                                    <button type="button" className="btn btn-danger" disabled={!modalId || finishingId === modalId || !confirmChecked || safeParseNumber(finalizarData.km) <= 0 || safeParseNumber(finalizarData.combustible) <= 0} onClick={() => modalId && finalizar(modalId)}>
                                         {finishingId === modalId ? 'Finalizando…' : 'Finalizar viaje'}
                                     </button>
                                 </>
@@ -779,7 +812,7 @@ export default function Camionero() {
                                         <div><strong>Mes:</strong> {liqRes.mes}</div>
                                         <div><strong>Bruto:</strong> ${liqRes.bruto?.toFixed ? liqRes.bruto.toFixed(2) : liqRes.bruto}</div>
                                         <div><strong>Sueldo:</strong> ${liqRes.sueldo?.toFixed ? liqRes.sueldo.toFixed(2) : liqRes.sueldo}</div>
-                                        <div><strong>Adelanto:</strong> ${Number(liqRes.adelanto || 0).toFixed(2)}</div>
+                                        <div><strong>Adelanto:</strong> ${safeParseNumber(liqRes.adelanto || 0).toFixed(2)}</div>
                                         <div><strong>Neto:</strong> ${liqRes.neto?.toFixed ? liqRes.neto.toFixed(2) : liqRes.neto}</div>
                                     </div>
                                     <div className="table-responsive">

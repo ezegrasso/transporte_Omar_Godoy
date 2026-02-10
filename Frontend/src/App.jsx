@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
-import { Tooltip } from 'bootstrap'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './context/AuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -25,9 +24,22 @@ function NavBar() {
   }, [theme])
   useEffect(() => {
     // Inicializar tooltips de Bootstrap al cambiar de ruta
-    const nodes = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    const tips = nodes.map(n => new Tooltip(n))
-    return () => tips.forEach(t => t.dispose())
+    try {
+      const nodes = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+      const tips = nodes
+        .map(n => window.bootstrap?.Tooltip ? window.bootstrap.Tooltip.getOrCreateInstance(n) : null)
+        .filter(Boolean)
+      return () => {
+        tips.forEach(t => {
+          try {
+            t.hide()
+          } catch { }
+          try {
+            t.dispose()
+          } catch { }
+        })
+      }
+    } catch { }
   }, [location.pathname])
   useEffect(() => {
     // Cerrar el menú colapsable al cambiar de ruta

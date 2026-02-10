@@ -13,6 +13,39 @@ import { useToast } from '../context/ToastContext';
 import DashboardCharts from '../components/UI/DashboardCharts';
 import Ceo from './Ceo';
 
+// Función segura para parsear números sin importar el formato local
+const safeParseNumber = (val) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const str = String(val).trim();
+    if (!str) return 0;
+    // Remover espacios
+    let clean = str.replace(/\s/g, '');
+    // Si tiene coma y punto, determinar cuál es separador decimal vs miles
+    const lastComma = clean.lastIndexOf(',');
+    const lastDot = clean.lastIndexOf('.');
+    if (lastComma > -1 && lastDot > -1) {
+        // Ambos existen - el último es decimal
+        if (lastComma > lastDot) {
+            // Formato: 1.234,56 (español)
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        } else {
+            // Formato: 1,234.56 (inglés)
+            clean = clean.replace(/,/g, '');
+        }
+    } else if (lastComma > -1 && lastComma === clean.length - 3) {
+        // Formato: 1234,56 (español sin miles)
+        clean = clean.replace(',', '.');
+    } else if (lastDot > -1 && lastDot === clean.length - 3) {
+        // Formato: 1234.56 (inglés sin miles) - mantener como está
+    } else if (lastComma > -1) {
+        // Solo coma - probablemente es decimal
+        clean = clean.replace(',', '.');
+    }
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+};
+
 export default function Administracion() {
 
     // Estados base
@@ -81,8 +114,8 @@ export default function Administracion() {
                 await api.patch(`/viajes/${facturaModal.id}/factura`, {
                     facturaEstado: facturaModal.estado,
                     fechaFactura: facturaModal.fecha || null,
-                    precioUnitario: String(facturaModal.precioUnitario || '').trim() !== '' ? Number(facturaModal.precioUnitario) : undefined,
-                    precioUnitarioNegro: String(facturaModal.precioUnitarioNegro || '').trim() !== '' ? Number(facturaModal.precioUnitarioNegro) : undefined,
+                    precioUnitario: String(facturaModal.precioUnitario || '').trim() !== '' ? safeParseNumber(facturaModal.precioUnitario) : undefined,
+                    precioUnitarioNegro: String(facturaModal.precioUnitarioNegro || '').trim() !== '' ? safeParseNumber(facturaModal.precioUnitarioNegro) : undefined,
                     ivaPercentaje: facturaModal.ivaPercentaje,
                 });
             }
@@ -119,7 +152,7 @@ export default function Administracion() {
         try {
             await api.post(`/viajes/${creditNoteModal.id}/nota-credito`, {
                 motivo: creditNoteModal.motivo,
-                monto: Number(creditNoteModal.monto),
+                monto: safeParseNumber(creditNoteModal.monto),
                 descripcion: creditNoteModal.descripcion || ''
             });
             showToast('Nota de crédito creada', 'success');
@@ -208,7 +241,7 @@ export default function Administracion() {
             setAdelantoModal(m => ({ ...m, error: 'Debes seleccionar un camionero' }));
             return;
         }
-        if (!adelantoModal.monto || Number(adelantoModal.monto) <= 0) {
+        if (!adelantoModal.monto || safeParseNumber(adelantoModal.monto) <= 0) {
             setAdelantoModal(m => ({ ...m, error: 'Ingresá un monto válido' }));
             return;
         }
@@ -216,9 +249,9 @@ export default function Administracion() {
         try {
             await api.post('/adelantos', {
                 camioneroId: adelantoModal.camioneroId,
-                monto: Number(adelantoModal.monto),
-                mes: Number(adelantoModal.mes),
-                anio: Number(adelantoModal.anio),
+                monto: safeParseNumber(adelantoModal.monto),
+                mes: safeParseNumber(adelantoModal.mes),
+                anio: safeParseNumber(adelantoModal.anio),
                 descripcion: adelantoModal.descripcion || undefined
             });
             showToast('Adelanto registrado y notificado al camionero', 'success');
@@ -331,7 +364,7 @@ export default function Administracion() {
         if (!editarImporteModal.id) return;
         setEditarImporteModal(m => ({ ...m, loading: true, error: '' }));
         try {
-            await api.patch(`/viajes/${editarImporteModal.id}/editar-importe`, { importe: Number(editarImporteModal.nuevoImporte) });
+            await api.patch(`/viajes/${editarImporteModal.id}/editar-importe`, { importe: safeParseNumber(editarImporteModal.nuevoImporte) });
             showToast('Importe actualizado', 'success');
             closeEditarImporte();
             fetchSemana();
@@ -359,9 +392,9 @@ export default function Administracion() {
         setFinalizarModal(m => ({ ...m, loading: true, error: '' }));
         try {
             await api.patch(`/viajes/${finalizarModal.id}/finalizar`, {
-                kmFinal: Number(finalizarModal.km) || 0,
-                combustibleConsumido: Number(finalizarModal.combustible) || 0,
-                kilosCargados: Number(finalizarModal.kilos) || 0
+                kmFinal: safeParseNumber(finalizarModal.km) || 0,
+                combustibleConsumido: safeParseNumber(finalizarModal.combustible) || 0,
+                kilosCargados: safeParseNumber(finalizarModal.kilos) || 0
             });
             showToast('Viaje finalizado correctamente', 'success');
             closeFinalizar();
@@ -428,7 +461,7 @@ export default function Administracion() {
         const porCliente = {};
 
         viajesFiltro.forEach(v => {
-            const importe = Number(v.importe) || 0;
+            const importe = safeParseNumber(v.importe);
             const cliente = v.cliente || 'Sin cliente';
             const estado = (v.facturaEstado || 'pendiente').toLowerCase();
 
@@ -1018,12 +1051,12 @@ export default function Administracion() {
                                         const vencidaVisual = (v.facturaEstado || '').toLowerCase() === 'vencida';
                                         const hasSubtotal = v.precioUnitarioFactura != null;
                                         const subtotalCalc = hasSubtotal ? (() => {
-                                            const base = Number(v.precioUnitarioFactura) * (1 + (v.ivaPercentaje || 0) / 100);
-                                            const total = base - (v.notasCreditoTotal || 0);
+                                            const base = safeParseNumber(v.precioUnitarioFactura) * (1 + (safeParseNumber(v.ivaPercentaje) || 0) / 100);
+                                            const total = base - safeParseNumber(v.notasCreditoTotal);
                                             return Number(total.toFixed(2));
                                         })() : null;
                                         const hasNegro = v.precioUnitarioNegro != null;
-                                        const subtotalNegroCalc = hasNegro ? Number(v.precioUnitarioNegro) || 0 : null;
+                                        const subtotalNegroCalc = hasNegro ? safeParseNumber(v.precioUnitarioNegro) : null;
                                         const totalCobrar = (hasSubtotal ? subtotalCalc : 0) + (hasNegro ? subtotalNegroCalc : 0);
                                         return (
                                             <tr
@@ -1532,9 +1565,9 @@ export default function Administracion() {
                                         <tbody>
                                             {detalleClienteModal.viajes.map(v => {
                                                 const subtotal = v.precioUnitarioFactura
-                                                    ? Number(v.precioUnitarioFactura) * (1 + (v.ivaPercentaje || 0) / 100) - (v.notasCreditoTotal || 0)
+                                                    ? safeParseNumber(v.precioUnitarioFactura) * (1 + (safeParseNumber(v.ivaPercentaje) || 0) / 100) - safeParseNumber(v.notasCreditoTotal)
                                                     : 0;
-                                                const subtotalNegro = Number(v.precioUnitarioNegro) || 0;
+                                                const subtotalNegro = safeParseNumber(v.precioUnitarioNegro);
                                                 const totalCobrar = subtotal + subtotalNegro;
                                                 // Formatear fecha sin conversión de zona horaria
                                                 const fechaFormateada = v.fecha
