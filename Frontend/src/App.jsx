@@ -23,36 +23,35 @@ function NavBar() {
     if (theme === 'dark') root.classList.add('dark'); else root.classList.remove('dark')
   }, [theme])
   useEffect(() => {
-    // DESACTIVADO: Tooltips de Bootstrap causan errores removeChild
     // Inicializar tooltips de Bootstrap al cambiar de ruta
-    // try {
-    //   const nodes = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    //   const tips = nodes
-    //     .map(n => {
-    //       try {
-    //         return window.bootstrap?.Tooltip ? window.bootstrap.Tooltip.getOrCreateInstance(n) : null
-    //       } catch {
-    //         return null
-    //       }
-    //     })
-    //     .filter(Boolean)
-    //   return () => {
-    //     tips.forEach(t => {
-    //       try {
-    //         if (t && typeof t.hide === 'function') t.hide()
-    //       } catch (e) {
-    //         console.warn('Error hiding tooltip:', e)
-    //       }
-    //       try {
-    //         if (t && typeof t.dispose === 'function') t.dispose()
-    //       } catch (e) {
-    //         console.warn('Error disposing tooltip:', e)
-    //       }
-    //     })
-    //   }
-    // } catch (e) {
-    //   console.warn('Error initializing tooltips:', e)
-    // }
+    try {
+      const nodes = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+      const tips = nodes
+        .map(n => {
+          try {
+            return window.bootstrap?.Tooltip ? window.bootstrap.Tooltip.getOrCreateInstance(n) : null
+          } catch {
+            return null
+          }
+        })
+        .filter(Boolean)
+      return () => {
+        tips.forEach(t => {
+          try {
+            if (t && typeof t.hide === 'function') t.hide()
+          } catch (e) {
+            console.warn('Error hiding tooltip:', e)
+          }
+          try {
+            if (t && typeof t.dispose === 'function') t.dispose()
+          } catch (e) {
+            console.warn('Error disposing tooltip:', e)
+          }
+        })
+      }
+    } catch (e) {
+      console.warn('Error initializing tooltips:', e)
+    }
   }, [location.pathname])
   useEffect(() => {
     // Cerrar el menú colapsable al cambiar de ruta
