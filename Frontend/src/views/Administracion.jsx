@@ -46,6 +46,26 @@ const safeParseNumber = (val) => {
     return isNaN(num) ? 0 : num;
 };
 
+// Función para formatear moneda con formato español (1.234,56)
+const formatearMoneda = (numero) => {
+    try {
+        const n = parseFloat(numero);
+        if (isNaN(n) || !isFinite(n)) return '0,00';
+
+        const redondeado = Math.round(n * 100) / 100;
+        const partes = redondeado.toFixed(2).split('.');
+        const entero = partes[0];
+        const decimales = partes[1];
+
+        // Agregar puntos como separador de miles
+        const enteroFormateado = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+        return `${enteroFormateado},${decimales}`;
+    } catch {
+        return '0,00';
+    }
+};
+
 export default function Administracion() {
 
     // Estados base
@@ -1472,7 +1492,7 @@ export default function Administracion() {
                                                 Cobrado
                                             </h6>
                                             <h3 className="card-title mb-0 text-success">
-                                                ${datosFinanzas.totalFacturado.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                ${formatearMoneda(datosFinanzas.totalFacturado)}
                                             </h3>
                                         </div>
                                     </div>
@@ -1485,7 +1505,7 @@ export default function Administracion() {
                                                 Pendiente
                                             </h6>
                                             <h3 className="card-title mb-0 text-warning">
-                                                ${datosFinanzas.totalPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                ${formatearMoneda(datosFinanzas.totalPendiente)}
                                             </h3>
                                         </div>
                                     </div>
@@ -1498,7 +1518,7 @@ export default function Administracion() {
                                                 Total
                                             </h6>
                                             <h3 className="card-title mb-0 text-primary">
-                                                ${(datosFinanzas.totalFacturado + datosFinanzas.totalPendiente).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                ${formatearMoneda(datosFinanzas.totalFacturado + datosFinanzas.totalPendiente)}
                                             </h3>
                                         </div>
                                     </div>
@@ -1527,13 +1547,13 @@ export default function Administracion() {
                                                     <tr key={cliente} style={{ cursor: 'pointer' }} onClick={() => openDetalleCliente(cliente)}>
                                                         <td>{cliente}</td>
                                                         <td className="text-end text-success">
-                                                            ${datos.cobrado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                            ${formatearMoneda(datos.cobrado)}
                                                         </td>
                                                         <td className="text-end text-warning">
-                                                            ${datos.pendiente.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                            ${formatearMoneda(datos.pendiente)}
                                                         </td>
                                                         <td className="text-end fw-bold">
-                                                            ${(datos.cobrado + datos.pendiente).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                                            ${formatearMoneda(datos.cobrado + datos.pendiente)}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -1603,7 +1623,7 @@ export default function Administracion() {
                                                         <td>{fechaFormateada}</td>
                                                         <td>{v.origen} - {v.destino}</td>
                                                         <td className="text-end fw-bold">
-                                                            ${totalCobrar.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            ${formatearMoneda(totalCobrar)}
                                                         </td>
                                                         <td>
                                                             <span className={`badge ${estadoFactura.toLowerCase() === 'cobrada' ? 'bg-success' :
@@ -1622,13 +1642,13 @@ export default function Administracion() {
                                             <tr className="table-primary fw-bold">
                                                 <td colSpan="2" className="text-end">Total:</td>
                                                 <td className="text-end">
-                                                    ${detalleClienteModal.viajes.reduce((sum, v) => {
+                                                    ${formatearMoneda(detalleClienteModal.viajes.reduce((sum, v) => {
                                                         const subtotal = v.precioUnitarioFactura
                                                             ? Number(v.precioUnitarioFactura) * (1 + (v.ivaPercentaje || 0) / 100) - (v.notasCreditoTotal || 0)
                                                             : 0;
                                                         const subtotalNegro = Number(v.precioUnitarioNegro) || 0;
                                                         return sum + subtotal + subtotalNegro;
-                                                    }, 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    }, 0))}
                                                 </td>
                                                 <td></td>
                                             </tr>
@@ -1992,7 +2012,7 @@ export default function Administracion() {
                                                             />
                                                         ) : (
                                                             <span className="text-success fw-bold" style={{ fontSize: '1.1rem' }}>
-                                                                ${parseFloat(a.monto).toLocaleString('es-AR')}
+                                                                ${formatearMoneda(parseFloat(a.monto))}
                                                             </span>
                                                         )}
                                                     </td>
