@@ -419,12 +419,15 @@ export default function Administracion() {
             try {
                 const [anio, mes] = finanzasModal.mes.split('-');
                 // Calcular el último día del mes
-                const mesNum = parseInt(mes); // mes es 1-12
+                // Asegurarse de que mes tenga padding (01-12)
+                const mesPadded = String(mes).padStart(2, '0');
+                const mesNum = parseInt(mesPadded); // mes es 1-12
                 const anioNum = parseInt(anio);
                 const lastDay = new Date(anioNum, mesNum, 0).getDate();
+                const lastDayPadded = String(lastDay).padStart(2, '0');
 
-                const from = `${anio}-${mes}-01`;
-                const to = `${anio}-${mes}-${String(lastDay).padStart(2, '0')}`;
+                const from = `${anio}-${mesPadded}-01`;
+                const to = `${anio}-${mesPadded}-${lastDayPadded}`;
 
                 const { data } = await api.get(`/viajes?limit=1000&from=${from}&to=${to}&order=DESC&sortBy=fecha`);
                 const viajes = data.data || data.items || [];

@@ -141,9 +141,31 @@ const Viaje = sequelize.define('Viaje', {
     }
 }, {
     tableName: 'viajes',
-    timestamps: false
-});
-
-export default Viaje;
-import Usuario from './Usuario.js';
-Viaje.belongsTo(Usuario, { as: 'camionero', foreignKey: 'camioneroId' });
+    timestamps: false,
+    hooks: {
+        afterFind: (results) => {
+            // Normalizar fechas DATEONLY a formato ISO (YYYY-MM-DD)
+            const normalizeDate = (v) => {
+                if (!v) return v;
+                if (v.fecha && typeof v.fecha === 'string') {
+                    // Si ya está en ISO format, déjalo
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(v.fecha)) {
+                        return v;
+                    }
+                    // Si no, intenta convertir
+                    try {
+                        const date = new Date(v.fecha);
+                        const iso = date.toISOString().split('T')[0];
+                        v.fecha = iso;
+                    } catch { /* keep original */ }
+                }
+                return v;
+            };
+            if (Array.isArray(results)) {
+                return results.map(normalizeDate);
+            } else if (results) {
+                return normalizeDate(results);
+            }
+            return results;
+        }
+    }
