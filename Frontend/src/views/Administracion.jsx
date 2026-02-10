@@ -47,9 +47,11 @@ const safeParseNumber = (val) => {
 };
 
 // Función para formatear moneda con formato español (1.234,56)
+// Función para formatear moneda con formato español (1.234,56)
 const formatearMoneda = (numero) => {
     try {
         const n = parseFloat(numero);
+        console.log('[formatearMoneda] Input:', numero, 'Parsed:', n, 'IsNaN:', isNaN(n), 'IsFinite:', isFinite(n));
         if (isNaN(n) || !isFinite(n)) return '0,00';
 
         const redondeado = Math.round(n * 100) / 100;
@@ -59,9 +61,11 @@ const formatearMoneda = (numero) => {
 
         // Agregar puntos como separador de miles
         const enteroFormateado = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
-        return `${enteroFormateado},${decimales}`;
-    } catch {
+        const resultado = `${enteroFormateado},${decimales}`;
+        console.log('[formatearMoneda] Output:', resultado);
+        return resultado;
+    } catch (err) {
+        console.error('[formatearMoneda] Error:', err);
         return '0,00';
     }
 };
@@ -1483,6 +1487,7 @@ export default function Administracion() {
                             </div>
 
                             {/* Resumen General */}
+                            {console.log('[RENDER] datosFinanzas:', datosFinanzas)}
                             <div className="row g-3 mb-4">
                                 <div className="col-md-4">
                                     <div className="card bg-success bg-opacity-10 border-success">
@@ -1492,6 +1497,7 @@ export default function Administracion() {
                                                 Cobrado
                                             </h6>
                                             <h3 className="card-title mb-0 text-success">
+                                                {console.log('[RENDER Cobrado] totalFacturado:', datosFinanzas.totalFacturado)}
                                                 ${formatearMoneda(datosFinanzas.totalFacturado)}
                                             </h3>
                                         </div>
@@ -1505,6 +1511,7 @@ export default function Administracion() {
                                                 Pendiente
                                             </h6>
                                             <h3 className="card-title mb-0 text-warning">
+                                                {console.log('[RENDER Pendiente] totalPendiente:', datosFinanzas.totalPendiente)}
                                                 ${formatearMoneda(datosFinanzas.totalPendiente)}
                                             </h3>
                                         </div>
@@ -1518,6 +1525,7 @@ export default function Administracion() {
                                                 Total
                                             </h6>
                                             <h3 className="card-title mb-0 text-primary">
+                                                {console.log('[RENDER Total]:', datosFinanzas.totalFacturado + datosFinanzas.totalPendiente)}
                                                 ${formatearMoneda(datosFinanzas.totalFacturado + datosFinanzas.totalPendiente)}
                                             </h3>
                                         </div>
