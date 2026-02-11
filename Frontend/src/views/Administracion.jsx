@@ -68,6 +68,18 @@ const formatearMoneda = (numero) => {
 
 export default function Administracion() {
 
+    // Portal ref para el menú de acciones (separa del DOM directo para evitar errores de extensiones)
+    const portalRef = useRef(null);
+    useEffect(() => {
+        portalRef.current = document.createElement('div');
+        document.body.appendChild(portalRef.current);
+        return () => {
+            if (portalRef.current) {
+                document.body.removeChild(portalRef.current);
+            }
+        };
+    }, []);
+
     // Estados base
     const { user } = useAuth();
     const { showToast } = useToast();
@@ -684,6 +696,7 @@ export default function Administracion() {
         } catch { /* ignorar */ }
     };
 
+
     const fetchNotis = async () => {
         if (user?.rol !== 'ceo') return;
         setLoadingNotis(true);
@@ -1045,6 +1058,7 @@ export default function Administracion() {
                     {viajesFiltrados.length === 0 ? (
                         <EmptyState title="Sin viajes" description="No hay viajes en la semana seleccionada" />
                     ) : (
+
                         <div className="table-responsive table-scroll">
                             <table className={`table ${dense ? 'table-sm table-compact' : ''} table-striped table-hover align-middle table-sticky table-cols-bordered`}>
                                 <caption id="admTableCaption" className="visually-hidden">Listado de viajes finalizados de la semana seleccionada. Use Alt+L para PDF, Alt+F factura, Alt+R subir remitos, Alt+V ver remitos, Alt+D detalle PDF, Alt+I resumen IA, flechas para navegar filas.</caption>
@@ -1073,6 +1087,7 @@ export default function Administracion() {
                                         <th className="text-end" style={{ position: 'sticky', right: 0, background: 'var(--bs-body-bg)' }}>Acciones</th>
                                     </tr>
                                 </thead>
+
                                 <tbody>
                                     {viajesPagina.map(v => {
                                         const remitos = (() => { try { return JSON.parse(v.remitosJson || '[]') } catch { return [] } })();
@@ -1171,6 +1186,7 @@ export default function Administracion() {
                                                         }}
                                                     >
                                                         <i className="bi bi-three-dots"></i>
+
                                                     </button>
                                                     {rowActionsOpen === v.id && createPortal(
                                                         <div className="dropdown-menu show" style={{
@@ -1202,7 +1218,7 @@ export default function Administracion() {
                                                             <button className="dropdown-item" onClick={() => { openCreditNote(v); setRowActionsOpen(null); }}>
                                                                 <i className="bi bi-receipt-cutoff me-2"></i> Nota de crédito
                                                             </button>
-                                                        </div>, document.body
+                                                        </div>, portalRef.current
                                                     )}
                                                 </td>
                                             </tr>
