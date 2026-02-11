@@ -561,7 +561,6 @@ export default function Administracion() {
         }
     };
 
-    // ...existing code...
     // Estado para modo compacto de la tabla
     const [dense, setDense] = useState(false);
     // Función para exportar el listado de viajes a PDF
