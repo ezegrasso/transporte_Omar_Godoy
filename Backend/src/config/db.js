@@ -46,11 +46,21 @@ const sequelize = new Sequelize(
 );
 
 export const connectDB = async () => {
+    console.log('[DB] Intentando conectar con:');
+    console.log(`  Host: ${process.env.DB_HOST}`);
+    console.log(`  Port: ${process.env.DB_PORT}`);
+    console.log(`  User: ${process.env.DB_USER}`);
+    console.log(`  Database: ${process.env.DB_NAME}`);
+    console.log(`  SSL habilitado: ${shouldUseSSL}`);
+    
     try {
         await sequelize.authenticate();
-        console.log('Conexión a la base de datos establecida correctamente.');
+        console.log('✓ Conexión a la base de datos establecida correctamente.');
     } catch (error) {
-        console.error('No se pudo conectar a la base de datos:', error?.message || error);
+        console.error('✗ No se pudo conectar a la base de datos:', error?.message || error);
+        console.error('[DB] Código de error:', error?.code);
+        console.error('[DB] errno:', error?.errno);
+        if (error?.fatal !== undefined) console.error('[DB] fatal:', error.fatal);
         process.exit(1);
     }
 };
