@@ -17,17 +17,15 @@ const originalError = console.error
 console.error = (...args) => {
   try {
     // Filtrar errores conocidos causados por extensiones del navegador
-    const errorStr = args.join(' ')
-    if (errorStr.includes('removeChild') && errorStr.includes('NotFoundError')) {
-      // Silenciar error removeChild causado por extensiones del navegador
-      return
-    }
-    if (errorStr.includes('The node to be removed is not a child')) {
-      // Silenciar variantes del mismo error
-      return
-    }
-    if (errorStr.includes('insertBefore') && errorStr.includes('not a child')) {
-      // Silenciar error insertBefore causado por extensiones del navegador
+    const errorStr = args.join(' ').toLowerCase()
+    // Filtrar cualquier error de manipulación DOM de extensiones
+    if (errorStr.includes('removeChild') ||
+      errorStr.includes('insertbefore') ||
+      errorStr.includes('not a child') ||
+      errorStr.includes('no es un hijo') ||
+      errorStr.includes('notfounderror') ||
+      errorStr.includes('el nodo')) {
+      // Silenciar errores de DOM causados por extensiones del navegador
       return
     }
 

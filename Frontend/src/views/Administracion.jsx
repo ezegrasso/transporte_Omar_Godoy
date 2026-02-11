@@ -67,15 +67,22 @@ const formatearMoneda = (numero) => {
 };
 
 export default function Administracion() {
-
     // Portal ref para el menú de acciones (separa del DOM directo para evitar errores de extensiones)
     const portalRef = useRef(null);
     useEffect(() => {
         portalRef.current = document.createElement('div');
-        document.body.appendChild(portalRef.current);
+        try {
+            document.body.appendChild(portalRef.current);
+        } catch (e) {
+            console.warn('[Portal] No se pudo agregar portal:', e?.message);
+        }
         return () => {
-            if (portalRef.current) {
-                document.body.removeChild(portalRef.current);
+            if (portalRef.current && portalRef.current.parentNode) {
+                try {
+                    portalRef.current.parentNode.removeChild(portalRef.current);
+                } catch (e) {
+                    // Silenciar error si la extensión ya manipuló el DOM
+                }
             }
         };
     }, []);
@@ -995,10 +1002,6 @@ export default function Administracion() {
                         </button>
                     </div>
                     <button className="btn btn-soft-danger btn-action" onClick={exportPDF} title="Exportar PDF"><i className="bi bi-filetype-pdf me-1"></i> PDF Viajes</button>
-                    <button className="btn btn-warning btn-action" onClick={revisarVencidas} disabled={checkingVencidas} title="Generar notificaciones por facturas vencidas">
-                        {checkingVencidas ? <span className="spinner-border spinner-border-sm me-1" role="status" /> : <i className="bi bi-bell me-1"></i>}
-                        Revisar vencidas
-                    </button>
                     <button className="btn btn-primary btn-action" onClick={openFinanzas} title="Resumen financiero mensual">
                         <i className="bi bi-currency-dollar me-1"></i>
                         Finanzas
