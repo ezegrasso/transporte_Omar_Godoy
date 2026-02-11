@@ -479,6 +479,7 @@ export default function Administracion() {
                 const viajes = data.data || data.items || [];
                 console.log('[Finanzas] Viajes cargados:', { cantidad: viajes.length, viajes });
                 console.log('[Finanzas] Primera viaje:', viajes[0] ? { id: viajes[0].id, estado: viajes[0].estado, importe: viajes[0].importe, facturaEstado: viajes[0].facturaEstado } : 'Sin viajes');
+                console.log('[Finanzas] COMPLETO RESPONSE:', data);
                 setViajesMesFinanzas(viajes);
             } catch (e) {
                 console.error('Error cargando viajes del mes:', e);
@@ -758,9 +759,15 @@ export default function Administracion() {
     const fetchSemana = async () => {
         setLoading(true); setError('');
         try {
-            const { data } = await api.get(`/viajes?limit=100&from=${weekStart}&to=${weekEnd}&order=DESC&sortBy=fecha`);
-            setViajes(data.data || data.items || []);
+            const queryUrl = `/viajes?limit=100&from=${weekStart}&to=${weekEnd}&order=DESC&sortBy=fecha`;
+            console.log('[fetchSemana] GET:', queryUrl);
+            const { data } = await api.get(queryUrl);
+            const viajesCargados = data.data || data.items || [];
+            console.log('[fetchSemana] Viajes cargados:', { cantidad: viajesCargados.length });
+            console.log('[fetchSemana] RESPONSE completo:', data);
+            setViajes(viajesCargados);
         } catch (e) {
+            console.error('[fetchSemana] Error:', e?.response?.status, e?.response?.data);
             setError(e?.response?.data?.error || 'Error cargando viajes de la semana');
         } finally { setLoading(false); }
     };
@@ -868,6 +875,13 @@ export default function Administracion() {
             window.removeEventListener('resize', handler);
         };
     }, [rowActionsOpen]);
+
+    // 🔍 DEBUG TEMPORARIO: Revisar qué datos trae para este usuario
+    useEffect(() => {
+        console.log('[ADM DEBUG] USER:', user);
+        console.log('[ADM DEBUG] VIAJES:', viajes);
+        console.log('[ADM DEBUG] VIAJES LENGTH:', viajes?.length);
+    }, [viajes, user]);
 
     // Atajos de teclado (solo dentro de la vista Administración). Ubicado aquí para que las dependencias existan.
     useEffect(() => {
