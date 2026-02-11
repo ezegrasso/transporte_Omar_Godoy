@@ -52,7 +52,7 @@ export const connectDB = async () => {
     console.log(`  User: ${process.env.DB_USER}`);
     console.log(`  Database: ${process.env.DB_NAME}`);
     console.log(`  SSL habilitado: ${shouldUseSSL}`);
-    
+
     try {
         await sequelize.authenticate();
         console.log('✓ Conexión a la base de datos establecida correctamente.');

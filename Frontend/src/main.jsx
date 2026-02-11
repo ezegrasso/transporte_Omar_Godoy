@@ -26,6 +26,10 @@ console.error = (...args) => {
       // Silenciar variantes del mismo error
       return
     }
+    if (errorStr.includes('insertBefore') && errorStr.includes('not a child')) {
+      // Silenciar error insertBefore causado por extensiones del navegador
+      return
+    }
 
     const safeArgs = args.map((arg) => {
       if (arg instanceof Error) return arg
