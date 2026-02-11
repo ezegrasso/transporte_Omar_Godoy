@@ -463,10 +463,8 @@ export default function Administracion() {
             setErrorFinanzas('');
             try {
                 const [anio, mes] = finanzasModal.mes.split('-');
-                // Calcular el último día del mes
-                // Asegurarse de que mes tenga padding (01-12)
                 const mesPadded = String(mes).padStart(2, '0');
-                const mesNum = parseInt(mesPadded); // mes es 1-12
+                const mesNum = parseInt(mesPadded);
                 const anioNum = parseInt(anio);
                 const lastDay = new Date(anioNum, mesNum, 0).getDate();
                 const lastDayPadded = String(lastDay).padStart(2, '0');
@@ -474,15 +472,10 @@ export default function Administracion() {
                 const from = `${anio}-${mesPadded}-01`;
                 const to = `${anio}-${mesPadded}-${lastDayPadded}`;
 
-                console.log('[Finanzas] Cargando viajes del mes:', { from, to });
                 const { data } = await api.get(`/viajes?limit=1000&from=${from}&to=${to}&order=DESC&sortBy=fecha`);
                 const viajes = data.data || data.items || [];
-                console.log('[Finanzas] Viajes cargados:', { cantidad: viajes.length, viajes });
-                console.log('[Finanzas] Primera viaje:', viajes[0] ? { id: viajes[0].id, estado: viajes[0].estado, importe: viajes[0].importe, facturaEstado: viajes[0].facturaEstado } : 'Sin viajes');
-                console.log('[Finanzas] COMPLETO RESPONSE:', data);
                 setViajesMesFinanzas(viajes);
             } catch (e) {
-                console.error('Error cargando viajes del mes:', e);
                 setViajesMesFinanzas([]);
                 setErrorFinanzas(e?.response?.data?.error || 'No se pudieron cargar los viajes del mes');
             } finally {
@@ -497,23 +490,13 @@ export default function Administracion() {
     const datosFinanzas = useMemo(() => {
         const { clienteFiltro } = finanzasModal;
 
-        console.log('[datosFinanzas] Iniciando cálculo - viajesMesFinanzas:', viajesMesFinanzas?.length ?? 0, 'viajes');
-
         // Filtrar solo viajes finalizados
-        const viajesMes = (viajesMesFinanzas || []).filter(v => {
-            const esFinalizdo = (v.estado || '').toLowerCase() === 'finalizado';
-            console.log('[datosFinanzas] Viaje ID:', v.id, 'estado:', v.estado, 'esFinalizdo:', esFinalizdo);
-            return esFinalizdo;
-        });
-
-        console.log('[datosFinanzas] Total de viajes cargados:', viajesMesFinanzas?.length, 'Finalizados:', viajesMes.length);
+        const viajesMes = (viajesMesFinanzas || []).filter(v => (v.estado || '').toLowerCase() === 'finalizado');
 
         // Filtrar por cliente si no es "todos"
         const viajesFiltro = clienteFiltro === 'todos'
             ? viajesMes
             : viajesMes.filter(v => v.cliente === clienteFiltro);
-
-        console.log('[datosFinanzas] Viajes filtro:', viajesFiltro.length, 'clienteFiltro:', clienteFiltro);
 
         // Calcular totales
         let totalFacturado = 0;
@@ -527,8 +510,6 @@ export default function Administracion() {
             const facturaEstadoRaw = v.facturaEstado || 'pendiente';
             const estado = facturaEstadoRaw.toLowerCase();
 
-            console.log('[datosFinanzas] Viaje:', { id: v.id, facturaEstado: facturaEstadoRaw, estado, importeStr, importeParsed: importe });
-
             if (!porCliente[cliente]) {
                 porCliente[cliente] = { facturado: 0, pendiente: 0, cobrado: 0 };
             }
@@ -541,8 +522,6 @@ export default function Administracion() {
                 porCliente[cliente].pendiente += importe;
             }
         });
-
-        console.log('[datosFinanzas] Totales calculados:', { totalFacturado, totalPendiente, cantidadViajesProcesados: viajesFiltro.length });
 
         return { totalFacturado, totalPendiente, porCliente, viajesMes: viajesFiltro.length };
     }, [finanzasModal.clienteFiltro, viajesMesFinanzas]);
@@ -759,15 +738,9 @@ export default function Administracion() {
     const fetchSemana = async () => {
         setLoading(true); setError('');
         try {
-            const queryUrl = `/viajes?limit=100&from=${weekStart}&to=${weekEnd}&order=DESC&sortBy=fecha`;
-            console.log('[fetchSemana] GET:', queryUrl);
-            const { data } = await api.get(queryUrl);
-            const viajesCargados = data.data || data.items || [];
-            console.log('[fetchSemana] Viajes cargados:', { cantidad: viajesCargados.length });
-            console.log('[fetchSemana] RESPONSE completo:', data);
-            setViajes(viajesCargados);
+            const { data } = await api.get(`/viajes?limit=100&from=${weekStart}&to=${weekEnd}&order=DESC&sortBy=fecha`);
+            setViajes(data.data || data.items || []);
         } catch (e) {
-            console.error('[fetchSemana] Error:', e?.response?.status, e?.response?.data);
             setError(e?.response?.data?.error || 'Error cargando viajes de la semana');
         } finally { setLoading(false); }
     };
@@ -876,12 +849,7 @@ export default function Administracion() {
         };
     }, [rowActionsOpen]);
 
-    // 🔍 DEBUG TEMPORARIO: Revisar qué datos trae para este usuario
-    useEffect(() => {
-        console.log('[ADM DEBUG] USER:', user);
-        console.log('[ADM DEBUG] VIAJES:', viajes);
-        console.log('[ADM DEBUG] VIAJES LENGTH:', viajes?.length);
-    }, [viajes, user]);
+
 
     // Atajos de teclado (solo dentro de la vista Administración). Ubicado aquí para que las dependencias existan.
     useEffect(() => {
