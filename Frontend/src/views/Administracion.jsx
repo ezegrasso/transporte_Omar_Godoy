@@ -214,7 +214,13 @@ export default function Administracion() {
         setDetalleClienteModal({ open: true, cliente, viajes: viajesCliente });
     };
 
-    const closeDetalleCliente = () => setDetalleClienteModal({ open: false, cliente: '', viajes: [] });
+    const closeDetalleCliente = (e) => {
+        if (e) {
+            e.stopPropagation();
+            if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
+        }
+        setDetalleClienteModal({ open: false, cliente: '', viajes: [] });
+    };
 
     // Estados para adelantos
     const [camioneros, setCamioneros] = useState([]);
@@ -1421,15 +1427,26 @@ export default function Administracion() {
             </div>
 
             {/* Modal: Resumen Financiero Mensual */}
-            <div className={`modal ${finanzasModal.open ? 'd-block show' : 'fade'}`} tabIndex="-1" aria-hidden={!finanzasModal.open} style={finanzasModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
-                <div className="modal-dialog modal-lg modal-dialog-scrollable">
+            <div
+                className={`modal ${finanzasModal.open ? 'd-block show' : 'fade'}`}
+                tabIndex="-1"
+                aria-hidden={!finanzasModal.open}
+                style={finanzasModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 } : {}}
+                onClick={(e) => {
+                    // Cerrar solo si se hace clic en el backdrop y no hay modal secundario abierto
+                    if (e.target === e.currentTarget && !detalleClienteModal.open) {
+                        closeFinanzas();
+                    }
+                }}
+            >
+                <div className="modal-dialog modal-lg modal-dialog-scrollable" onClick={(e) => e.stopPropagation()}>
                     <div className="modal-content">
                         <div className="modal-header">
                             <h1 className="modal-title fs-5">
                                 <i className="bi bi-currency-dollar me-2"></i>
                                 Resumen Financiero Mensual
                             </h1>
-                            <button type="button" className="btn-close" aria-label="Close" onClick={closeFinanzas}></button>
+                            <button type="button" className="btn-close" aria-label="Close" onClick={(e) => { e.stopPropagation(); closeFinanzas(); }}></button>
                         </div>
                         <div className="modal-body">
                             {errorFinanzas && <div className="alert alert-danger">{errorFinanzas}</div>}
@@ -1554,98 +1571,113 @@ export default function Administracion() {
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={closeFinanzas}>Cerrar</button>
+                            <button type="button" className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); closeFinanzas(); }}>Cerrar</button>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Modal: Detalle de Viajes por Cliente */}
-            <div className={`modal ${detalleClienteModal.open ? 'd-block show' : 'fade'}`} tabIndex="-1" aria-hidden={!detalleClienteModal.open} style={detalleClienteModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>
-                <div className="modal-dialog modal-lg modal-dialog-scrollable">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <h1 className="modal-title fs-5">
-                                <i className="bi bi-truck me-2"></i>
-                                Viajes de {detalleClienteModal.cliente}
-                            </h1>
-                            <button type="button" className="btn-close" aria-label="Close" onClick={closeDetalleCliente}></button>
-                        </div>
-                        <div className="modal-body">
-                            {detalleClienteModal.viajes.length === 0 ? (
-                                <div className="alert alert-info">No hay viajes para mostrar</div>
-                            ) : (
-                                <div className="table-responsive">
-                                    <table className="table table-sm table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Fecha</th>
-                                                <th>Origen - Destino</th>
-                                                <th className="text-end">Total a cobrar</th>
-                                                <th>Estado</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {detalleClienteModal.viajes.map(v => {
-                                                const subtotal = v.precioUnitarioFactura
-                                                    ? safeParseNumber(v.precioUnitarioFactura) * (1 + (safeParseNumber(v.ivaPercentaje) || 0) / 100) - safeParseNumber(v.notasCreditoTotal)
-                                                    : 0;
-                                                const subtotalNegro = safeParseNumber(v.precioUnitarioNegro);
-                                                const totalCobrar = subtotal + subtotalNegro;
-                                                // Formatear fecha sin conversión de zona horaria
-                                                const fechaFormateada = v.fecha
-                                                    ? (() => {
-                                                        const [year, month, day] = v.fecha.split('-');
-                                                        return `${day}/${month}/${year}`;
-                                                    })()
-                                                    : '-';
-                                                const estadoFactura = v.facturaEstado || 'pendiente';
+            {detalleClienteModal.open && (
+                <div
+                    className="modal d-block show"
+                    tabIndex="-1"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.nativeEvent.stopImmediatePropagation();
+                        // Cerrar solo si se hace clic en el backdrop (no en el contenido del modal)
+                        if (e.target === e.currentTarget) {
+                            closeDetalleCliente(e);
+                        }
+                    }}
+                >
+                    <div className="modal-dialog modal-lg modal-dialog-scrollable" onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); }}>
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h1 className="modal-title fs-5">
+                                    <i className="bi bi-truck me-2"></i>
+                                    Viajes de {detalleClienteModal.cliente}
+                                </h1>
+                                <button type="button" className="btn-close" aria-label="Close" onClick={(e) => closeDetalleCliente(e)}></button>
+                            </div>
+                            <div className="modal-body">
+                                {detalleClienteModal.viajes.length === 0 ? (
+                                    <div className="alert alert-info">No hay viajes para mostrar</div>
+                                ) : (
+                                    <div className="table-responsive">
+                                        <table className="table table-sm table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha</th>
+                                                    <th>Origen - Destino</th>
+                                                    <th className="text-end">Total a cobrar</th>
+                                                    <th>Estado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {detalleClienteModal.viajes.map(v => {
+                                                    const subtotal = v.precioUnitarioFactura
+                                                        ? safeParseNumber(v.precioUnitarioFactura) * (1 + (safeParseNumber(v.ivaPercentaje) || 0) / 100) - safeParseNumber(v.notasCreditoTotal)
+                                                        : 0;
+                                                    const subtotalNegro = safeParseNumber(v.precioUnitarioNegro);
+                                                    const totalCobrar = subtotal + subtotalNegro;
+                                                    // Formatear fecha sin conversión de zona horaria
+                                                    const fechaFormateada = v.fecha
+                                                        ? (() => {
+                                                            const [year, month, day] = v.fecha.split('-');
+                                                            return `${day}/${month}/${year}`;
+                                                        })()
+                                                        : '-';
+                                                    const estadoFactura = v.facturaEstado || 'pendiente';
 
-                                                return (
-                                                    <tr key={v.id}>
-                                                        <td>{fechaFormateada}</td>
-                                                        <td>{v.origen} - {v.destino}</td>
-                                                        <td className="text-end fw-bold">
-                                                            ${formatearMoneda(totalCobrar)}
-                                                        </td>
-                                                        <td>
-                                                            <span className={`badge ${estadoFactura.toLowerCase() === 'cobrada' ? 'bg-success' :
-                                                                estadoFactura.toLowerCase() === 'emitida' ? 'bg-info' :
-                                                                    estadoFactura.toLowerCase() === 'vencida' ? 'bg-danger' :
-                                                                        'bg-warning'
-                                                                }`}>
-                                                                {estadoFactura}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                        <tfoot>
-                                            <tr className="table-primary fw-bold">
-                                                <td colSpan="2" className="text-end">Total:</td>
-                                                <td className="text-end">
-                                                    ${formatearMoneda(detalleClienteModal.viajes.reduce((sum, v) => {
-                                                        const subtotal = v.precioUnitarioFactura
-                                                            ? Number(v.precioUnitarioFactura) * (1 + (v.ivaPercentaje || 0) / 100) - (v.notasCreditoTotal || 0)
-                                                            : 0;
-                                                        const subtotalNegro = Number(v.precioUnitarioNegro) || 0;
-                                                        return sum + subtotal + subtotalNegro;
-                                                    }, 0))}
-                                                </td>
-                                                <td></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={closeDetalleCliente}>Cerrar</button>
+                                                    return (
+                                                        <tr key={v.id}>
+                                                            <td>{fechaFormateada}</td>
+                                                            <td>{v.origen} - {v.destino}</td>
+                                                            <td className="text-end fw-bold">
+                                                                ${formatearMoneda(totalCobrar)}
+                                                            </td>
+                                                            <td>
+                                                                <span className={`badge ${estadoFactura.toLowerCase() === 'cobrada' ? 'bg-success' :
+                                                                    estadoFactura.toLowerCase() === 'emitida' ? 'bg-info' :
+                                                                        estadoFactura.toLowerCase() === 'vencida' ? 'bg-danger' :
+                                                                            'bg-warning'
+                                                                    }`}>
+                                                                    {estadoFactura}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr className="table-primary fw-bold">
+                                                    <td colSpan="2" className="text-end">Total:</td>
+                                                    <td className="text-end">
+                                                        ${formatearMoneda(detalleClienteModal.viajes.reduce((sum, v) => {
+                                                            const subtotal = v.precioUnitarioFactura
+                                                                ? Number(v.precioUnitarioFactura) * (1 + (v.ivaPercentaje || 0) / 100) - (v.notasCreditoTotal || 0)
+                                                                : 0;
+                                                            const subtotalNegro = Number(v.precioUnitarioNegro) || 0;
+                                                            return sum + subtotal + subtotalNegro;
+                                                        }, 0))}
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={(e) => closeDetalleCliente(e)}>Cerrar</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Modal: Nota de crédito */}
             <div className={`modal ${creditNoteModal.open ? 'd-block show' : 'fade'}`} id="modalNotaCredito" tabIndex="-1" aria-hidden={!creditNoteModal.open} style={creditNoteModal.open ? { backgroundColor: 'rgba(0,0,0,0.5)' } : {}}>

@@ -7,10 +7,22 @@ export default class ErrorBoundary extends React.Component {
     }
 
     static getDerivedStateFromError(error) {
+        // Ignorar errores causados por extensiones del navegador
+        const errorMsg = error?.message || ''
+        if (errorMsg.includes('removeChild') || errorMsg.includes('The node to be removed')) {
+            // No mostrar error en UI para problemas causados por extensiones
+            return { hasError: false, error: null }
+        }
         return { hasError: true, error }
     }
 
     componentDidCatch(error, errorInfo) {
+        // Filtrar errores de extensiones del navegador
+        const errorMsg = error?.message || ''
+        if (errorMsg.includes('removeChild') || errorMsg.includes('The node to be removed')) {
+            // Silenciar en consola también
+            return
+        }
         // Podrías enviar el error a un servicio de logging aquí
         // console.error('ErrorBoundary:', error, errorInfo)
     }

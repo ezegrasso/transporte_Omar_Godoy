@@ -4,6 +4,21 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Detectar si el host es local para decidir SSL
+const isLocalHost = (host) => {
+    const h = String(host || '').toLowerCase();
+    return h === 'localhost' || h === '127.0.0.1';
+};
+
+const shouldUseSSL = (() => {
+    // Permite forzar/desactivar vía env:
+    // DB_SSL=true/false. Por defecto: usa SSL si no es localhost
+    const envVal = String(process.env.DB_SSL || '').toLowerCase();
+    if (envVal === 'true') return true;
+    if (envVal === 'false') return false;
+    return !isLocalHost(process.env.DB_HOST);
+})();
+
 const sequelize = new Sequelize(
     process.env.DB_NAME,
     process.env.DB_USER,
@@ -14,11 +29,19 @@ const sequelize = new Sequelize(
         dialect: 'mysql',
         logging: false,
         pool: {
-            max: 5,
+            max: 10,
             min: 0,
-            acquire: 30000,
+            acquire: 60000,
             idle: 10000
-        }
+        },
+        dialectOptions: shouldUseSSL ? {
+            ssl: {
+                // En Render y muchos proveedores, no se facilita CA.
+                // Para compatibilidad, no rechazamos por falta de CA.
+                require: true,
+                rejectUnauthorized: false
+            }
+        } : {}
     }
 );
 
@@ -27,7 +50,7 @@ export const connectDB = async () => {
         await sequelize.authenticate();
         console.log('Conexión a la base de datos establecida correctamente.');
     } catch (error) {
-        console.error('No se pudo conectar a la base de datos:', error);
+        console.error('No se pudo conectar a la base de datos:', error?.message || error);
         process.exit(1);
     }
 };

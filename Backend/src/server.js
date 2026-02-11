@@ -122,7 +122,15 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 
 (async () => {
-    await ensureDatabase();
+    // Ejecutar ensureDatabase solo en desarrollo/local o si está habilitado explícitamente
+    const isLocalHost = (host) => {
+        const h = String(host || '').toLowerCase();
+        return h === 'localhost' || h === '127.0.0.1';
+    };
+    const enableEnsureDb = String(process.env.ENABLE_ENSURE_DATABASE || 'false').toLowerCase() === 'true';
+    if (enableEnsureDb || isLocalHost(process.env.DB_HOST)) {
+        await ensureDatabase();
+    }
     await connectDB();
     await ensureSchema();
     await syncModels();

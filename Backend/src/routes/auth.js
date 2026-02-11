@@ -31,6 +31,7 @@ router.post('/login',
             const token = jwt.sign({ id: usuario.id, rol: usuario.rol }, process.env.JWT_SECRET, { expiresIn: expires });
             res.json({ token, usuario: { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol } });
         } catch (error) {
+            console.error('[auth/login] Error en login:', error?.message || error);
             res.status(500).json({ error: 'Error en login' });
         }
     });
