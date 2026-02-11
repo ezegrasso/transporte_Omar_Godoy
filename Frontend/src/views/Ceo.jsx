@@ -259,8 +259,16 @@ export default function Ceo() {
         if (!editViajeModal.id) return;
         setEditViajeModal(m => ({ ...m, loading: true, error: '' }));
         try {
+            // Asegurarse que la fecha sea ISO8601 en UTC (YYYY-MM-DD)
+            let fechaNormalizada = editViajeModal.data.fecha;
+            if (fechaNormalizada) {
+                const [anio, mes, dia] = fechaNormalizada.split('-');
+                fechaNormalizada = new Date(Date.UTC(anio, mes - 1, dia)).toISOString().split('T')[0];
+            }
+
             const body = {
                 ...editViajeModal.data,
+                fecha: fechaNormalizada, // asegurar formato ISO
                 camionId: editViajeModal.data.camionId ? Number(editViajeModal.data.camionId) : undefined,
                 acopladoId: editViajeModal.data.acopladoId ? Number(editViajeModal.data.acopladoId) : null,
                 tipoMercaderia: editViajeModal.data.tipoMercaderia?.trim() || null,
@@ -504,8 +512,17 @@ export default function Ceo() {
         setError('');
         setSavingViaje(true);
         try {
+            // Asegurarse que la fecha sea ISO8601 en UTC (YYYY-MM-DD)
+            let fechaNormalizada = nuevoViaje.fecha;
+            if (fechaNormalizada) {
+                // Si viene como "2026-02-11", convertir a ISO para evitar problemas de timezone
+                const [anio, mes, dia] = fechaNormalizada.split('-');
+                fechaNormalizada = new Date(Date.UTC(anio, mes - 1, dia)).toISOString().split('T')[0];
+            }
+
             const body = {
                 ...nuevoViaje,
+                fecha: fechaNormalizada, // asegurar formato ISO
                 camionId: Number(nuevoViaje.camionId) || 0,
                 acopladoId: nuevoViaje.acopladoId ? Number(nuevoViaje.acopladoId) : null,
                 tipoMercaderia: nuevoViaje.tipoMercaderia?.trim() || null,
