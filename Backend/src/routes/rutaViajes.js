@@ -126,6 +126,10 @@ router.get('/', authMiddleware, [
             // Como fecha es DATEONLY, comparar solo con el string de fecha (YYYY-MM-DD)
             if (req.query.from) where.fecha[Op.gte] = req.query.from;
             if (req.query.to) where.fecha[Op.lte] = req.query.to;
+            
+            // Si se solicita rango de fechas (típicamente para finanzas), 
+            // filtrar solo viajes con importe definido
+            where.importe = { [Op.not]: null };
         }
         const { rows, count } = await Viaje.findAndCountAll({
             where,
