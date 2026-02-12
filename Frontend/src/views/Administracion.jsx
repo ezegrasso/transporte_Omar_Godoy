@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import PageHeader from '../components/UI/PageHeader';
 import StatCard from '../components/UI/StatCard';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +11,6 @@ import { generarListadoViajesPDF, generarDetalleViajePDF, generarFacturaViajePDF
 import { SkeletonText } from '../components/UI/Skeleton';
 import { ConfirmModal } from '../components/UI/ConfirmModal';
 import { useToast } from '../context/ToastContext';
-import DashboardCharts from '../components/UI/DashboardCharts';
 import Ceo from './Ceo';
 
 // Función segura para parsear números sin importar el formato local
@@ -265,27 +265,28 @@ export default function Administracion() {
         }
     };
 
+    const getMesDefaultFinanzas = () => {
+        try {
+            const base = (viajes || []).filter(v => v?.fecha);
+            if (base.length > 0) {
+                const last = base
+                    .slice()
+                    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0];
+                const [y, m] = String(last.fecha).split('-');
+                if (y && m) return `${y}-${m}`;
+            }
+        } catch { /* ignore */ }
+        const hoy = new Date();
+        return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+    };
+
     // Modal: Resumen Financiero Mensual
     const [finanzasModal, setFinanzasModal] = useState({ open: false, mes: '', clienteFiltro: 'todos' });
     const [detalleClienteModal, setDetalleClienteModal] = useState({ open: false, cliente: '', viajes: [] });
     const openFinanzas = () => {
-        const obtenerMesDefault = () => {
-            try {
-                const base = (viajes || []).filter(v => v?.fecha);
-                if (base.length > 0) {
-                    const last = base
-                        .slice()
-                        .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0];
-                    const [y, m] = String(last.fecha).split('-');
-                    if (y && m) return `${y}-${m}`;
-                }
-            } catch { /* ignore */ }
-            const hoy = new Date();
-            return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
-        };
-        setFinanzasModal({ open: true, mes: obtenerMesDefault(), clienteFiltro: 'todos' });
+        setFinanzasModal(m => ({ ...m, open: true, mes: m.mes || getMesDefaultFinanzas() }));
     };
-    const closeFinanzas = () => setFinanzasModal({ open: false, mes: '', clienteFiltro: 'todos' });
+    const closeFinanzas = () => setFinanzasModal(m => ({ ...m, open: false }));
 
     const openDetalleCliente = (cliente) => {
         // Filtrar viajes del mes y cliente seleccionado (mismo criterio que el resumen)
@@ -517,9 +518,17 @@ export default function Administracion() {
     const [loadingFinanzas, setLoadingFinanzas] = useState(false);
     const [errorFinanzas, setErrorFinanzas] = useState('');
 
-    // Cargar viajes cuando se abre o cambia el mes en el modal de finanzas
     useEffect(() => {
-        if (!finanzasModal.open || !finanzasModal.mes) return;
+        if (finanzasModal.mes) return;
+        const mesDefault = getMesDefaultFinanzas();
+        if (mesDefault) {
+            setFinanzasModal(m => ({ ...m, mes: mesDefault }));
+        }
+    }, [viajes, finanzasModal.mes]);
+
+    // Cargar viajes cuando cambia el mes en finanzas
+    useEffect(() => {
+        if (!finanzasModal.mes) return;
 
         const cargarViajesMes = async () => {
             setLoadingFinanzas(true);
@@ -548,11 +557,24 @@ export default function Administracion() {
         };
 
         cargarViajesMes();
-    }, [finanzasModal.open, finanzasModal.mes]);
+    }, [finanzasModal.mes]);
 
     const datosFinanzas = calcularDatosFinanzas(viajesMesFinanzas, finanzasModal.clienteFiltro);
     const totalesResumen = calcularTotalesDesdeClientes(datosFinanzas.porCliente);
     const cardsKey = `${totalesResumen.total}-${Object.keys(datosFinanzas.porCliente || {}).length}`;
+    const opcionesClienteFinanzas = useMemo(() => {
+        const set = new Set();
+        (viajesMesFinanzas || []).forEach(v => { if (v.cliente) set.add(v.cliente); });
+        return ['todos', ...Array.from(set)];
+    }, [viajesMesFinanzas]);
+
+    useEffect(() => {
+        if (!finanzasModal.clienteFiltro || finanzasModal.clienteFiltro === 'todos') return;
+        const exists = (viajesMesFinanzas || []).some(v => v.cliente === finanzasModal.clienteFiltro);
+        if (!exists) {
+            setFinanzasModal(m => ({ ...m, clienteFiltro: 'todos' }));
+        }
+    }, [viajesMesFinanzas, finanzasModal.clienteFiltro]);
 
     const submitUploadRemitos = async () => {
         if (!remitosUploadModal.id || !(remitosUploadModal.files?.length)) return;
@@ -589,7 +611,7 @@ export default function Administracion() {
     };
 
     // Estado para modo compacto de la tabla
-    const [dense, setDense] = useState(false);
+    const [dense, setDense] = useState(true);
     // Función para exportar el listado de viajes a PDF
     // Helpers fecha (DATEONLY)
     const formatDateOnly = (s) => {
@@ -786,7 +808,7 @@ export default function Administracion() {
     const [term, setTerm] = useState('');
     const [sort, setSort] = useState({ key: 'fecha', dir: 'DESC' });
     const [page, setPage] = useState(1);
-    const pageSize = 20;
+    const [pageSize, setPageSize] = useState(50);
 
     // Accesibilidad: fila seleccionada para atajos
     const [selectedRowId, setSelectedRowId] = useState(null);
@@ -841,6 +863,13 @@ export default function Administracion() {
     }, [viajesSemana, viajesFinalizados]);
     // Filtros avanzados
     const [fCliente, setFCliente] = useState('todos');
+    const [fViajeEstado, setFViajeEstado] = useState('todos');
+    const opcionesEstadoViaje = useMemo(() => {
+        const base = ['pendiente', 'en curso', 'finalizado'];
+        const set = new Set(base);
+        (viajesSemana || []).forEach(v => set.add((v.estado || 'pendiente').toLowerCase()));
+        return ['todos', ...Array.from(set)];
+    }, [viajesSemana]);
     const opcionesEstadoFactura = useMemo(() => {
         const set = new Set();
         (viajesSemana || []).forEach(v => set.add((v.facturaEstado || 'pendiente').toLowerCase()));
@@ -859,9 +888,10 @@ export default function Administracion() {
                 .toLowerCase().includes(t)
         ));
         return list
+            .filter(v => (fViajeEstado === 'todos' ? true : (v.estado || 'pendiente').toLowerCase() === fViajeEstado))
             .filter(v => (fEstado === 'todos' ? true : (v.facturaEstado || 'pendiente').toLowerCase() === fEstado))
             .filter(v => (fCliente === 'todos' ? true : (v.cliente || '') === fCliente));
-    }, [viajesSemana, term, fEstado, fCliente]);
+    }, [viajesSemana, term, fEstado, fCliente, fViajeEstado]);
 
     // Derivados (definidos después de viajesFiltrados)
     const curPage = page;
@@ -962,99 +992,199 @@ export default function Administracion() {
     return (
         <>
             <PageHeader title="Administración" subtitle={user?.nombre ? `Hola, ${user.nombre}` : undefined} showUserMenu={true} />
+            {/* Resumen financiero mensual */}
+            <div className="card shadow-sm mb-3">
+                <div className="card-body">
+                    {errorFinanzas && <div className="alert alert-danger py-2 mb-3">{errorFinanzas}</div>}
+                    {loadingFinanzas && (
+                        <div className="alert alert-info d-flex align-items-center gap-2 py-2 mb-3">
+                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            Cargando viajes del mes...
+                        </div>
+                    )}
+                    <div className="row g-3 mb-3" key={cardsKey}>
+                        <div className="col-md-6">
+                            <label className="form-label">Mes</label>
+                            <input
+                                type="month"
+                                className="form-control"
+                                value={finanzasModal.mes}
+                                onChange={e => setFinanzasModal(m => ({ ...m, mes: e.target.value }))}
+                            />
+                        </div>
+                        <div className="col-md-6">
+                            <label className="form-label">Cliente</label>
+                            <select
+                                className="form-select"
+                                value={finanzasModal.clienteFiltro}
+                                onChange={e => setFinanzasModal(m => ({ ...m, clienteFiltro: e.target.value }))}
+                            >
+                                <option value="todos">Todos los clientes</option>
+                                {opcionesClienteFinanzas.filter(c => c !== 'todos').map(cliente => (
+                                    <option key={cliente} value={cliente}>{cliente}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="row g-3">
+                        <div className="col-md-4">
+                            <div className="card bg-success bg-opacity-10 border-success">
+                                <div className="card-body">
+                                    <h6 className="card-subtitle mb-2 text-success">
+                                        <i className="bi bi-check-circle me-1"></i>
+                                        Cobrado
+                                    </h6>
+                                    <h3 className="card-title mb-0 text-success">
+                                        ${formatearMoneda(totalesResumen.totalFacturado)}
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="col-md-4">
+                            <div className="card bg-warning bg-opacity-10 border-warning">
+                                <div className="card-body">
+                                    <h6 className="card-subtitle mb-2 text-warning">
+                                        <i className="bi bi-clock-history me-1"></i>
+                                        Pendiente
+                                    </h6>
+                                    <h3 className="card-title mb-0 text-warning">
+                                        ${formatearMoneda(totalesResumen.totalPendiente)}
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="col-md-4">
+                            <div className="card bg-primary bg-opacity-10 border-primary">
+                                <div className="card-body">
+                                    <h6 className="card-subtitle mb-2 text-primary">
+                                        <i className="bi bi-calculator me-1"></i>
+                                        Total
+                                    </h6>
+                                    <h3 className="card-title mb-0 text-primary">
+                                        ${formatearMoneda(totalesResumen.total)}
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             {/* Mensaje de error */}
             {error && <div className="alert alert-danger">{error}</div>}
             {/* Filtros y acciones */}
             <div className="card shadow-sm mb-3 card-hover">
-                <div className="card-body d-flex flex-wrap align-items-end gap-2">
-                    <div>
-                        <label className="form-label mb-1">Semana (inicio)</label>
-                        <input
-                            type="date"
-                            className="form-control"
-                            value={weekStart}
-                            onChange={e => {
-                                const selectedDate = new Date(e.target.value);
-                                const day = selectedDate.getDay(); // 0=Dom
-                                const diff = (day === 0 ? 6 : day - 1); // Lunes como inicio
-                                const monday = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() - diff);
-                                const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
-                                setWeekStart(monday.toISOString().slice(0, 10));
-                                setWeekEnd(sunday.toISOString().slice(0, 10));
-                            }}
-                        />
+                <div className="card-header bg-body-tertiary d-flex flex-wrap align-items-center gap-2">
+                    <div className="me-auto">
+                        <h6 className="mb-0">Filtros y acciones</h6>
+                        <small className="text-body-secondary">Ajusta el rango y acota la lista para ver mas viajes.</small>
                     </div>
-                    <div>
-                        <label className="form-label mb-1">Semana (fin)</label>
-                        <input
-                            type="date"
-                            className="form-control"
-                            value={weekEnd}
-                            onChange={e => {
-                                const selectedDate = new Date(e.target.value);
-                                const day = selectedDate.getDay(); // 0=Dom
-                                const diff = (day === 0 ? 6 : day - 1); // Lunes como inicio
-                                const monday = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() - diff);
-                                const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
-                                setWeekStart(monday.toISOString().slice(0, 10));
-                                setWeekEnd(sunday.toISOString().slice(0, 10));
-                            }}
-                        />
-                    </div>
-                    <div className="d-flex gap-2">
-                        <button className="btn btn-outline-secondary" title="Semana anterior" onClick={() => {
-                            const start = new Date(weekStart); const end = new Date(weekEnd);
-                            start.setDate(start.getDate() - 7); end.setDate(end.getDate() - 7);
-                            setWeekStart(start.toISOString().slice(0, 10)); setWeekEnd(end.toISOString().slice(0, 10));
-                        }}>
-                            <i className="bi bi-chevron-left"></i>
+                    <div className="d-flex flex-wrap gap-2">
+                        <button className="btn btn-soft-danger btn-action" onClick={exportPDF} title="Exportar PDF"><i className="bi bi-filetype-pdf me-1"></i> PDF Viajes</button>
+                        <button className="btn btn-primary btn-action" onClick={openFinanzas} title="Detalle por cliente">
+                            <i className="bi bi-people me-1"></i>
+                            Detalle por cliente
                         </button>
-                        <button className="btn btn-outline-secondary" title="Semana siguiente" onClick={() => {
-                            const start = new Date(weekStart); const end = new Date(weekEnd);
-                            start.setDate(start.getDate() + 7); end.setDate(end.getDate() + 7);
-                            setWeekStart(start.toISOString().slice(0, 10)); setWeekEnd(end.toISOString().slice(0, 10));
-                        }}>
-                            <i className="bi bi-chevron-right"></i>
+                        <Link className="btn btn-outline-primary btn-action" to="/administracion/graficos" title="Ver graficos">
+                            <i className="bi bi-graph-up me-1"></i>
+                            Graficos
+                        </Link>
+                        <button className="btn btn-success btn-action" onClick={() => openAdelantoModal(null, '')} title="Registrar adelanto">
+                            <i className="bi bi-cash-coin me-1"></i>
+                            Adelanto
+                        </button>
+                        <button className="btn btn-outline-success btn-action" onClick={openGestionAdelantos} title="Gestionar adelantos del mes">
+                            <i className="bi bi-pencil-square me-1"></i>
+                            Gestionar
                         </button>
                     </div>
-                    <button className="btn btn-soft-danger btn-action" onClick={exportPDF} title="Exportar PDF"><i className="bi bi-filetype-pdf me-1"></i> PDF Viajes</button>
-                    <button className="btn btn-primary btn-action" onClick={openFinanzas} title="Resumen financiero mensual">
-                        <i className="bi bi-currency-dollar me-1"></i>
-                        Finanzas
-                    </button>
-                    <button className="btn btn-success btn-action" onClick={() => openAdelantoModal(null, '')} title="Registrar adelanto">
-                        <i className="bi bi-cash-coin me-1"></i>
-                        Adelanto
-                    </button>
-                    <button className="btn btn-outline-success btn-action" onClick={openGestionAdelantos} title="Gestionar adelantos del mes">
-                        <i className="bi bi-pencil-square me-1"></i>
-                        Gestionar
-                    </button>
-                    <div className="ms-auto flex-grow-1" style={{ minWidth: 260, maxWidth: 420 }}>
-                        <label className="form-label mb-1">Buscar</label>
-                        <input className="form-control" placeholder="Origen, destino, tipo, cliente, camión o camionero" value={term} onChange={e => { setTerm(e.target.value); setPage(1); }} />
+                </div>
+                <div className="card-body">
+                    <div className="row g-2 align-items-end">
+                        <div className="col-12 col-sm-6 col-lg-2">
+                            <label className="form-label mb-1">Semana (inicio)</label>
+                            <input
+                                type="date"
+                                className="form-control"
+                                value={weekStart}
+                                onChange={e => {
+                                    const selectedDate = new Date(e.target.value);
+                                    const day = selectedDate.getDay();
+                                    const diff = (day === 0 ? 6 : day - 1);
+                                    const monday = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() - diff);
+                                    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+                                    setWeekStart(monday.toISOString().slice(0, 10));
+                                    setWeekEnd(sunday.toISOString().slice(0, 10));
+                                }}
+                            />
+                        </div>
+                        <div className="col-12 col-sm-6 col-lg-2">
+                            <label className="form-label mb-1">Semana (fin)</label>
+                            <input
+                                type="date"
+                                className="form-control"
+                                value={weekEnd}
+                                onChange={e => {
+                                    const selectedDate = new Date(e.target.value);
+                                    const day = selectedDate.getDay();
+                                    const diff = (day === 0 ? 6 : day - 1);
+                                    const monday = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() - diff);
+                                    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+                                    setWeekStart(monday.toISOString().slice(0, 10));
+                                    setWeekEnd(sunday.toISOString().slice(0, 10));
+                                }}
+                            />
+                        </div>
+                        <div className="col-12 col-lg-2 d-flex gap-2">
+                            <button className="btn btn-outline-secondary" title="Semana anterior" onClick={() => {
+                                const start = new Date(weekStart); const end = new Date(weekEnd);
+                                start.setDate(start.getDate() - 7); end.setDate(end.getDate() - 7);
+                                setWeekStart(start.toISOString().slice(0, 10)); setWeekEnd(end.toISOString().slice(0, 10));
+                            }}>
+                                <i className="bi bi-chevron-left"></i>
+                            </button>
+                            <button className="btn btn-outline-secondary" title="Semana siguiente" onClick={() => {
+                                const start = new Date(weekStart); const end = new Date(weekEnd);
+                                start.setDate(start.getDate() + 7); end.setDate(end.getDate() + 7);
+                                setWeekStart(start.toISOString().slice(0, 10)); setWeekEnd(end.toISOString().slice(0, 10));
+                            }}>
+                                <i className="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                        <div className="col-12 col-lg-4">
+                            <label className="form-label mb-1">Buscar</label>
+                            <input className="form-control" placeholder="Origen, destino, tipo, cliente, camion o camionero" value={term} onChange={e => { setTerm(e.target.value); setPage(1); }} />
+                        </div>
+                        <div className="col-6 col-lg-2">
+                            <label className="form-label mb-1">Estado viaje</label>
+                            <select className="form-select" value={fViajeEstado} onChange={e => { setFViajeEstado(e.target.value); setPage(1); }}>
+                                {opcionesEstadoViaje.map(opt => (
+                                    <option key={opt} value={opt}>{opt === 'todos' ? 'Todos' : (opt.charAt(0).toUpperCase() + opt.slice(1))}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-6 col-lg-2">
+                            <label className="form-label mb-1">Estado factura</label>
+                            <select className="form-select" value={fEstado} onChange={e => { setFEstado(e.target.value); setPage(1); }}>
+                                {opcionesEstadoFactura.map(opt => (
+                                    <option key={opt} value={opt}>{opt === 'todos' ? 'Todos' : (opt.charAt(0).toUpperCase() + opt.slice(1))}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-6 col-lg-2">
+                            <label className="form-label mb-1">Cliente</label>
+                            <select className="form-select" value={fCliente} onChange={e => { setFCliente(e.target.value); setPage(1); }}>
+                                {opcionesCliente.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-6 col-lg-2 d-flex align-items-center gap-2">
+                            <div className="form-check form-switch d-flex align-items-center gap-2">
+                                <input className="form-check-input" type="checkbox" role="switch" id="switchDensityAdm" checked={dense} onChange={e => setDense(e.target.checked)} />
+                                <label className="form-check-label" htmlFor="switchDensityAdm">Compacto+</label>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label className="form-label mb-1">Estado factura</label>
-                        <select className="form-select" value={fEstado} onChange={e => { setFEstado(e.target.value); setPage(1); }}>
-                            {opcionesEstadoFactura.map(opt => (
-                                <option key={opt} value={opt}>{opt === 'todos' ? 'Todos' : (opt.charAt(0).toUpperCase() + opt.slice(1))}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="form-label mb-1">Cliente</label>
-                        <select className="form-select" value={fCliente} onChange={e => { setFCliente(e.target.value); setPage(1); }}>
-                            {opcionesCliente.map(opt => (
-                                <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="form-check form-switch d-flex align-items-center gap-2 ms-2">
-                        <input className="form-check-input" type="checkbox" role="switch" id="switchDensityAdm" checked={dense} onChange={e => setDense(e.target.checked)} />
-                        <label className="form-check-label" htmlFor="switchDensityAdm">Compacto</label>
-                    </div>
-
                 </div>
             </div>
 
@@ -1078,8 +1208,8 @@ export default function Administracion() {
                         <EmptyState title="Sin viajes" description="No hay viajes en la semana seleccionada" />
                     ) : (
 
-                        <div className="table-responsive table-scroll">
-                            <table className={`table ${dense ? 'table-sm table-compact' : ''} table-striped table-hover align-middle table-sticky table-cols-bordered`}>
+                        <div className="table-responsive table-scroll table-scroll-lg">
+                            <table className={`table ${dense ? 'table-sm table-compact table-compact-plus' : ''} table-striped table-hover align-middle table-sticky table-cols-bordered`}>
                                 <caption id="admTableCaption" className="visually-hidden">Listado de viajes finalizados de la semana seleccionada. Use Alt+L para PDF, Alt+F factura, Alt+R subir remitos, Alt+V ver remitos, Alt+D detalle PDF, Alt+I resumen IA, flechas para navegar filas.</caption>
                                 <thead>
                                     <tr>
@@ -1245,22 +1375,23 @@ export default function Administracion() {
                                     })}
                                 </tbody>
                             </table>
-                            <div className="d-flex justify-content-between align-items-center mt-2">
+                            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
                                 <small className="text-body-secondary">Mostrando {(viajesPagina.length && (curPage - 1) * pageSize + 1) || 0} - {(curPage - 1) * pageSize + viajesPagina.length} de {viajesFiltrados.length}</small>
-                                <div className="btn-group" role="group" aria-label="Paginación">
-                                    <button className="btn btn-outline-secondary btn-sm" disabled={curPage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</button>
-                                    <button className="btn btn-outline-secondary btn-sm" disabled={curPage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Siguiente</button>
+                                <div className="d-flex align-items-center gap-2">
+                                    <label className="small text-body-secondary">Filas</label>
+                                    <select className="form-select form-select-sm" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+                                        <option value={20}>20</option>
+                                        <option value={50}>50</option>
+                                        <option value={100}>100</option>
+                                    </select>
+                                    <div className="btn-group" role="group" aria-label="Paginación">
+                                        <button className="btn btn-outline-secondary btn-sm" disabled={curPage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</button>
+                                        <button className="btn btn-outline-secondary btn-sm" disabled={curPage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Siguiente</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
-                </div>
-            </div>
-
-            {/* Gráficos (debajo de la tabla) */}
-            <div className="row g-3 mt-3">
-                <div className="col-12">
-                    <DashboardCharts viajes={viajesFinalizados} />
                 </div>
             </div>
 
@@ -1477,90 +1608,14 @@ export default function Administracion() {
                     <div className="modal-content">
                         <div className="modal-header">
                             <h1 className="modal-title fs-5">
-                                <i className="bi bi-currency-dollar me-2"></i>
-                                Resumen Financiero Mensual
+                                <i className="bi bi-people me-2"></i>
+                                Detalle por Cliente
                             </h1>
                             <button type="button" className="btn-close" aria-label="Close" onClick={(e) => { e.stopPropagation(); closeFinanzas(); }}></button>
                         </div>
                         <div className="modal-body">
-                            {errorFinanzas && <div className="alert alert-danger">{errorFinanzas}</div>}
-                            {loadingFinanzas && (
-                                <div className="alert alert-info d-flex align-items-center gap-2">
-                                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                    Cargando viajes del mes...
-                                </div>
-                            )}
-                            {/* Filtros */}
-                            <div className="row g-3 mb-4" key={cardsKey}>
-                                <div className="col-md-6">
-                                    <label className="form-label">Mes</label>
-                                    <input
-                                        type="month"
-                                        className="form-control"
-                                        value={finanzasModal.mes}
-                                        onChange={e => setFinanzasModal(m => ({ ...m, mes: e.target.value }))}
-                                    />
-                                </div>
-                                <div className="col-md-6">
-                                    <label className="form-label">Cliente</label>
-                                    <select
-                                        className="form-select"
-                                        value={finanzasModal.clienteFiltro}
-                                        onChange={e => setFinanzasModal(m => ({ ...m, clienteFiltro: e.target.value }))}
-                                    >
-                                        <option value="todos">Todos los clientes</option>
-                                        {opcionesCliente.filter(c => c !== 'todos').map(cliente => (
-                                            <option key={cliente} value={cliente}>{cliente}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Resumen General */}
-                            <div className="row g-3 mb-4">
-                                <div className="col-md-4">
-                                    <div className="card bg-success bg-opacity-10 border-success">
-                                        <div className="card-body">
-                                            <h6 className="card-subtitle mb-2 text-success">
-                                                <i className="bi bi-check-circle me-1"></i>
-                                                Cobrado
-                                            </h6>
-                                            <h3 className="card-title mb-0 text-success">
-                                                ${formatearMoneda(totalesResumen.totalFacturado)}
-                                            </h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-md-4">
-                                    <div className="card bg-warning bg-opacity-10 border-warning">
-                                        <div className="card-body">
-                                            <h6 className="card-subtitle mb-2 text-warning">
-                                                <i className="bi bi-clock-history me-1"></i>
-                                                Pendiente
-                                            </h6>
-                                            <h3 className="card-title mb-0 text-warning">
-                                                ${formatearMoneda(totalesResumen.totalPendiente)}
-                                            </h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-md-4">
-                                    <div className="card bg-primary bg-opacity-10 border-primary">
-                                        <div className="card-body">
-                                            <h6 className="card-subtitle mb-2 text-primary">
-                                                <i className="bi bi-calculator me-1"></i>
-                                                Total
-                                            </h6>
-                                            <h3 className="card-title mb-0 text-primary">
-                                                ${formatearMoneda(totalesResumen.total)}
-                                            </h3>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             {/* Detalle por Cliente */}
-                            {finanzasModal.clienteFiltro === 'todos' && Object.keys(datosFinanzas.porCliente).length > 0 && (
+                            {Object.keys(datosFinanzas.porCliente).length > 0 ? (
                                 <div>
                                     <h5 className="mb-3">
                                         <i className="bi bi-people me-2"></i>
@@ -1595,6 +1650,8 @@ export default function Administracion() {
                                         </table>
                                     </div>
                                 </div>
+                            ) : (
+                                <div className="alert alert-info mb-0">No hay datos para el período seleccionado</div>
                             )}
 
                             {/* Información adicional */}

@@ -88,6 +88,10 @@ body {
   overflow-y: auto;
 }
 
+.table-scroll-lg {
+  max-height: 72vh;
+}
+
 /* Micro-interacciones */
 .card-hover {
   transition: transform .15s ease, box-shadow .15s ease;
@@ -250,6 +254,18 @@ body {
 .table-compact th {
   padding-top: .25rem;
   padding-bottom: .25rem;
+}
+
+.table-compact-plus td,
+.table-compact-plus th {
+  padding-top: .15rem;
+  padding-bottom: .15rem;
+  font-size: .82rem;
+}
+
+.table-compact-plus .btn,
+.table-compact-plus .badge {
+  font-size: .75rem;
 }
 
 /* Separadores verticales por columna para tablas */

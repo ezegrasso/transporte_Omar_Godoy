@@ -8,6 +8,7 @@ const Login = lazy(() => import('./views/Login'))
 const Home = lazy(() => import('./views/Home'))
 const Ceo = lazy(() => import('./views/Ceo'))
 const Graficos = lazy(() => import('./views/Graficos'))
+const GraficosAdministracion = lazy(() => import('./views/GraficosAdministracion'))
 const Administracion = lazy(() => import('./views/Administracion'))
 const Camionero = lazy(() => import('./views/Camionero'))
 
@@ -73,6 +74,9 @@ function NavBar() {
               <li className="nav-item"><Link className="nav-link" to="/administracion">Administración</Link></li>
             )}
             {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion">Panel Administración</Link></li>}
+            {user?.rol === 'administracion' && (location.pathname === '/administracion' || location.pathname === '/administracion/graficos') && (
+              <li className="nav-item"><Link className="nav-link" to="/administracion/graficos">Gráficos</Link></li>
+            )}
             {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero">Mis Viajes</Link></li>}
           </ul>
           <div className="d-none d-lg-flex align-items-center gap-2 flex-nowrap ms-lg-auto">
@@ -134,7 +138,8 @@ export default function App() {
       '/ceo': 'CEO',
       '/graficos': 'Gráficos',
       '/camionero': 'Camionero',
-      '/administracion': 'Administración'
+      '/administracion': 'Administración',
+      '/administracion/graficos': 'Gráficos Administración'
     }
     const match = Object.keys(map).find(k => location.pathname.startsWith(k)) || '/'
     document.title = `${map[match]} — ${base}`
@@ -174,6 +179,13 @@ export default function App() {
               <ProtectedRoute roles={["ceo"]}>
                 <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Gráficos.</div>}>
                   <Graficos />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/administracion/graficos" element={
+              <ProtectedRoute roles={["administracion"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Gráficos.</div>}>
+                  <GraficosAdministracion />
                 </ErrorBoundary>
               </ProtectedRoute>
             } />
