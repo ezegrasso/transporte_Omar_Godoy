@@ -516,6 +516,8 @@ export default function Administracion() {
     const [viajesMesFinanzas, setViajesMesFinanzas] = useState([]);
     const [loadingFinanzas, setLoadingFinanzas] = useState(false);
     const [errorFinanzas, setErrorFinanzas] = useState('');
+    const [datosFinanzasState, setDatosFinanzasState] = useState({ totalFacturado: 0, totalPendiente: 0, porCliente: {}, viajesMes: 0 });
+    const [totalesResumenState, setTotalesResumenState] = useState({ totalFacturado: 0, totalPendiente: 0, total: 0 });
 
     // Cargar viajes cuando se abre o cambia el mes en el modal de finanzas
     useEffect(() => {
@@ -550,8 +552,14 @@ export default function Administracion() {
         cargarViajesMes();
     }, [finanzasModal.open, finanzasModal.mes]);
 
-    const datosFinanzas = calcularDatosFinanzas(viajesMesFinanzas, finanzasModal.clienteFiltro);
-    const totalesResumen = calcularTotalesDesdeClientes(datosFinanzas.porCliente);
+    useEffect(() => {
+        const datos = calcularDatosFinanzas(viajesMesFinanzas, finanzasModal.clienteFiltro);
+        setDatosFinanzasState(datos);
+        setTotalesResumenState(calcularTotalesDesdeClientes(datos.porCliente));
+    }, [viajesMesFinanzas, finanzasModal.clienteFiltro]);
+
+    const datosFinanzas = datosFinanzasState;
+    const totalesResumen = totalesResumenState;
 
     const submitUploadRemitos = async () => {
         if (!remitosUploadModal.id || !(remitosUploadModal.files?.length)) return;
@@ -1478,6 +1486,9 @@ export default function Administracion() {
                             <h1 className="modal-title fs-5">
                                 <i className="bi bi-currency-dollar me-2"></i>
                                 Resumen Financiero Mensual
+                                <span className="badge text-bg-secondary ms-2" style={{ fontSize: '10px', verticalAlign: 'middle' }}>
+                                    v3140f42f
+                                </span>
                             </h1>
                             <button type="button" className="btn-close" aria-label="Close" onClick={(e) => { e.stopPropagation(); closeFinanzas(); }}></button>
                         </div>
