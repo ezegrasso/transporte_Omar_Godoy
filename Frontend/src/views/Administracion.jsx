@@ -472,10 +472,15 @@ export default function Administracion() {
                 const from = `${anio}-${mesPadded}-01`;
                 const to = `${anio}-${mesPadded}-${lastDayPadded}`;
 
+                console.log('[cargarViajesMes] Llamando API:', `?limit=1000&from=${from}&to=${to}&order=DESC&sortBy=fecha`);
                 const { data } = await api.get(`/viajes?limit=1000&from=${from}&to=${to}&order=DESC&sortBy=fecha`);
+                console.log('[cargarViajesMes] Response completo:', data);
                 const viajes = data.data || data.items || [];
+                console.log('[cargarViajesMes] Viajes extraídos:', viajes.length, 'viajes');
+                console.log('[cargarViajesMes] Primeros 3 viajes:', viajes.slice(0, 3));
                 setViajesMesFinanzas(viajes);
             } catch (e) {
+                console.error('[cargarViajesMes] Error:', e?.response?.data || e?.message);
                 setViajesMesFinanzas([]);
                 setErrorFinanzas(e?.response?.data?.error || 'No se pudieron cargar los viajes del mes');
             } finally {
@@ -493,23 +498,29 @@ export default function Administracion() {
         // NO filtrar por estado - incluir todos los viajes del período
         // El resumen financiero debe mostrar TODOS los viajes, sea cual sea su estado
         const viajesMes = (viajesMesFinanzas || []);
+        console.log('[datosFinanzas] viajesMesFinanzas:', viajesMesFinanzas.length, 'viajes');
+        console.log('[datosFinanzas] primeros 2:', viajesMesFinanzas.slice(0, 2).map(v => ({ cliente: v.cliente, importe: v.importe, facturaEstado: v.facturaEstado, estado: v.estado })));
 
         // Filtrar por cliente si no es "todos"
         const viajesFiltro = clienteFiltro === 'todos'
             ? viajesMes
             : viajesMes.filter(v => v.cliente === clienteFiltro);
 
+        console.log('[datosFinanzas] viajesFiltro after cliente filter:', viajesFiltro.length);
+
         // Calcular totales
         let totalFacturado = 0;
         let totalPendiente = 0;
         const porCliente = {};
 
-        viajesFiltro.forEach(v => {
+        viajesFiltro.forEach((v, idx) => {
             const importeStr = v.importe;
             const importe = safeParseNumber(importeStr);
             const cliente = v.cliente || 'Sin cliente';
             const facturaEstadoRaw = v.facturaEstado || 'pendiente';
             const estado = facturaEstadoRaw.toLowerCase();
+
+            if (idx < 2) console.log(`[datosFinanzas] viaje ${idx}:`, { importe, cliente, facturaEstadoRaw, estado });
 
             if (!porCliente[cliente]) {
                 porCliente[cliente] = { facturado: 0, pendiente: 0, cobrado: 0 };
@@ -524,6 +535,7 @@ export default function Administracion() {
             }
         });
 
+        console.log('[datosFinanzas] TOTALES:', { totalFacturado, totalPendiente, viajesTotales: viajesFiltro.length });
         return { totalFacturado, totalPendiente, porCliente, viajesMes: viajesFiltro.length };
     }, [finanzasModal.clienteFiltro, viajesMesFinanzas]);
 
