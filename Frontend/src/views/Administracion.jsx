@@ -1495,6 +1495,7 @@ export default function Administracion() {
 
                             {/* Resumen General */}
                             <div className="row g-3 mb-4">
+                                {(() => { console.log('[RENDER TARJETAS] datosFinanzas actual:', datosFinanzas); return null; })()}
                                 <div className="col-md-4">
                                     <div className="card bg-success bg-opacity-10 border-success">
                                         <div className="card-body">
