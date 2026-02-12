@@ -50,7 +50,9 @@ const safeParseNumber = (val) => {
 // Función para formatear moneda con formato español (1.234,56)
 const formatearMoneda = (numero) => {
     try {
+        console.log('[formatearMoneda] Entrada:', numero, 'tipo:', typeof numero);
         const n = parseFloat(numero);
+        console.log('[formatearMoneda] Después parseFloat:', n, 'isNaN:', isNaN(n), 'isFinite:', isFinite(n));
         if (isNaN(n) || !isFinite(n)) return '0,00';
 
         const redondeado = Math.round(n * 100) / 100;
@@ -60,8 +62,11 @@ const formatearMoneda = (numero) => {
 
         // Agregar puntos como separador de miles
         const enteroFormateado = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        return `${enteroFormateado},${decimales}`;
+        const resultado = `${enteroFormateado},${decimales}`;
+        console.log('[formatearMoneda] Salida:', resultado);
+        return resultado;
     } catch (err) {
+        console.error('[formatearMoneda] Error:', err);
         return '0,00';
     }
 };
@@ -1519,6 +1524,9 @@ export default function Administracion() {
                                             <h3 className="card-title mb-0 text-warning">
                                                 ${formatearMoneda(datosFinanzas.totalPendiente)}
                                             </h3>
+                                            <small className="text-muted d-block mt-2" style={{ fontSize: '10px' }}>
+                                                [DEBUG: {datosFinanzas.totalPendiente}]
+                                            </small>
                                         </div>
                                     </div>
                                 </div>
