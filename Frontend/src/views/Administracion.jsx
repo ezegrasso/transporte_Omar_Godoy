@@ -50,9 +50,7 @@ const safeParseNumber = (val) => {
 // Función para formatear moneda con formato español (1.234,56)
 const formatearMoneda = (numero) => {
     try {
-        console.log('[formatearMoneda] Entrada:', numero, 'tipo:', typeof numero);
         const n = parseFloat(numero);
-        console.log('[formatearMoneda] Después parseFloat:', n, 'isNaN:', isNaN(n), 'isFinite:', isFinite(n));
         if (isNaN(n) || !isFinite(n)) return '0,00';
 
         const redondeado = Math.round(n * 100) / 100;
@@ -62,13 +60,73 @@ const formatearMoneda = (numero) => {
 
         // Agregar puntos como separador de miles
         const enteroFormateado = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const resultado = `${enteroFormateado},${decimales}`;
-        console.log('[formatearMoneda] Salida:', resultado);
-        return resultado;
+        return `${enteroFormateado},${decimales}`;
     } catch (err) {
-        console.error('[formatearMoneda] Error:', err);
         return '0,00';
     }
+};
+
+const calcularTotalCobrarViaje = (viaje) => {
+    const precioFactura = safeParseNumber(viaje?.precioUnitarioFactura);
+    const iva = safeParseNumber(viaje?.ivaPercentaje) || 0;
+    const notasCredito = safeParseNumber(viaje?.notasCreditoTotal);
+    const subtotalFactura = precioFactura > 0
+        ? (precioFactura * (1 + iva / 100)) - notasCredito
+        : 0;
+    const subtotalNegro = safeParseNumber(viaje?.precioUnitarioNegro);
+    const totalCobrar = subtotalFactura + subtotalNegro;
+
+    // Si no hay datos de factura/negro, usar importe como fallback
+    return totalCobrar > 0 ? totalCobrar : safeParseNumber(viaje?.importe);
+};
+
+const calcularDatosFinanzas = (viajesMesFinanzas, clienteFiltro) => {
+    const viajesMes = (viajesMesFinanzas || []);
+
+    // Filtrar por cliente - SIN filtrar por importe
+    const viajesFiltro = clienteFiltro === 'todos'
+        ? viajesMes
+        : viajesMes.filter(v => v.cliente === clienteFiltro);
+
+    // Calcular por cliente y derivar totales desde esos acumulados
+    const porCliente = {};
+
+    viajesFiltro.forEach((v) => {
+        const importe = calcularTotalCobrarViaje(v);
+        const cliente = v.cliente || 'Sin cliente';
+        const facturaEstadoRaw = v.facturaEstado || 'pendiente';
+        const estado = facturaEstadoRaw.toLowerCase();
+
+        if (!porCliente[cliente]) {
+            porCliente[cliente] = { facturado: 0, pendiente: 0, cobrado: 0 };
+        }
+
+        if (estado === 'cobrada') {
+            porCliente[cliente].cobrado += importe;
+        } else {
+            porCliente[cliente].pendiente += importe;
+        }
+    });
+
+    const totalFacturado = Object.values(porCliente)
+        .reduce((sum, c) => sum + (safeParseNumber(c.cobrado) || 0), 0);
+    const totalPendiente = Object.values(porCliente)
+        .reduce((sum, c) => sum + (safeParseNumber(c.pendiente) || 0), 0);
+
+    return { totalFacturado, totalPendiente, porCliente, viajesMes: viajesFiltro.length };
+};
+
+const calcularTotalesDesdeClientes = (porCliente) => {
+    const clientes = Object.values(porCliente || {});
+    const totalFacturado = clientes
+        .reduce((sum, c) => sum + (safeParseNumber(c?.cobrado) || 0), 0);
+    const totalPendiente = clientes
+        .reduce((sum, c) => sum + (safeParseNumber(c?.pendiente) || 0), 0);
+    return {
+        totalFacturado,
+        totalPendiente,
+        total: totalFacturado + totalPendiente
+    };
 };
 
 export default function Administracion() {
@@ -230,9 +288,9 @@ export default function Administracion() {
     const closeFinanzas = () => setFinanzasModal({ open: false, mes: '', clienteFiltro: 'todos' });
 
     const openDetalleCliente = (cliente) => {
-        // Filtrar viajes del mes y cliente seleccionado
+        // Filtrar viajes del mes y cliente seleccionado (mismo criterio que el resumen)
         const viajesCliente = (viajesMesFinanzas || [])
-            .filter(v => (v.estado || '').toLowerCase() === 'finalizado' && v.cliente === cliente)
+            .filter(v => v.cliente === cliente)
             .sort((a, b) => String(a.fecha || '').localeCompare(String(b.fecha || '')));
 
         setDetalleClienteModal({ open: true, cliente, viajes: viajesCliente });
@@ -492,55 +550,8 @@ export default function Administracion() {
         cargarViajesMes();
     }, [finanzasModal.open, finanzasModal.mes]);
 
-    // Cálculos del resumen financiero mensual
-    const datosFinanzas = useMemo(() => {
-        const { clienteFiltro } = finanzasModal;
-
-        // NO filtrar por estado - incluir todos los viajes del período
-        // El resumen financiero debe mostrar TODOS los viajes, sea cual sea su estado
-        const viajesMes = (viajesMesFinanzas || []);
-        console.log('[datosFinanzas] viajesMesFinanzas recibidos:', viajesMes.length);
-        console.log('[datosFinanzas] primeros 2 viajes:', viajesMes.slice(0, 2).map(v => ({ id: v.id, cliente: v.cliente, importe: v.importe, importeType: typeof v.importe, facturaEstado: v.facturaEstado })));
-
-        // Filtrar por cliente y por viajes CON importe definido
-        const viajesFiltro = (clienteFiltro === 'todos'
-            ? viajesMes
-            : viajesMes.filter(v => v.cliente === clienteFiltro))
-            .filter(v => v.importe !== null && v.importe !== undefined && safeParseNumber(v.importe) > 0);
-
-        console.log('[datosFinanzas] viajesFiltro después de filtros:', viajesFiltro.length);
-        if (viajesFiltro.length > 0) {
-            console.log('[datosFinanzas] primeros 2 filtrados:', viajesFiltro.slice(0, 2).map(v => ({ id: v.id, importe: v.importe, safeImporte: safeParseNumber(v.importe) })));
-        }
-
-        // Calcular totales
-        let totalFacturado = 0;
-        let totalPendiente = 0;
-        const porCliente = {};
-
-        viajesFiltro.forEach((v) => {
-            const importeStr = v.importe;
-            const importe = safeParseNumber(importeStr);
-            const cliente = v.cliente || 'Sin cliente';
-            const facturaEstadoRaw = v.facturaEstado || 'pendiente';
-            const estado = facturaEstadoRaw.toLowerCase();
-
-            if (!porCliente[cliente]) {
-                porCliente[cliente] = { facturado: 0, pendiente: 0, cobrado: 0 };
-            }
-
-            if (estado === 'cobrada') {
-                totalFacturado += importe;
-                porCliente[cliente].cobrado += importe;
-            } else {
-                totalPendiente += importe;
-                porCliente[cliente].pendiente += importe;
-            }
-        });
-
-        console.log('[datosFinanzas] TOTALES FINALES:', { totalFacturado, totalPendiente, viajesProcesados: viajesFiltro.length });
-        return { totalFacturado, totalPendiente, porCliente, viajesMes: viajesFiltro.length };
-    }, [finanzasModal.clienteFiltro, viajesMesFinanzas]);
+    const datosFinanzas = calcularDatosFinanzas(viajesMesFinanzas, finanzasModal.clienteFiltro);
+    const totalesResumen = calcularTotalesDesdeClientes(datosFinanzas.porCliente);
 
     const submitUploadRemitos = async () => {
         if (!remitosUploadModal.id || !(remitosUploadModal.files?.length)) return;
@@ -582,7 +593,13 @@ export default function Administracion() {
     // Helpers fecha (DATEONLY)
     const formatDateOnly = (s) => {
         if (!s) return '-';
-        try { const [y, m, d] = String(s).split('-').map(Number); const dt = new Date(y, (m || 1) - 1, d || 1); return dt.toLocaleDateString(); } catch { return s; }
+        try {
+            const [y, m, d] = String(s).split('-').map(Number);
+            const dt = new Date(y, (m || 1) - 1, d || 1);
+            return dt.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } catch {
+            return s;
+        }
     };
 
     const exportPDF = () => {
@@ -1500,7 +1517,6 @@ export default function Administracion() {
 
                             {/* Resumen General */}
                             <div className="row g-3 mb-4">
-                                {(() => { console.log('[RENDER TARJETAS] datosFinanzas actual:', datosFinanzas); return null; })()}
                                 <div className="col-md-4">
                                     <div className="card bg-success bg-opacity-10 border-success">
                                         <div className="card-body">
@@ -1509,7 +1525,7 @@ export default function Administracion() {
                                                 Cobrado
                                             </h6>
                                             <h3 className="card-title mb-0 text-success">
-                                                ${formatearMoneda(datosFinanzas.totalFacturado)}
+                                                ${formatearMoneda(totalesResumen.totalFacturado)}
                                             </h3>
                                         </div>
                                     </div>
@@ -1522,11 +1538,8 @@ export default function Administracion() {
                                                 Pendiente
                                             </h6>
                                             <h3 className="card-title mb-0 text-warning">
-                                                ${formatearMoneda(datosFinanzas.totalPendiente)}
+                                                ${formatearMoneda(totalesResumen.totalPendiente)}
                                             </h3>
-                                            <small className="text-muted d-block mt-2" style={{ fontSize: '10px' }}>
-                                                [DEBUG: {datosFinanzas.totalPendiente}]
-                                            </small>
                                         </div>
                                     </div>
                                 </div>
@@ -1538,7 +1551,7 @@ export default function Administracion() {
                                                 Total
                                             </h6>
                                             <h3 className="card-title mb-0 text-primary">
-                                                ${formatearMoneda(datosFinanzas.totalFacturado + datosFinanzas.totalPendiente)}
+                                                ${formatearMoneda(totalesResumen.total)}
                                             </h3>
                                         </div>
                                     </div>
@@ -1638,11 +1651,7 @@ export default function Administracion() {
                                             </thead>
                                             <tbody>
                                                 {detalleClienteModal.viajes.map(v => {
-                                                    const subtotal = v.precioUnitarioFactura
-                                                        ? safeParseNumber(v.precioUnitarioFactura) * (1 + (safeParseNumber(v.ivaPercentaje) || 0) / 100) - safeParseNumber(v.notasCreditoTotal)
-                                                        : 0;
-                                                    const subtotalNegro = safeParseNumber(v.precioUnitarioNegro);
-                                                    const totalCobrar = subtotal + subtotalNegro;
+                                                    const totalCobrar = calcularTotalCobrarViaje(v);
                                                     // Formatear fecha sin conversión de zona horaria
                                                     const fechaFormateada = v.fecha
                                                         ? (() => {
@@ -1676,13 +1685,7 @@ export default function Administracion() {
                                                 <tr className="table-primary fw-bold">
                                                     <td colSpan="2" className="text-end">Total:</td>
                                                     <td className="text-end">
-                                                        ${formatearMoneda(detalleClienteModal.viajes.reduce((sum, v) => {
-                                                            const subtotal = v.precioUnitarioFactura
-                                                                ? Number(v.precioUnitarioFactura) * (1 + (v.ivaPercentaje || 0) / 100) - (v.notasCreditoTotal || 0)
-                                                                : 0;
-                                                            const subtotalNegro = Number(v.precioUnitarioNegro) || 0;
-                                                            return sum + subtotal + subtotalNegro;
-                                                        }, 0))}
+                                                        ${formatearMoneda(detalleClienteModal.viajes.reduce((sum, v) => sum + calcularTotalCobrarViaje(v), 0))}
                                                     </td>
                                                     <td></td>
                                                 </tr>
