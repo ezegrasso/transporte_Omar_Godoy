@@ -490,8 +490,9 @@ export default function Administracion() {
     const datosFinanzas = useMemo(() => {
         const { clienteFiltro } = finanzasModal;
 
-        // Filtrar solo viajes finalizados
-        const viajesMes = (viajesMesFinanzas || []).filter(v => (v.estado || '').toLowerCase() === 'finalizado');
+        // NO filtrar por estado - incluir todos los viajes del período
+        // El resumen financiero debe mostrar TODOS los viajes, sea cual sea su estado
+        const viajesMes = (viajesMesFinanzas || []);
 
         // Filtrar por cliente si no es "todos"
         const viajesFiltro = clienteFiltro === 'todos'
