@@ -478,6 +478,18 @@ export default function Administracion() {
                 const viajes = data.data || data.items || [];
                 console.log('[cargarViajesMes] Viajes extraídos:', viajes.length, 'viajes');
                 console.log('[cargarViajesMes] Primeros 3 viajes:', viajes.slice(0, 3));
+                console.log('[cargarViajesMes] DETALLE de primeros 3 viajes:');
+                viajes.slice(0, 3).forEach((v, i) => {
+                    console.log(`  viaje[${i}]:`, {
+                        id: v.id,
+                        cliente: v.cliente,
+                        importe: v.importe,
+                        importeType: typeof v.importe,
+                        facturaEstado: v.facturaEstado,
+                        estado: v.estado,
+                        fullObject: v
+                    });
+                });
                 setViajesMesFinanzas(viajes);
             } catch (e) {
                 console.error('[cargarViajesMes] Error:', e?.response?.data || e?.message);
