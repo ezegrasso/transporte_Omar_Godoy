@@ -494,12 +494,19 @@ export default function Administracion() {
         // NO filtrar por estado - incluir todos los viajes del período
         // El resumen financiero debe mostrar TODOS los viajes, sea cual sea su estado
         const viajesMes = (viajesMesFinanzas || []);
+        console.log('[datosFinanzas] viajesMesFinanzas recibidos:', viajesMes.length);
+        console.log('[datosFinanzas] primeros 2 viajes:', viajesMes.slice(0, 2).map(v => ({ id: v.id, cliente: v.cliente, importe: v.importe, importeType: typeof v.importe, facturaEstado: v.facturaEstado })));
 
         // Filtrar por cliente y por viajes CON importe definido
         const viajesFiltro = (clienteFiltro === 'todos'
             ? viajesMes
             : viajesMes.filter(v => v.cliente === clienteFiltro))
             .filter(v => v.importe !== null && v.importe !== undefined && safeParseNumber(v.importe) > 0);
+
+        console.log('[datosFinanzas] viajesFiltro después de filtros:', viajesFiltro.length);
+        if (viajesFiltro.length > 0) {
+            console.log('[datosFinanzas] primeros 2 filtrados:', viajesFiltro.slice(0, 2).map(v => ({ id: v.id, importe: v.importe, safeImporte: safeParseNumber(v.importe) })));
+        }
 
         // Calcular totales
         let totalFacturado = 0;
@@ -526,6 +533,7 @@ export default function Administracion() {
             }
         });
 
+        console.log('[datosFinanzas] TOTALES FINALES:', { totalFacturado, totalPendiente, viajesProcesados: viajesFiltro.length });
         return { totalFacturado, totalPendiente, porCliente, viajesMes: viajesFiltro.length };
     }, [finanzasModal.clienteFiltro, viajesMesFinanzas]);
 
