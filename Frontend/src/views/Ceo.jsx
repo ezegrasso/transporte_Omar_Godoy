@@ -184,6 +184,12 @@ export default function Ceo() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    // Estado para mes de exportación
+    const [mesExportacion, setMesExportacion] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+
     const [nuevoCamion, setNuevoCamion] = useState({ patente: '', marca: '', modelo: '', anio: '' });
     const [camionErrors, setCamionErrors] = useState({});
     const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '', tipoMercaderia: '', cliente: '', precioTonelada: '' });
@@ -390,8 +396,17 @@ export default function Ceo() {
     // Exportar listado a PDF
     const exportViajesPDF = (scope = 'filtro') => {
         const set = scope === 'pagina' ? viajesPagina : viajesOrdenados;
+
+        // Filtrar por mes seleccionado
+        const [anio, mes] = mesExportacion.split('-');
+        const viajesMesFiltrado = set.filter(v => {
+            if (!v.fecha) return false;
+            const [vAno, vMes] = String(v.fecha).split('-');
+            return vAno === anio && vMes === mes;
+        });
+
         const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible', 'Toneladas', 'Precio/Tn', 'Importe'];
-        const rows = set.map(v => [
+        const rows = viajesMesFiltrado.map(v => [
             formatDateOnly(v.fecha),
             v.estado || '',
             v.origen || '',
@@ -407,8 +422,10 @@ export default function Ceo() {
             v.precioTonelada ?? '',
             v.importe ?? ''
         ]);
-        generarListadoViajesPDF(`Listado de viajes (${scope})`, headers, rows, `viajes_${scope}.pdf`);
-        showToast(`Exportado PDF (${scope})`, 'success');
+
+        const mesNombre = new Date(mesExportacion + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+        generarListadoViajesPDF(`Listado de viajes - ${mesNombre}`, headers, rows, `viajes_${scope}.pdf`, viajesMesFiltrado);
+        showToast(`Exportado PDF (${viajesMesFiltrado.length} viajes de ${mesNombre})`, 'success');
     };
 
     // Filtros adicionales
@@ -1339,7 +1356,16 @@ export default function Ceo() {
                             </div>
                         )}
 
-                        <div className="d-flex flex-wrap gap-2 mb-2">
+                        <div className="d-flex flex-wrap gap-2 mb-2 align-items-end">
+                            <div style={{ minWidth: '150px' }}>
+                                <label className="form-label form-label-sm mb-1">Mes (exportación)</label>
+                                <input
+                                    type="month"
+                                    className="form-control form-control-sm"
+                                    value={mesExportacion}
+                                    onChange={e => setMesExportacion(e.target.value)}
+                                />
+                            </div>
                             <button className="btn btn-sm btn-soft-danger" onClick={() => exportViajesPDF('filtro')} title="Exportar PDF (viajes filtrados)">
                                 <i className="bi bi-file-earmark-pdf me-1"></i> PDF listado (filtro)
                             </button>

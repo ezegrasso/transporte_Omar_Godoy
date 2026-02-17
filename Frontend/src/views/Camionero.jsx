@@ -4,6 +4,7 @@ import api from '../services/api';
 import EmptyState from '../components/UI/EmptyState';
 import { useToast } from '../context/ToastContext';
 import { downloadCSV } from '../utils/csv';
+import { generarListadoViajesPDF, generarDetalleViajePDF } from '../utils/pdf';
 
 // Función segura para parsear números sin importar el formato local
 const safeParseNumber = (val) => {
@@ -67,6 +68,13 @@ export default function Camionero() {
     useEffect(() => { localStorage.setItem('tableDensity', density) }, [density]);
     const enCursoRef = useRef(null);
     const [flashCard, setFlashCard] = useState(false);
+    // Estado para mes de exportación
+    const [mesExportacion, setMesExportacion] = useState(() => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+    });
     // Liquidación mensual
     const [liqModal, setLiqModal] = useState(false);
     const [liqMes, setLiqMes] = useState(() => {
@@ -327,6 +335,67 @@ export default function Camionero() {
         }
     };
 
+    // Exportar viajes pendientes a PDF
+    const exportPendientesPDF = () => {
+        try {
+            const [anio, mes] = mesExportacion.split('-');
+            const viajesMes = pendientesOrdenados.filter(v => {
+                if (!v.fecha) return false;
+                const [vAno, vMes] = String(v.fecha).split('-');
+                return vAno === anio && vMes === mes;
+            });
+
+            const mesNombre = new Date(mesExportacion + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+            const titulo = `Viajes Pendientes - ${mesNombre}`;
+            const headers = ['Fecha', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión'];
+            const rows = viajesMes.map(v => [
+                formatDateOnly(v.fecha),
+                v.origen || '-',
+                v.destino || '-',
+                v.tipoMercaderia || '-',
+                v.cliente || '-',
+                v.camion?.patente || v.camionId || '-'
+            ]);
+            generarListadoViajesPDF(titulo, headers, rows, 'pendientes.pdf', viajesMes);
+            showToast(`PDF de pendientes generado (${viajesMes.length} viajes)`, 'success');
+        } catch (e) {
+            showToast('Error al exportar PDF', 'error');
+        }
+    };
+
+    // Exportar mis viajes a PDF
+    const exportMiosViajesPDF = () => {
+        try {
+            const [anio, mes] = mesExportacion.split('-');
+            const viajesMes = miosOrdenados.filter(v => {
+                if (!v.fecha) return false;
+                const [vAno, vMes] = String(v.fecha).split('-');
+                return vAno === anio && vMes === mes;
+            });
+
+            const mesNombre = new Date(mesExportacion + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+            const titulo = `Mis Viajes - ${estadoMios.charAt(0).toUpperCase() + estadoMios.slice(1)} (${mesNombre})`;
+            const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión', 'Km', 'Combustible', 'Toneladas', 'Importe'];
+            const rows = viajesMes.map(v => [
+                formatDateOnly(v.fecha),
+                v.estado || '-',
+                v.origen || '-',
+                v.destino || '-',
+                v.tipoMercaderia || '-',
+                v.cliente || '-',
+                v.camion?.patente || v.camionId || '-',
+                v.km ?? '-',
+                v.combustible ?? '-',
+                v.kilosCargados ?? '-',
+                v.importe ?? '-'
+            ]);
+            generarListadoViajesPDF(titulo, headers, rows, `mis_viajes_${estadoMios}.pdf`, viajesMes);
+            showToast(`PDF de mis viajes generado (${viajesMes.length} viajes)`, 'success');
+        } catch (e) {
+            showToast('Error al exportar PDF', 'error');
+        }
+    };
+
     return (
         <div className="container py-3 space-y-4">
             <PageHeader title="Panel Camionero" subtitle="Toma y finalización de viajes" actions={loading && <span className="spinner-border spinner-border-sm text-secondary" role="status" />} showUserMenu={true} />
@@ -452,16 +521,18 @@ export default function Camionero() {
                             <label className="form-label mb-1">Buscar</label>
                             <input className="form-control form-control-sm" placeholder="Origen, destino, tipo, cliente, patente" value={filtroPend} onChange={e => { setFiltroPend(e.target.value); setPagePend(1); }} />
                         </div>
+                        <div style={{ minWidth: '130px' }}>
+                            <label className="form-label form-label-sm mb-1">Mes</label>
+                            <input
+                                type="month"
+                                className="form-control form-control-sm"
+                                value={mesExportacion}
+                                onChange={e => setMesExportacion(e.target.value)}
+                            />
+                        </div>
                         <div className="ms-auto">
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                                const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión']
-                                const rows = pendientesOrdenados.map(v => [
-                                    formatDateOnly(v.fecha), v.estado || '', v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || ''
-                                ])
-                                downloadCSV('pendientes.csv', headers, rows)
-                                showToast('Exportado pendientes', 'success')
-                            }}>
-                                <i className="bi bi-filetype-csv me-1"></i> Exportar
+                            <button className="btn btn-sm btn-outline-secondary" onClick={exportPendientesPDF} title="Exportar a PDF">
+                                <i className="bi bi-filetype-pdf me-1"></i> PDF
                             </button>
                         </div>
                     </div>
@@ -569,16 +640,18 @@ export default function Camionero() {
                             <label className="form-label mb-1">Buscar</label>
                             <input className="form-control form-control-sm" placeholder="Origen, destino, tipo, cliente, patente" value={filtroMios} onChange={e => { setFiltroMios(e.target.value); setPageMios(1); }} />
                         </div>
+                        <div style={{ minWidth: '130px' }}>
+                            <label className="form-label form-label-sm mb-1">Mes</label>
+                            <input
+                                type="month"
+                                className="form-control form-control-sm"
+                                value={mesExportacion}
+                                onChange={e => setMesExportacion(e.target.value)}
+                            />
+                        </div>
                         <div className="ms-auto">
-                            <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-                                const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión', 'Km', 'Combustible']
-                                const rows = miosOrdenados.map(v => [
-                                    formatDateOnly(v.fecha), v.estado || '', v.origen || '', v.destino || '', v.tipoMercaderia || '', v.cliente || '', v.camion?.patente || v.camionId || '', v.km ?? '', v.combustible ?? ''
-                                ])
-                                downloadCSV(`mis_viajes_${estadoMios}.csv`, headers, rows)
-                                showToast('Exportado mis viajes', 'success')
-                            }}>
-                                <i className="bi bi-filetype-csv me-1"></i> Exportar
+                            <button className="btn btn-sm btn-outline-secondary" onClick={exportMiosViajesPDF} title="Exportar a PDF">
+                                <i className="bi bi-filetype-pdf me-1"></i> PDF
                             </button>
                         </div>
                     </div>

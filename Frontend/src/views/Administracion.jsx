@@ -627,9 +627,17 @@ export default function Administracion() {
 
     const exportPDF = () => {
         try {
-            const titulo = `Listado de viajes finalizados (${weekStart} a ${weekEnd})`;
+            // Filtrar viajes por mes seleccionado
+            const [anio, mes] = mesExportacion.split('-');
+            const viajesMes = (viajesFiltrados || []).filter(v => {
+                if (!v.fecha) return false;
+                const [vAno, vMes] = String(v.fecha).split('-');
+                return vAno === anio && vMes === mes;
+            });
+
+            const titulo = `Listado de viajes - ${new Date(mesExportacion + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}`;
             const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Camionero', 'Tipo', 'Cliente', 'Toneladas', 'Precio/Tn', 'Importe', 'Factura', 'Estado factura', 'Fecha factura', 'Remitos'];
-            const rows = (viajesFiltrados || []).map(v => [
+            const rows = viajesMes.map(v => [
                 formatDateOnly(v.fecha),
                 v.estado || '-',
                 v.origen || '-',
@@ -646,7 +654,8 @@ export default function Administracion() {
                 v.fechaFactura ? formatDateOnly(v.fechaFactura) : '-',
                 (() => { try { return (JSON.parse(v.remitosJson || '[]') || []).length } catch { return 0 } })(),
             ]);
-            generarListadoViajesPDF(titulo, headers, rows, 'viajes.pdf');
+            generarListadoViajesPDF(titulo, headers, rows, 'viajes.pdf', viajesMes);
+            showToast(`PDF exportado (${viajesMes.length} viajes)`, 'success');
         } catch (e) {
             showToast('Error al exportar PDF', 'error');
         }
@@ -694,6 +703,12 @@ export default function Administracion() {
         const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - diff);
         const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
         return sunday.toISOString().slice(0, 10);
+    });
+
+    // Estado para mes de exportación
+    const [mesExportacion, setMesExportacion] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     });
 
     // Modal IA (resumen)
@@ -1149,6 +1164,15 @@ export default function Administracion() {
                             }}>
                                 <i className="bi bi-chevron-right"></i>
                             </button>
+                        </div>
+                        <div className="col-12 col-sm-6 col-lg-2">
+                            <label className="form-label mb-1">Mes (exportación)</label>
+                            <input
+                                type="month"
+                                className="form-control"
+                                value={mesExportacion}
+                                onChange={e => setMesExportacion(e.target.value)}
+                            />
                         </div>
                         <div className="col-12 col-lg-4">
                             <label className="form-label mb-1">Buscar</label>
