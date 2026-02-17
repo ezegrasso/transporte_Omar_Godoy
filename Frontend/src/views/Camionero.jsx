@@ -90,6 +90,19 @@ export default function Camionero() {
     const [adelantos, setAdelantos] = useState([]);
     const [adelantosLoading, setAdelantosLoading] = useState(false);
 
+    // Estadías del mes
+    const [estadias, setEstadias] = useState([]);
+    const [estadiasLoading, setEstadiasLoading] = useState(false);
+    const [showEstadiaModal, setShowEstadiaModal] = useState(false);
+    const [estadiaForm, setEstadiaForm] = useState({
+        fechaInicio: '',
+        fechaFin: '',
+        monto: '',
+        descripcion: ''
+    });
+    const [estadiaSubmitting, setEstadiaSubmitting] = useState(false);
+
+
     // Helpers de fecha (DATEONLY -> local)
     const parseDateOnlyLocal = (s) => {
         if (!s) return 0;
@@ -127,11 +140,66 @@ export default function Camionero() {
         }
     };
 
+    const fetchEstadias = async () => {
+        try {
+            setEstadiasLoading(true);
+            const d = new Date();
+            const mesActual = String(d.getMonth() + 1).padStart(2, '0');
+            const anioActual = String(d.getFullYear());
+            const { data } = await api.get(`/estadias/mis-estadias?mes=${mesActual}&anio=${anioActual}`);
+            setEstadias(data?.estadias || []);
+        } catch (e) {
+            console.error('Error cargando estadías:', e?.message);
+            setEstadias([]);
+        } finally {
+            setEstadiasLoading(false);
+        }
+    };
+
+    const handleCrearEstadia = async (e) => {
+        e.preventDefault();
+        if (!estadiaForm.fechaInicio || !estadiaForm.fechaFin || !estadiaForm.monto) {
+            showToast('Por favor completa todos los campos', 'warning');
+            return;
+        }
+        try {
+            setEstadiaSubmitting(true);
+            const payload = {
+                fechaInicio: estadiaForm.fechaInicio,
+                fechaFin: estadiaForm.fechaFin,
+                monto: safeParseNumber(estadiaForm.monto),
+                descripcion: estadiaForm.descripcion || ''
+            };
+            await api.post('/estadias', payload);
+            showToast('Estadía registrada exitosamente', 'success');
+            setEstadiaForm({ fechaInicio: '', fechaFin: '', monto: '', descripcion: '' });
+            setShowEstadiaModal(false);
+            await fetchEstadias();
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error registrando estadía';
+            showToast(msg, 'error');
+        } finally {
+            setEstadiaSubmitting(false);
+        }
+    };
+
+    const handleEliminarEstadia = async (id) => {
+        if (!confirm('¿Eliminar esta estadía?')) return;
+        try {
+            await api.delete(`/estadias/${id}`);
+            showToast('Estadía eliminada', 'success');
+            await fetchEstadias();
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error eliminando estadía';
+            showToast(msg, 'error');
+        }
+    };
+
     useEffect(() => {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchPendientes(), fetchMios(), fetchAdelantos()]); }
+            try { await Promise.all([fetchPendientes(), fetchMios(), fetchAdelantos(), fetchEstadias()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando viajes'); }
             finally { setLoading(false); }
         })();
@@ -509,6 +577,83 @@ export default function Camionero() {
                 </div>
             ) : null}
 
+            {/* Tarjeta de Estadías */}
+            <div className="card shadow-sm border-info">
+                <div className="card-header bg-info bg-opacity-10 d-flex align-items-center gap-2 py-2">
+                    <i className="bi bi-house-door text-info" style={{ fontSize: '1.25rem' }}></i>
+                    <h6 className="mb-0 fw-bold">Estadías del Mes - {new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h6>
+                    <div className="ms-auto">
+                        <button className="btn btn-sm btn-outline-primary" onClick={() => setShowEstadiaModal(true)}>
+                            <i className="bi bi-plus-lg me-1"></i> Registrar estadía
+                        </button>
+                    </div>
+                </div>
+                <div className="card-body">
+                    {estadiasLoading ? (
+                        <div className="text-center">
+                            <span className="spinner-border spinner-border-sm text-secondary" role="status" />
+                        </div>
+                    ) : estadias.length > 0 ? (
+                        <>
+                            <div className="table-responsive">
+                                <table className="table table-sm table-borderless mb-0">
+                                    <tbody>
+                                        {estadias.map(estadia => (
+                                            <tr key={estadia.id} className="border-bottom">
+                                                <td className="py-3" style={{ width: '40%' }}>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <div className="bg-info bg-opacity-10 rounded p-2">
+                                                            <i className="bi bi-calendar-event text-info"></i>
+                                                        </div>
+                                                        <div>
+                                                            <div className="fw-bold text-info" style={{ fontSize: '1.1rem' }}>
+                                                                ${safeParseNumber(estadia.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </div>
+                                                            <small className="text-muted">
+                                                                {formatDateOnly(estadia.fechaInicio)} → {formatDateOnly(estadia.fechaFin)}
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 text-muted">
+                                                    {estadia.descripcion || 'Estadía registrada'}
+                                                </td>
+                                                <td className="py-3 text-end">
+                                                    <button
+                                                        className="btn btn-sm btn-outline-danger"
+                                                        onClick={() => handleEliminarEstadia(estadia.id)}
+                                                    >
+                                                        <i className="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="mt-3 p-3 bg-light rounded d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small className="text-muted d-block mb-1">Total en {new Date().toLocaleString('es-AR', { month: 'long' })}</small>
+                                    <h4 className="mb-0 text-info fw-bold">
+                                        ${estadias.reduce((sum, e) => sum + parseFloat(e.monto || 0), 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </h4>
+                                </div>
+                                <div className="text-end">
+                                    <small className="text-muted">
+                                        <i className="bi bi-info-circle me-1"></i>
+                                        Se reinicia cada mes
+                                    </small>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center text-muted py-2">
+                            No hay estadías registradas este mes.
+                        </div>
+                    )}
+                </div>
+            </div>
+
             <div className="card shadow-sm">
                 <div className="card-body">
                     <div className="d-flex align-items-end gap-2 mb-3 flex-wrap">
@@ -821,6 +966,78 @@ export default function Camionero() {
             </div>
             {showFinalizarModal && <div className="modal-backdrop show"></div>}
 
+            {/* Modal Estadía */}
+            <div className={`modal ${showEstadiaModal ? 'show d-block' : 'fade'}`} id="modalEstadia" tabIndex="-1" aria-hidden={!showEstadiaModal}>
+                <div className="modal-dialog">
+                    <form className="modal-content" onSubmit={handleCrearEstadia}>
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-5 d-flex align-items-center gap-2">
+                                <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-info-subtle text-info" style={{ width: 28, height: 28 }}>
+                                    <i className="bi bi-house-door"></i>
+                                </span>
+                                <span>Registrar estadía</span>
+                            </h1>
+                            <button type="button" className="btn-close" onClick={() => setShowEstadiaModal(false)}></button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="row g-2">
+                                <div className="col-6">
+                                    <label className="form-label">Fecha inicio</label>
+                                    <input
+                                        className="form-control"
+                                        type="date"
+                                        value={estadiaForm.fechaInicio}
+                                        onChange={e => setEstadiaForm(x => ({ ...x, fechaInicio: e.target.value }))}
+                                        required
+                                    />
+                                </div>
+                                <div className="col-6">
+                                    <label className="form-label">Fecha fin</label>
+                                    <input
+                                        className="form-control"
+                                        type="date"
+                                        min={estadiaForm.fechaInicio || undefined}
+                                        value={estadiaForm.fechaFin}
+                                        onChange={e => setEstadiaForm(x => ({ ...x, fechaFin: e.target.value }))}
+                                        required
+                                    />
+                                </div>
+                                <div className="col-12">
+                                    <label className="form-label">Monto</label>
+                                    <input
+                                        className="form-control"
+                                        type="number"
+                                        min={0}
+                                        step={0.01}
+                                        value={estadiaForm.monto}
+                                        onChange={e => setEstadiaForm(x => ({ ...x, monto: e.target.value }))}
+                                        placeholder="Ej: 25000"
+                                        required
+                                    />
+                                </div>
+                                <div className="col-12">
+                                    <label className="form-label">Descripción (opcional)</label>
+                                    <input
+                                        className="form-control"
+                                        type="text"
+                                        value={estadiaForm.descripcion}
+                                        onChange={e => setEstadiaForm(x => ({ ...x, descripcion: e.target.value }))}
+                                        placeholder="Hotel, parador, etc."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => setShowEstadiaModal(false)}>Cancelar</button>
+                            <button type="submit" className="btn btn-primary" disabled={estadiaSubmitting}>
+                                {estadiaSubmitting ? 'Guardando…' : 'Guardar estadía'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {showEstadiaModal && <div className="modal-backdrop show"></div>}
+
             {/* Modal Liquidación */}
             <div className={`modal ${liqModal ? 'show d-block' : 'fade'}`} id="modalLiquidacion" tabIndex="-1" aria-hidden={!liqModal}>
                 <div className="modal-dialog">
@@ -860,8 +1077,9 @@ export default function Camionero() {
                                         <div><strong>Mes:</strong> {liqRes.mes}</div>
                                         <div><strong>Bruto:</strong> ${liqRes.bruto?.toFixed ? liqRes.bruto.toFixed(2) : liqRes.bruto}</div>
                                         <div><strong>Sueldo:</strong> ${liqRes.sueldo?.toFixed ? liqRes.sueldo.toFixed(2) : liqRes.sueldo}</div>
-                                        <div><strong>Adelanto:</strong> ${safeParseNumber(liqRes.adelanto || 0).toFixed(2)}</div>
-                                        <div><strong>Neto:</strong> ${liqRes.neto?.toFixed ? liqRes.neto.toFixed(2) : liqRes.neto}</div>
+                                        <div><strong>Adelanto:</strong> -${safeParseNumber(liqRes.adelanto || 0).toFixed(2)}</div>
+                                        <div className="text-success"><strong>Estadia:</strong> +${safeParseNumber(liqRes.totalEstadia || 0).toFixed(2)}</div>
+                                        <div className="border-top pt-2 mt-2"><strong>Neto:</strong> ${liqRes.neto?.toFixed ? liqRes.neto.toFixed(2) : liqRes.neto}</div>
                                     </div>
                                     <div className="table-responsive">
                                         <table className="table table-sm table-striped">
@@ -896,6 +1114,33 @@ export default function Camionero() {
                                             </tbody>
                                         </table>
                                     </div>
+                                    {liqRes.estadias && liqRes.estadias.length > 0 && (
+                                        <div className="mt-3">
+                                            <h6 className="text-muted mb-2">Estadías registradas</h6>
+                                            <div className="table-responsive">
+                                                <table className="table table-sm table-striped">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Inicio</th>
+                                                            <th>Fin</th>
+                                                            <th>Monto</th>
+                                                            <th>Descripción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {liqRes.estadias.map(e => (
+                                                            <tr key={e.id}>
+                                                                <td>{formatDateOnly(e.fechaInicio)}</td>
+                                                                <td>{formatDateOnly(e.fechaFin)}</td>
+                                                                <td>${safeParseNumber(e.monto || 0).toFixed(2)}</td>
+                                                                <td className="text-muted small">{e.descripcion || '-'}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

@@ -15,6 +15,7 @@ import { authMiddleware, roleMiddleware } from '../middlewares/authMiddleware.js
 import Notificacion from '../models/Notificacion.js';
 import NotaCredito from '../models/NotaCredito.js';
 import Adelanto from '../models/Adelanto.js';
+import Estadia from '../models/Estadia.js';
 import { sendEmailToCEO, sendEmailToCamioneros, sendEmail } from '../services/emailService.js';
 // (Se eliminó soporte WhatsApp)
 
@@ -405,14 +406,24 @@ router.patch('/:id/editar-importe',
 // Liquidación mensual del camionero (autenticado)
 router.get('/liquidacion',
     authMiddleware,
-    roleMiddleware(['camionero']),
-    [query('mes').isString().matches(/^\d{4}-\d{2}$/), query('adelanto').optional().isFloat({ min: 0 })],
+    [query('mes').isString().matches(/^\d{4}-\d{2}$/), query('adelanto').optional().isFloat({ min: 0 }), query('camioneroId').optional().isInt()],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
-            const { mes } = req.query; // YYYY-MM
+            const { mes, camioneroId } = req.query; // YYYY-MM
             const adelanto = Number(req.query.adelanto || 0);
+
+            // Determinar qué camionero ver según el rol
+            let targetCamioneroId = req.user.id; // Por defecto ver el suyo propio
+
+            // Si es CEO/Administración y pasa camioneroId, permitir ver ese
+            if ((req.user.rol === 'ceo' || req.user.rol === 'administracion') && camioneroId) {
+                targetCamioneroId = parseInt(camioneroId, 10);
+            } else if (req.user.rol !== 'camionero' && req.user.rol !== 'ceo' && req.user.rol !== 'administracion') {
+                return res.status(403).json({ error: 'No autorizado' });
+            }
+
             const [year, month] = mes.split('-').map(n => parseInt(n, 10));
             const desde = new Date(year, month - 1, 1);
             const hasta = new Date(year, month, 0); // último día del mes
@@ -422,7 +433,7 @@ router.get('/liquidacion',
 
             const viajes = await Viaje.findAll({
                 where: {
-                    camioneroId: req.user.id,
+                    camioneroId: targetCamioneroId,
                     estado: 'finalizado',
                     fecha: { [Op.between]: [desdeStr, hastaStr] }
                 },
@@ -430,8 +441,20 @@ router.get('/liquidacion',
             });
             const bruto = viajes.reduce((sum, v) => sum + Number(v.importe || 0), 0);
             const sueldo = Number((bruto * 0.16).toFixed(2));
-            const neto = Number((sueldo - adelanto).toFixed(2));
-            res.json({ mes, camioneroId: req.user.id, bruto, porcentaje: 0.16, sueldo, adelanto, neto, viajes });
+
+            // Obtener estadías del mes actualizado
+            const estadias = await Estadia.findAll({
+                where: {
+                    camioneroId: targetCamioneroId,
+                    mes: month,
+                    anio: year
+                },
+                attributes: ['id', 'fechaInicio', 'fechaFin', 'monto', 'descripcion']
+            });
+            const totalEstadia = Number(estadias.reduce((sum, e) => sum + Number(e.monto || 0), 0).toFixed(2));
+
+            const neto = Number((sueldo - adelanto + totalEstadia).toFixed(2));
+            res.json({ mes, camioneroId: targetCamioneroId, bruto, porcentaje: 0.16, sueldo, adelanto, totalEstadia, neto, viajes, estadias });
         } catch (e) {
             res.status(500).json({ error: 'Error al calcular liquidación' });
         }
