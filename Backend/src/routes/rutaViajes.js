@@ -106,19 +106,9 @@ router.get('/', authMiddleware, [
         if (estado) where.estado = estado;
         // Restricción por rol
         if (req.user.rol !== 'ceo' && req.user.rol !== 'administracion') {
-            // Mostrar todos los viajes asignados al camionero (por camioneroId) 
-            // O los viajes del camión actualmente asignado al camionero
-            const camionAsignado = await Camion.findOne({ where: { camioneroId: req.user.id } });
-            if (camionAsignado) {
-                // Mostrar viajes donde el camioneroId coincide O el camionId coincide
-                where[Op.or] = [
-                    { camioneroId: req.user.id },
-                    { camionId: camionAsignado.id }
-                ];
-            } else {
-                // Si no tiene camión asignado actualmente, mostrar solo sus viajes asignados directamente
-                where.camioneroId = req.user.id;
-            }
+            // Mostrar SOLO viajes donde el camionero está asignado (camioneroId)
+            // No filtrar por camionId porque eso causa mezcla de viajes cuando cambian de camión
+            where.camioneroId = req.user.id;
         }
         // Filtro por fechas
         if (req.query.from || req.query.to) {
