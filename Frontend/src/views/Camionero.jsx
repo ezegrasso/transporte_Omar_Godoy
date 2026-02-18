@@ -1101,7 +1101,7 @@ export default function Camionero() {
                                                         </td>
                                                     </tr>
                                                 )}
-                                                {liqRes.viajes?.map(v => (
+                                                {[...(liqRes.viajes || [])].sort((a, b) => parseDateOnlyLocal(a.fecha) - parseDateOnlyLocal(b.fecha)).map(v => (
                                                     <tr key={v.id}>
                                                         <td>{formatDateOnly(v.fecha)}</td>
                                                         <td>{v.origen}</td>
@@ -1128,7 +1128,7 @@ export default function Camionero() {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {liqRes.estadias.map(e => (
+                                                        {[...(liqRes.estadias || [])].sort((a, b) => parseDateOnlyLocal(a.fechaInicio) - parseDateOnlyLocal(b.fechaInicio)).map(e => (
                                                             <tr key={e.id}>
                                                                 <td>{formatDateOnly(e.fechaInicio)}</td>
                                                                 <td>{formatDateOnly(e.fechaFin)}</td>
