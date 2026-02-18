@@ -35,8 +35,8 @@ router.get('/mis-estadias', authMiddleware, async (req, res) => {
 router.post('/',
     authMiddleware,
     [
-        body('fechaInicio').isISO8601(),
-        body('fechaFin').isISO8601(),
+        body('fechaInicio').isISO8601().toDate(),
+        body('fechaFin').isISO8601().toDate(),
         body('monto').isFloat({ min: 0 }),
         body('descripcion').optional().isString()
     ],
@@ -47,19 +47,23 @@ router.post('/',
 
             const { fechaInicio, fechaFin, monto, descripcion } = req.body;
 
+            // Convertir a strings YYYY-MM-DD si vienen como Date
+            const fechaInicioStr = typeof fechaInicio === 'string' ? fechaInicio : fechaInicio.toISOString().split('T')[0];
+            const fechaFinStr = typeof fechaFin === 'string' ? fechaFin : fechaFin.toISOString().split('T')[0];
+
             // Validar que fechaFin >= fechaInicio
-            if (fechaFin < fechaInicio) {
+            if (fechaFinStr < fechaInicioStr) {
                 return res.status(400).json({ error: 'La fecha de fin debe ser mayor o igual a la de inicio' });
             }
 
             // Extraer mes/año de fechaInicio
-            const [anio, mes] = fechaInicio.split('-').slice(0, 2).map(Number);
+            const [anio, mes, dia] = fechaInicioStr.split('-').map(Number);
 
             // Crear estadía
             const estadia = await Estadia.create({
                 camioneroId: req.user.id,
-                fechaInicio,
-                fechaFin,
+                fechaInicio: fechaInicioStr,
+                fechaFin: fechaFinStr,
                 monto: parseFloat(monto),
                 mes,
                 anio,
