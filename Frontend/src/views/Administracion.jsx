@@ -129,6 +129,14 @@ const calcularTotalesDesdeClientes = (porCliente) => {
     };
 };
 
+const getFacturaRowClass = (facturaEstado) => {
+    const estado = String(facturaEstado || 'pendiente').toLowerCase();
+    if (estado === 'cobrada') return 'row-factura-cobrada';
+    if (estado === 'emitida') return 'row-factura-emitida';
+    if (estado === 'vencida') return 'row-factura-vencida';
+    return 'row-factura-pendiente';
+};
+
 export default function Administracion() {
     // Portal ref para el menú de acciones (separa del DOM directo para evitar errores de extensiones)
     const portalRef = useRef(null);
@@ -1264,7 +1272,6 @@ export default function Administracion() {
                                 <tbody>
                                     {viajesPagina.map(v => {
                                         const remitos = (() => { try { return JSON.parse(v.remitosJson || '[]') } catch { return [] } })();
-                                        const vencidaVisual = (v.facturaEstado || '').toLowerCase() === 'vencida';
                                         const hasSubtotal = v.precioUnitarioFactura != null;
                                         const subtotalCalc = hasSubtotal ? (() => {
                                             const base = safeParseNumber(v.precioUnitarioFactura) * (1 + (safeParseNumber(v.ivaPercentaje) || 0) / 100);
@@ -1277,7 +1284,7 @@ export default function Administracion() {
                                         return (
                                             <tr
                                                 key={v.id}
-                                                className={`${(vencidaVisual) ? 'table-warning' : ''} ${selectedRowId === v.id ? 'table-active' : ''}`}
+                                                className={`${getFacturaRowClass(v.facturaEstado)} ${selectedRowId === v.id ? 'table-active' : ''}`}
                                                 tabIndex={0}
                                                 role="row"
                                                 aria-selected={selectedRowId === v.id}

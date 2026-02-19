@@ -41,6 +41,14 @@ const safeParseNumber = (val) => {
     return isNaN(num) ? 0 : num;
 };
 
+const getFacturaRowClass = (facturaEstado) => {
+    const estado = String(facturaEstado || 'pendiente').toLowerCase();
+    if (estado === 'cobrada') return 'row-factura-cobrada';
+    if (estado === 'emitida') return 'row-factura-emitida';
+    if (estado === 'vencida') return 'row-factura-vencida';
+    return 'row-factura-pendiente';
+};
+
 function AcopladosCrud({ acoplados, onCreated, onUpdated, onDeleted }) {
     const [nuevo, setNuevo] = useState({ patente: '' });
     const [saving, setSaving] = useState(false);
@@ -1410,7 +1418,7 @@ export default function Ceo() {
                                     </thead>
                                     <tbody>
                                         {viajesPagina.map(v => (
-                                            <tr key={v.id}>
+                                            <tr key={v.id} className={getFacturaRowClass(v.facturaEstado)}>
                                                 <td>{formatDateOnly(v.fecha)}</td>
                                                 <td>
                                                     <span className={`badge badge-dot ${v.estado === 'finalizado'
