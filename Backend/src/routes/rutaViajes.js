@@ -539,16 +539,11 @@ router.post('/:id/factura',
                 console.log('[rutaViajes POST factura] IVA asignado:', viaje.ivaPercentaje);
             }
 
-            // Calcular y persistir importe a partir de precioUnitario + IVA
+            // Guardar precioUnitario en campo separado (NO modificar importe al subir archivo)
             if (req.body.precioUnitario !== undefined) {
                 const precioUnitario = parseFloat(String(req.body.precioUnitario));
                 console.log('[rutaViajes POST factura] Precio unitario:', precioUnitario);
                 if (!isNaN(precioUnitario) && precioUnitario >= 0) {
-                    const ivaPercent = viaje.ivaPercentaje || 0;
-                    const factorIVA = 1 + (ivaPercent / 100);
-                    const total = Number((precioUnitario * factorIVA).toFixed(2));
-                    console.log('[rutaViajes POST factura] Cálculo IVA:', { precioUnitario, ivaPercent, total });
-                    viaje.importe = total;
                     viaje.precioUnitarioFactura = precioUnitario;
                 }
             }
