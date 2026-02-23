@@ -32,24 +32,24 @@ api.interceptors.response.use(
 );
 
 export default api;
-// Función para descargar factura desde el servidor
-export const downloadFactura = async (viajeId, facturaUrl) => {
+// Función para descargar factura desde el servidor (válida para B2 privado)
+export const downloadFactura = async (viajeId) => {
     try {
-        if (!facturaUrl) {
-            throw new Error('URL de factura no disponible');
-        }
-        
-        // Descargar directamente desde B2 (sin pasar por servidor)
+        const response = await api.get(`/viajes/${viajeId}/factura/download`, {
+            responseType: 'blob'
+        });
+        const blob = new Blob([response.data], { type: response?.headers?.['content-type'] || 'application/octet-stream' });
+        const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = facturaUrl;
+        a.href = url;
         a.download = `factura_${viajeId}.pdf`;
-        a.target = '_blank';
         document.body.appendChild(a);
         a.click();
+        window.URL.revokeObjectURL(url);
         if (a.parentNode) {
             a.parentNode.removeChild(a);
         }
     } catch (error) {
-        throw new Error(error?.message || 'Error al descargar la factura');
+        throw new Error(error?.response?.data?.error || 'Error al descargar la factura');
     }
 };
