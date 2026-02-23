@@ -59,6 +59,14 @@ const Viaje = sequelize.define('Viaje', {
         type: DataTypes.STRING, // 'pendiente' | 'cobrada' | 'no cobrada'
         allowNull: true
     },
+    facturaEmisor: {
+        type: DataTypes.STRING, // 'Omar Godoy' | 'Adrian Godoy'
+        allowNull: true
+    },
+    facturaNumero: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     fechaFactura: {
         type: DataTypes.DATEONLY, // solo fecha para evitar desfases por timezone
         allowNull: true

@@ -257,7 +257,7 @@ body {
 
 .table.table-striped tbody tr.row-factura-emitida>td,
 .table tbody tr.row-factura-emitida>td {
-  background-color: rgba(14, 165, 233, 0.14);
+  background-color: rgba(14, 165, 233, 0.22);
 }
 
 .table.table-striped tbody tr.row-factura-vencida>td,
@@ -277,7 +277,7 @@ body {
 
 [data-bs-theme="dark"] .table.table-striped tbody tr.row-factura-emitida>td,
 [data-bs-theme="dark"] .table tbody tr.row-factura-emitida>td {
-  background-color: rgba(14, 165, 233, 0.2);
+  background-color: rgba(14, 165, 233, 0.3);
 }
 
 [data-bs-theme="dark"] .table.table-striped tbody tr.row-factura-vencida>td,

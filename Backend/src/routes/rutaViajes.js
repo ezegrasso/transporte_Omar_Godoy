@@ -87,6 +87,7 @@ const saveLocalFile = (id, file, base) => {
 // Obtener viajes (ceo/administracion ven todos; camionero ve disponibles/asignados)
 router.get('/', authMiddleware, [
     query('estado').optional().isString(),
+    query('facturaNumero').optional().isString(),
     query('from').optional().isISO8601(),
     query('to').optional().isISO8601(),
     query('page').optional().isInt({ min: 1 }),
@@ -103,8 +104,10 @@ router.get('/', authMiddleware, [
         const sortBy = req.query.sortBy || 'id';
         const order = (req.query.order || 'ASC').toUpperCase();
         const estado = req.query.estado;
+        const facturaNumero = String(req.query.facturaNumero || '').trim();
         const where = {};
         if (estado) where.estado = estado;
+        if (facturaNumero) where.facturaNumero = facturaNumero;
         // Restricción por rol
         if (req.user.rol !== 'ceo' && req.user.rol !== 'administracion') {
             // Mostrar SOLO viajes donde el camionero está asignado (camioneroId)
@@ -531,6 +534,14 @@ router.post('/:id/factura',
             viaje.facturaUrl = url;
             if (req.body.fechaFactura) viaje.fechaFactura = new Date(req.body.fechaFactura);
             if (req.body.facturaEstado) viaje.facturaEstado = req.body.facturaEstado;
+            if (req.body.facturaEmisor !== undefined) {
+                const emisor = String(req.body.facturaEmisor || '').trim();
+                viaje.facturaEmisor = emisor || null;
+            }
+            if (req.body.facturaNumero !== undefined) {
+                const numero = String(req.body.facturaNumero || '').trim();
+                viaje.facturaNumero = numero || null;
+            }
 
             // Guardar ivaPercentaje si viene
             if (req.body.ivaPercentaje !== undefined) {
@@ -613,7 +624,16 @@ router.post('/:id/remitos',
 router.patch('/:id/factura',
     authMiddleware,
     roleMiddleware(['ceo', 'administracion']),
-    [param('id').isInt(), body('facturaEstado').optional().isString(), body('fechaFactura').optional().isISO8601(), body('precioUnitario').optional().isFloat({ min: 0 }), body('ivaPercentaje').optional().isFloat({ min: 0 }), body('precioUnitarioNegro').optional().isFloat({ min: 0 })],
+    [
+        param('id').isInt(),
+        body('facturaEstado').optional().isString(),
+        body('facturaEmisor').optional().isIn(['Omar Godoy', 'Adrian Godoy', '']),
+        body('facturaNumero').optional().isString().isLength({ max: 80 }),
+        body('fechaFactura').optional().isISO8601(),
+        body('precioUnitario').optional().isFloat({ min: 0 }),
+        body('ivaPercentaje').optional().isFloat({ min: 0 }),
+        body('precioUnitarioNegro').optional().isFloat({ min: 0 })
+    ],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -621,6 +641,14 @@ router.patch('/:id/factura',
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
             if (req.body.facturaEstado) viaje.facturaEstado = req.body.facturaEstado;
+            if (req.body.facturaEmisor !== undefined) {
+                const emisor = String(req.body.facturaEmisor || '').trim();
+                viaje.facturaEmisor = emisor || null;
+            }
+            if (req.body.facturaNumero !== undefined) {
+                const numero = String(req.body.facturaNumero || '').trim();
+                viaje.facturaNumero = numero || null;
+            }
             if (req.body.fechaFactura) viaje.fechaFactura = new Date(req.body.fechaFactura);
             if (req.body.ivaPercentaje !== undefined) {
                 viaje.ivaPercentaje = parseFloat(String(req.body.ivaPercentaje)) || 0;

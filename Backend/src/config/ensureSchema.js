@@ -79,6 +79,14 @@ export const ensureSchema = async () => {
             await qi.addColumn('viajes', 'precioUnitarioFactura', { type: DataTypes.DECIMAL(10, 2), allowNull: true });
             console.log("Columna 'precioUnitarioFactura' añadida a 'viajes'.");
         }
+        if (!('facturaEmisor' in descV)) {
+            await qi.addColumn('viajes', 'facturaEmisor', { type: DataTypes.STRING, allowNull: true });
+            console.log("Columna 'facturaEmisor' añadida a 'viajes'.");
+        }
+        if (!('facturaNumero' in descV)) {
+            await qi.addColumn('viajes', 'facturaNumero', { type: DataTypes.STRING, allowNull: true });
+            console.log("Columna 'facturaNumero' añadida a 'viajes'.");
+        }
         if (!('precioUnitarioNegro' in descV)) {
             await qi.addColumn('viajes', 'precioUnitarioNegro', { type: DataTypes.DECIMAL(10, 2), allowNull: true });
             console.log("Columna 'precioUnitarioNegro' añadida a 'viajes'.");

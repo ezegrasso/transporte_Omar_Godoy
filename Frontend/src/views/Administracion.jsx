@@ -619,7 +619,7 @@ export default function Administracion() {
     };
 
     // Estado para modo compacto de la tabla
-    const [dense, setDense] = useState(true);
+    const [dense, setDense] = useState(false);
     // Función para exportar el listado de viajes a PDF
     // Helpers fecha (DATEONLY)
     const formatDateOnly = (s) => {
@@ -644,7 +644,7 @@ export default function Administracion() {
             });
 
             const titulo = `Listado de viajes - ${new Date(mesExportacion + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}`;
-            const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Camionero', 'Tipo', 'Cliente', 'Toneladas', 'Precio/Tn', 'Importe', 'Factura', 'Estado factura', 'Fecha factura', 'Remitos'];
+            const headers = ['Fecha viaje', 'Estado', 'Origen', 'Destino', 'Camión', 'Camionero', 'Tipo', 'Cliente', 'Toneladas', 'Precio/Tn', 'Importe', 'Factura', 'Estado factura', 'Fecha factura', 'Remitos'];
             const rows = viajesMes.map(v => [
                 formatDateOnly(v.fecha),
                 v.estado || '-',
@@ -694,6 +694,66 @@ export default function Administracion() {
             await downloadFactura(v.id);
         } catch (e) {
             showToast(e?.response?.data?.error || e?.message || 'No se pudo descargar la factura', 'error');
+        }
+    };
+    const EMISORES_FACTURA = ['Omar Godoy', 'Adrian Godoy'];
+    const getEmisorInitials = (nombre = '') => {
+        const parts = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return '--';
+        return parts.slice(0, 2).map(p => p[0].toUpperCase()).join('');
+    };
+    const getEmisorBadgeClass = (nombre = '') => {
+        if (nombre === 'Omar Godoy') return 'bg-primary-subtle text-primary';
+        if (nombre === 'Adrian Godoy') return 'bg-info-subtle text-info';
+        return 'bg-secondary-subtle text-secondary';
+    };
+    const handleFacturaEmisorChange = async (viajeId, facturaEmisor) => {
+        try {
+            await api.patch(`/viajes/${viajeId}/factura`, { facturaEmisor });
+            setViajes((prev) => (prev || []).map(v => (v.id === viajeId ? { ...v, facturaEmisor: facturaEmisor || null } : v)));
+        } catch (e) {
+            showToast(e?.response?.data?.error || 'No se pudo guardar el emisor', 'error');
+        }
+    };
+    const handleFacturaNumeroChange = async (viajeId, facturaNumero) => {
+        try {
+            await api.patch(`/viajes/${viajeId}/factura`, { facturaNumero });
+            setViajes((prev) => (prev || []).map(v => (v.id === viajeId ? { ...v, facturaNumero: facturaNumero || null } : v)));
+        } catch (e) {
+            showToast(e?.response?.data?.error || 'No se pudo guardar el número de factura', 'error');
+        }
+    };
+    const [facturaNumeroFiltro, setFacturaNumeroFiltro] = useState('');
+    const [facturaNumeroBusqueda, setFacturaNumeroBusqueda] = useState('');
+    const [viajesPorFacturaNumero, setViajesPorFacturaNumero] = useState([]);
+    const [loadingBusquedaFactura, setLoadingBusquedaFactura] = useState(false);
+    const [errorBusquedaFactura, setErrorBusquedaFactura] = useState('');
+    const buscarViajesPorFacturaNumero = async () => {
+        const numero = String(facturaNumeroFiltro || '').trim();
+        if (!numero) {
+            setFacturaNumeroBusqueda('');
+            setViajesPorFacturaNumero([]);
+            setErrorBusquedaFactura('');
+            return;
+        }
+        setLoadingBusquedaFactura(true);
+        setErrorBusquedaFactura('');
+        try {
+            const { data } = await api.get('/viajes', {
+                params: {
+                    facturaNumero: numero,
+                    limit: 500,
+                    order: 'DESC',
+                    sortBy: 'fecha'
+                }
+            });
+            setFacturaNumeroBusqueda(numero);
+            setViajesPorFacturaNumero(data?.data || data?.items || []);
+        } catch (e) {
+            setErrorBusquedaFactura(e?.response?.data?.error || 'No se pudo buscar por número de factura');
+            setViajesPorFacturaNumero([]);
+        } finally {
+            setLoadingBusquedaFactura(false);
         }
     };
     const AUTO_OPEN_THRESHOLD = Number(import.meta?.env?.VITE_NOTIS_AUTO_OPEN_THRESHOLD ?? 3);
@@ -886,6 +946,7 @@ export default function Administracion() {
     }, [viajesSemana, viajesFinalizados]);
     // Filtros avanzados
     const [fCliente, setFCliente] = useState('todos');
+    const [fEmisor, setFEmisor] = useState('todos');
     const [fViajeEstado, setFViajeEstado] = useState('todos');
     const opcionesEstadoViaje = useMemo(() => {
         const base = ['pendiente', 'en curso', 'finalizado'];
@@ -903,6 +964,7 @@ export default function Administracion() {
         (viajesSemana || []).forEach(v => { if (v.cliente) set.add(v.cliente); });
         return ['todos', ...Array.from(set)];
     }, [viajesSemana]);
+    const opcionesEmisor = ['todos', ...EMISORES_FACTURA];
 
     const viajesFiltrados = useMemo(() => {
         const t = term.trim().toLowerCase();
@@ -913,8 +975,9 @@ export default function Administracion() {
         return list
             .filter(v => (fViajeEstado === 'todos' ? true : (v.estado || 'pendiente').toLowerCase() === fViajeEstado))
             .filter(v => (fEstado === 'todos' ? true : (v.facturaEstado || 'pendiente').toLowerCase() === fEstado))
-            .filter(v => (fCliente === 'todos' ? true : (v.cliente || '') === fCliente));
-    }, [viajesSemana, term, fEstado, fCliente, fViajeEstado]);
+            .filter(v => (fCliente === 'todos' ? true : (v.cliente || '') === fCliente))
+            .filter(v => (fEmisor === 'todos' ? true : (v.facturaEmisor || '') === fEmisor));
+    }, [viajesSemana, term, fEstado, fCliente, fEmisor, fViajeEstado]);
 
     // Derivados (definidos después de viajesFiltrados)
     const curPage = page;
@@ -1107,10 +1170,6 @@ export default function Administracion() {
                             <i className="bi bi-people me-1"></i>
                             Detalle por cliente
                         </button>
-                        <Link className="btn btn-outline-primary btn-action" to="/administracion/graficos" title="Ver graficos">
-                            <i className="bi bi-graph-up me-1"></i>
-                            Graficos
-                        </Link>
                         <button className="btn btn-success btn-action" onClick={() => openAdelantoModal(null, '')} title="Registrar adelanto">
                             <i className="bi bi-cash-coin me-1"></i>
                             Adelanto
@@ -1210,6 +1269,14 @@ export default function Administracion() {
                                 ))}
                             </select>
                         </div>
+                        <div className="col-6 col-lg-2">
+                            <label className="form-label mb-1">Emisor</label>
+                            <select className="form-select" value={fEmisor} onChange={e => { setFEmisor(e.target.value); setPage(1); }}>
+                                {opcionesEmisor.map(opt => (
+                                    <option key={opt} value={opt}>{opt === 'todos' ? 'Todos' : opt}</option>
+                                ))}
+                            </select>
+                        </div>
                         <div className="col-6 col-lg-2 d-flex align-items-center gap-2">
                             <div className="form-check form-switch d-flex align-items-center gap-2">
                                 <input className="form-check-input" type="checkbox" role="switch" id="switchDensityAdm" checked={dense} onChange={e => setDense(e.target.checked)} />
@@ -1228,9 +1295,6 @@ export default function Administracion() {
                 <div className="col-12 col-sm-6 col-lg-3">
                     <StatCard icon={<i className="bi bi-cash-coin"></i>} label="Cobradas" value={stats.cobradas} hint={`${stats.pendientesCobro} pendientes`} />
                 </div>
-                <div className="col-12 col-sm-6 col-lg-3">
-                    <StatCard icon={<i className="bi bi-files"></i>} label="Viajes sin remitos" value={stats.sinRemitos} />
-                </div>
             </div>
 
             {/* Tabla de viajes */}
@@ -1245,18 +1309,9 @@ export default function Administracion() {
                                 <caption id="admTableCaption" className="visually-hidden">Listado de viajes finalizados de la semana seleccionada. Use Alt+L para PDF, Alt+F factura, Alt+R subir remitos, Alt+V ver remitos, Alt+D detalle PDF, Alt+I resumen IA, flechas para navegar filas.</caption>
                                 <thead>
                                     <tr>
-                                        <th scope="col">Fecha</th>
-                                        <th scope="col">Estado</th>
-                                        <th scope="col">Origen</th>
-                                        <th scope="col">Destino</th>
-                                        <th scope="col">Camión</th>
-                                        <th scope="col">Camionero</th>
-                                        <th scope="col">Tipo</th>
+                                        <th scope="col">Emisor</th>
                                         <th scope="col">Cliente</th>
-                                        <th scope="col">Toneladas</th>
-                                        <th scope="col">Precio/Tn</th>
-                                        <th scope="col">Importe</th>
-                                        <th scope="col">Acoplado</th>
+                                        <th scope="col">Número de factura</th>
                                         <th scope="col">Subtotal</th>
                                         <th scope="col">Subtotal Negro</th>
                                         <th scope="col">Total a cobrar</th>
@@ -1264,8 +1319,18 @@ export default function Administracion() {
                                         <th scope="col">Factura</th>
                                         <th scope="col">Estado factura</th>
                                         <th scope="col">Fecha factura</th>
-                                        <th scope="col">Remitos</th>
-                                        <th className="text-end" style={{ position: 'sticky', right: 0, background: 'var(--bs-body-bg)' }}>Acciones</th>
+                                        <th className="text-end">Acciones</th>
+                                        <th scope="col">Fecha viaje</th>
+                                        <th scope="col">Estado</th>
+                                        <th scope="col">Origen</th>
+                                        <th scope="col">Destino</th>
+                                        <th scope="col">Camión</th>
+                                        <th scope="col">Camionero</th>
+                                        <th scope="col">Tipo</th>
+                                        <th scope="col">Toneladas</th>
+                                        <th scope="col">Precio/Tn</th>
+                                        <th scope="col">Importe</th>
+                                        <th scope="col">Acoplado</th>
                                     </tr>
                                 </thead>
 
@@ -1291,18 +1356,56 @@ export default function Administracion() {
                                                 onClick={() => setSelectedRowId(v.id)}
                                                 onDoubleClick={() => openFactura(v)}
                                             >
-                                                <td>{formatDateOnly(v.fecha)}</td>
-                                                <td><span className={`badge badge-dot ${v.estado === 'finalizado' ? 'badge-estado-finalizado' : v.estado === 'en curso' ? 'badge-estado-en_curso' : 'badge-estado-pendiente'} text-capitalize`}>{v.estado}</span></td>
-                                                <td>{v.origen || '-'}</td>
-                                                <td>{v.destino || '-'}</td>
-                                                <td>{v.camion?.patente || v.camionId || '-'}</td>
-                                                <td>{v.camionero?.nombre || v.camioneroNombre || '-'}</td>
-                                                <td>{v.tipoMercaderia || '-'}</td>
+                                                <td>
+                                                    <div className="d-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                        <span
+                                                            className={`badge rounded-pill ${getEmisorBadgeClass(v.facturaEmisor)}`}
+                                                            title={v.facturaEmisor || 'Sin emisor'}
+                                                            aria-label={`Emisor actual: ${v.facturaEmisor || 'Sin emisor'}`}
+                                                        >
+                                                            {getEmisorInitials(v.facturaEmisor)}
+                                                        </span>
+                                                        <select
+                                                            className="form-select form-select-sm"
+                                                            style={{ minWidth: '150px' }}
+                                                            value={v.facturaEmisor || ''}
+                                                            onChange={(e) => handleFacturaEmisorChange(v.id, e.target.value)}
+                                                            aria-label={`Seleccionar emisor de factura del viaje ${v.id}`}
+                                                        >
+                                                            <option value="">Sin emisor</option>
+                                                            {EMISORES_FACTURA.map(nombre => (
+                                                                <option key={nombre} value={nombre}>{nombre}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </td>
                                                 <td>{v.cliente || '-'}</td>
-                                                <td>{v.kilosCargados ?? '-'}</td>
-                                                <td>{v.precioTonelada ?? '-'}</td>
-                                                <td>{v.importe ?? '-'}</td>
-                                                <td>{v.acoplado?.patente || v.acopladoPatente || '-'}</td>
+                                                <td>
+                                                    <input
+                                                        className="form-control form-control-sm"
+                                                        style={{ minWidth: '140px' }}
+                                                        type="text"
+                                                        defaultValue={v.facturaNumero || ''}
+                                                        placeholder="N° factura"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onBlur={(e) => {
+                                                            const valor = String(e.target.value || '').trim();
+                                                            if ((v.facturaNumero || '') !== valor) {
+                                                                handleFacturaNumeroChange(v.id, valor);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                const valor = String(e.currentTarget.value || '').trim();
+                                                                if ((v.facturaNumero || '') !== valor) {
+                                                                    handleFacturaNumeroChange(v.id, valor);
+                                                                }
+                                                                e.currentTarget.blur();
+                                                            }
+                                                        }}
+                                                        aria-label={`Número de factura del viaje ${v.id}`}
+                                                    />
+                                                </td>
                                                 <td>
                                                     {hasSubtotal ? subtotalCalc : (v.precioUnitarioFactura ?? '-')}
                                                 </td>
@@ -1339,11 +1442,8 @@ export default function Administracion() {
                                                     ) : '-'}
                                                 </td>
                                                 <td>{v.fechaFactura ? formatDateOnly(v.fechaFactura) : '-'}</td>
-                                                <td>
-                                                    <button className="btn btn-link p-0" onClick={() => openRemitos(v)} title="Ver remitos" aria-label={`Ver ${remitos.length} remitos del viaje ${v.id}`}>{remitos.length}</button>
-                                                </td>
-                                                <td className="text-end position-relative" style={{ position: 'sticky', right: 0, background: 'var(--bs-body-bg)' }}>
-                                                    {v.observaciones && (
+                                                <td className="text-end position-relative">
+                                                    {!!(v.observacionesAdmin || v.observaciones) && (
                                                         <i className="bi bi-chat-left-text-fill text-primary me-2" title="Tiene observaciones" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); openObservaciones(v); }}></i>
                                                     )}
                                                     <button
@@ -1379,9 +1479,6 @@ export default function Administracion() {
                                                             <button className="dropdown-item" onClick={() => { openFactura(v); setRowActionsOpen(null); }}>
                                                                 <i className="bi bi-receipt me-2"></i> Subir/Editar factura
                                                             </button>
-                                                            <button className="dropdown-item" onClick={() => { openUploadRemitos(v); setRowActionsOpen(null); }}>
-                                                                <i className="bi bi-files me-2"></i> Subir remitos
-                                                            </button>
                                                             <button className="dropdown-item" onClick={() => { descargarDetallePDF(v); setRowActionsOpen(null); }}>
                                                                 <i className="bi bi-file-earmark-text me-2"></i> Detalle PDF
                                                             </button>
@@ -1401,6 +1498,17 @@ export default function Administracion() {
                                                         </div>, portalRef.current
                                                     )}
                                                 </td>
+                                                <td>{formatDateOnly(v.fecha)}</td>
+                                                <td><span className={`badge badge-dot ${v.estado === 'finalizado' ? 'badge-estado-finalizado' : v.estado === 'en curso' ? 'badge-estado-en_curso' : 'badge-estado-pendiente'} text-capitalize`}>{v.estado}</span></td>
+                                                <td>{v.origen || '-'}</td>
+                                                <td>{v.destino || '-'}</td>
+                                                <td>{v.camion?.patente || v.camionId || '-'}</td>
+                                                <td>{v.camionero?.nombre || v.camioneroNombre || '-'}</td>
+                                                <td>{v.tipoMercaderia || '-'}</td>
+                                                <td>{v.kilosCargados ?? '-'}</td>
+                                                <td>{v.precioTonelada ?? '-'}</td>
+                                                <td>{v.importe ?? '-'}</td>
+                                                <td>{v.acoplado?.patente || v.acopladoPatente || '-'}</td>
                                             </tr>
                                         );
                                     })}
@@ -1422,6 +1530,91 @@ export default function Administracion() {
                                 </div>
                             </div>
                         </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="card shadow-sm mt-3">
+                <div className="card-body">
+                    <div className="d-flex flex-wrap align-items-end gap-2 mb-3">
+                        <div>
+                            <label className="form-label mb-1">Buscar por número de factura</label>
+                            <input
+                                className="form-control"
+                                type="text"
+                                placeholder="Ej: 0001-00001234"
+                                value={facturaNumeroFiltro}
+                                onChange={(e) => setFacturaNumeroFiltro(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') buscarViajesPorFacturaNumero(); }}
+                            />
+                        </div>
+                        <button className="btn btn-primary" onClick={buscarViajesPorFacturaNumero} disabled={loadingBusquedaFactura}>
+                            {loadingBusquedaFactura ? 'Buscando...' : 'Buscar'}
+                        </button>
+                        <button
+                            className="btn btn-outline-secondary"
+                            onClick={() => {
+                                setFacturaNumeroFiltro('');
+                                setFacturaNumeroBusqueda('');
+                                setViajesPorFacturaNumero([]);
+                                setErrorBusquedaFactura('');
+                            }}
+                        >
+                            Limpiar
+                        </button>
+                    </div>
+
+                    {errorBusquedaFactura ? (
+                        <div className="alert alert-danger py-2 mb-0">{errorBusquedaFactura}</div>
+                    ) : (
+                        <>
+                            <div className="small text-body-secondary mb-2">
+                                {facturaNumeroBusqueda
+                                    ? `Resultados para ${facturaNumeroBusqueda}: ${viajesPorFacturaNumero.length} viaje(s)`
+                                    : 'Ingresá un número y presioná Buscar para ver todos los viajes asociados.'}
+                            </div>
+                            {viajesPorFacturaNumero.length > 0 && (
+                                <div className="table-responsive">
+                                    <table className="table table-sm table-striped align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">N° Factura</th>
+                                                <th scope="col">Emisor</th>
+                                                <th scope="col">Cliente</th>
+                                                <th scope="col">Fecha viaje</th>
+                                                <th scope="col">Estado factura</th>
+                                                <th scope="col">Total a cobrar</th>
+                                                <th scope="col">Viaje ID</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {viajesPorFacturaNumero.map(v => {
+                                                const hasSubtotal = v.precioUnitarioFactura != null;
+                                                const subtotalCalc = hasSubtotal ? (() => {
+                                                    const base = safeParseNumber(v.precioUnitarioFactura) * (1 + (safeParseNumber(v.ivaPercentaje) || 0) / 100);
+                                                    const total = base - safeParseNumber(v.notasCreditoTotal);
+                                                    return Number(total.toFixed(2));
+                                                })() : null;
+                                                const hasNegro = v.precioUnitarioNegro != null;
+                                                const subtotalNegroCalc = hasNegro ? safeParseNumber(v.precioUnitarioNegro) : 0;
+                                                const totalCobrar = (hasSubtotal ? subtotalCalc : 0) + subtotalNegroCalc;
+                                                return (
+                                                    <tr key={`factura-num-${v.id}`}>
+                                                        <td>{v.facturaNumero || '-'}</td>
+                                                        <td>{v.facturaEmisor || '-'}</td>
+                                                        <td>{v.cliente || '-'}</td>
+                                                        <td>{formatDateOnly(v.fecha)}</td>
+                                                        <td>{v.facturaEstado || '-'}</td>
+                                                        <td>{(hasSubtotal || hasNegro) ? Number(totalCobrar.toFixed(2)) : '-'}</td>
+                                                        <td>{v.id}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
