@@ -337,7 +337,7 @@ export default function Ceo() {
 
     const openFinalizarModal = (id) => {
         setModalFinalizarId(id);
-        setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
+        setFinalizarData({ km: '', kilosCargados: '', importe: '' });
         setFinalizarPasoConfirm(false);
         setConfirmChecked(false);
         setTimeout(() => {
@@ -358,18 +358,13 @@ export default function Ceo() {
     const finalizarViaje = async (id) => {
         setError('');
         if (!finalizarPasoConfirm) {
-            if (String(finalizarData.km).trim() === '' || String(finalizarData.combustible).trim() === '') {
-                showToast('Complet\u00e1 km y combustible', 'error');
+            if (String(finalizarData.km).trim() === '') {
+                showToast('Completá km', 'error');
                 return;
             }
             const kmNum = safeParseNumber(finalizarData.km);
-            const combNum = safeParseNumber(finalizarData.combustible);
             if (isNaN(kmNum) || kmNum <= 0) {
-                showToast('Ingres\u00e1 KM mayor a 0', 'error');
-                return;
-            }
-            if (isNaN(combNum) || combNum <= 0) {
-                showToast('Ingres\u00e1 combustible mayor a 0', 'error');
+                showToast('Ingresá KM mayor a 0', 'error');
                 return;
             }
             setFinalizarPasoConfirm(true);
@@ -377,10 +372,10 @@ export default function Ceo() {
         }
         setFinishingId(id);
         try {
-            const body = { km: safeParseNumber(finalizarData.km), combustible: safeParseNumber(finalizarData.combustible), importe: safeParseNumber(finalizarData.importe) };
+            const body = { km: safeParseNumber(finalizarData.km), combustible: 0, importe: safeParseNumber(finalizarData.importe) };
             if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = safeParseNumber(finalizarData.kilosCargados);
             await api.patch(`/viajes/${id}/finalizar`, body);
-            setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
+            setFinalizarData({ km: '', kilosCargados: '', importe: '' });
             await new Promise(r => setTimeout(r, 400));
             await fetchViajes();
             showToast('Viaje finalizado', 'success');
@@ -414,7 +409,7 @@ export default function Ceo() {
             return vAno === anio && vMes === mes;
         });
 
-        const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible', 'Toneladas', 'Precio/Tn', 'Importe'];
+        const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Toneladas', 'Precio/Tn', 'Importe'];
         const rows = viajesMesFiltrado.map(v => [
             formatDateOnly(v.fecha),
             v.estado || '',
@@ -426,7 +421,6 @@ export default function Ceo() {
             v.tipoMercaderia || '',
             v.cliente || '',
             v.km ?? '',
-            v.combustible ?? '',
             v.kilosCargados ?? '',
             v.precioTonelada ?? '',
             v.importe ?? ''
@@ -797,7 +791,7 @@ export default function Ceo() {
     const [savedUsuarioId, setSavedUsuarioId] = useState(null);
 
     // Estados para finalizar viaje (CEO puede finalizar viajes en curso)
-    const [finalizarData, setFinalizarData] = useState({ km: '', combustible: '', kilosCargados: '', importe: '' });
+    const [finalizarData, setFinalizarData] = useState({ km: '', kilosCargados: '', importe: '' });
     const [finalizarPasoConfirm, setFinalizarPasoConfirm] = useState(false);
     const [confirmChecked, setConfirmChecked] = useState(false);
     const [showFinalizarModal, setShowFinalizarModal] = useState(false);
@@ -1393,7 +1387,7 @@ export default function Ceo() {
                                 <table className={`table table-sm table-striped table-hover table-sticky table-cols-bordered`}>
                                     <thead>
                                         <tr>
-                                            {['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Combustible', 'Toneladas', 'Precio/Tn', 'Importe'].map((label) => (
+                                            {['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Toneladas', 'Precio/Tn', 'Importe'].map((label) => (
                                                 <th
                                                     key={label.toLowerCase()}
                                                     role="button"
@@ -1444,7 +1438,6 @@ export default function Ceo() {
                                                 <td title={v.tipoMercaderia || '-'}>{v.tipoMercaderia || '-'}</td>
                                                 <td title={v.cliente || '-'}>{v.cliente || '-'}</td>
                                                 <td className="text-end">{v.km ?? '-'}</td>
-                                                <td className="text-end">{v.combustible ?? '-'}</td>
                                                 <td className="text-end">{v.kilosCargados ?? '-'}</td>
                                                 <td className="text-end">{v.precioTonelada ?? '-'}</td>
                                                 <td className="text-end">{v.importe ?? '-'}</td>
@@ -2397,7 +2390,6 @@ export default function Ceo() {
                                                         <div><strong>Tipo:</strong> {viajeSeleccionado.tipoMercaderia || '-'}</div>
                                                         <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
                                                         <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
-                                                        <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}</div>
                                                         <div><strong>Toneladas cargadas:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
                                                     </div>
                                                 </div>
@@ -2408,10 +2400,6 @@ export default function Ceo() {
                                                     <div className="col-6">
                                                         <label className="form-label">Km</label>
                                                         <input className="form-control" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} />
-                                                    </div>
-                                                    <div className="col-6">
-                                                        <label className="form-label">Combustible</label>
-                                                        <input className="form-control" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} />
                                                     </div>
                                                     <div className="col-12">
                                                         <label className="form-label">Toneladas cargadas</label>
@@ -2433,7 +2421,6 @@ export default function Ceo() {
                                                     <p className="small mb-2">Revisá los datos antes de finalizar definitivamente el viaje:</p>
                                                     <ul className="small mb-2">
                                                         <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
-                                                        <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
                                                         <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
                                                         <li><strong>Toneladas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
                                                         <li><strong>Importe del viaje:</strong> ${finalizarData.importe || '0'}</li>
@@ -2457,14 +2444,14 @@ export default function Ceo() {
                                 {!finalizarPasoConfirm ? (
                                     <>
                                         <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowFinalizarModal(false)}>Cerrar</button>
-                                        <button type="button" className="btn btn-primary" disabled={!modalFinalizarId || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
+                                        <button type="button" className="btn btn-primary" disabled={!modalFinalizarId || Number(finalizarData.km) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
                                             Continuar
                                         </button>
                                     </>
                                 ) : (
                                     <>
                                         <button type="button" className="btn btn-outline-secondary" onClick={() => setFinalizarPasoConfirm(false)} disabled={finishingId === modalFinalizarId}>Volver</button>
-                                        <button type="button" className="btn btn-danger" disabled={!modalFinalizarId || finishingId === modalFinalizarId || !confirmChecked || Number(finalizarData.km) <= 0 || Number(finalizarData.combustible) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
+                                        <button type="button" className="btn btn-danger" disabled={!modalFinalizarId || finishingId === modalFinalizarId || !confirmChecked || Number(finalizarData.km) <= 0} onClick={() => modalFinalizarId && finalizarViaje(modalFinalizarId)}>
                                             {finishingId === modalFinalizarId ? 'Finalizando…' : 'Finalizar viaje'}
                                         </button>
                                     </>

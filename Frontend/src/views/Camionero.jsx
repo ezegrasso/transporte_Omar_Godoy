@@ -44,7 +44,7 @@ export default function Camionero() {
     const [mios, setMios] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [finalizarData, setFinalizarData] = useState({ km: '', combustible: '', kilosCargados: '', importe: '' });
+    const [finalizarData, setFinalizarData] = useState({ km: '', kilosCargados: '', importe: '' });
     const [takingId, setTakingId] = useState(null);
     const [finishingId, setFinishingId] = useState(null);
     // Paso extra de confirmación antes de ejecutar la finalización
@@ -383,7 +383,7 @@ export default function Camionero() {
 
     const openFinalizarModal = (id) => {
         setModalId(id);
-        setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
+        setFinalizarData({ km: '', kilosCargados: '', importe: '' });
         setFinalizarPasoConfirm(false);
         setConfirmChecked(false);
         // Abrir modal: si hay Bootstrap JS lo usa; si no, fallback por estado
@@ -434,19 +434,14 @@ export default function Camionero() {
         // Primera pulsación: pasar a paso confirmación y mostrar resumen
         if (!finalizarPasoConfirm) {
             // Bloquear si no ingresó datos
-            if (String(finalizarData.km).trim() === '' || String(finalizarData.combustible).trim() === '') {
-                showToast('Completá km y combustible', 'error');
+            if (String(finalizarData.km).trim() === '') {
+                showToast('Completá km', 'error');
                 return;
             }
             // Validar datos mínimos antes de pasar a confirmación
             const kmNum = safeParseNumber(finalizarData.km);
-            const combNum = safeParseNumber(finalizarData.combustible);
             if (isNaN(kmNum) || kmNum <= 0) {
                 showToast('Ingresá KM mayor a 0', 'error');
-                return;
-            }
-            if (isNaN(combNum) || combNum <= 0) {
-                showToast('Ingresá combustible mayor a 0', 'error');
                 return;
             }
             setFinalizarPasoConfirm(true);
@@ -455,10 +450,10 @@ export default function Camionero() {
         // Segunda pulsación: enviar
         setFinishingId(id);
         try {
-            const body = { km: safeParseNumber(finalizarData.km), combustible: safeParseNumber(finalizarData.combustible), importe: safeParseNumber(finalizarData.importe) };
+            const body = { km: safeParseNumber(finalizarData.km), combustible: 0, importe: safeParseNumber(finalizarData.importe) };
             if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = safeParseNumber(finalizarData.kilosCargados);
             await api.patch(`/viajes/${id}/finalizar`, body);
-            setFinalizarData({ km: '', combustible: '', kilosCargados: '', importe: '' });
+            setFinalizarData({ km: '', kilosCargados: '', importe: '' });
             setSavedMioId(id);
             await new Promise(r => setTimeout(r, 400));
             await Promise.all([fetchPendientes(), fetchMios()]);
@@ -1052,8 +1047,6 @@ export default function Camionero() {
                                             <div><strong>Tipo:</strong> {viajeSeleccionado.tipoMercaderia || '-'}</div>
                                             <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
                                             <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
-                                            <div><strong>Combustible (actual):</strong> {viajeSeleccionado.combustible ?? '-'}
-                                            </div>
                                             <div><strong>Toneladas cargadas:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
                                         </div>
                                     </div>
@@ -1065,10 +1058,6 @@ export default function Camionero() {
                                     <div className="col-6">
                                         <label className="form-label">Km</label>
                                         <input className="form-control" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} />
-                                    </div>
-                                    <div className="col-6">
-                                        <label className="form-label">Combustible</label>
-                                        <input className="form-control" type="number" min={0.1} step={0.1} value={finalizarData.combustible} onChange={e => setFinalizarData(x => ({ ...x, combustible: e.target.value }))} />
                                     </div>
                                     <div className="col-12">
                                         <label className="form-label">Toneladas cargadas</label>
@@ -1090,7 +1079,6 @@ export default function Camionero() {
                                     <p className="small mb-2">Revisá los datos antes de finalizar definitivamente el viaje:</p>
                                     <ul className="small mb-2">
                                         <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
-                                        <li><strong>Combustible a registrar:</strong> {finalizarData.combustible}</li>
                                         <li><strong>Toneladas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
                                         <li><strong>Importe a registrar:</strong> {finalizarData.importe || '—'}</li>
                                         <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
@@ -1111,14 +1099,14 @@ export default function Camionero() {
                             {!finalizarPasoConfirm ? (
                                 <>
                                     <button type="button" className="btn btn-secondary" data-bs-dismiss="modal" onClick={() => setShowFinalizarModal(false)}>Cerrar</button>
-                                    <button type="button" className="btn btn-primary" disabled={!modalId || safeParseNumber(finalizarData.km) <= 0 || safeParseNumber(finalizarData.combustible) <= 0} onClick={() => modalId && finalizar(modalId)}>
+                                    <button type="button" className="btn btn-primary" disabled={!modalId || safeParseNumber(finalizarData.km) <= 0} onClick={() => modalId && finalizar(modalId)}>
                                         Continuar
                                     </button>
                                 </>
                             ) : (
                                 <>
                                     <button type="button" className="btn btn-outline-secondary" onClick={() => setFinalizarPasoConfirm(false)} disabled={finishingId === modalId}>Volver</button>
-                                    <button type="button" className="btn btn-danger" disabled={!modalId || finishingId === modalId || !confirmChecked || safeParseNumber(finalizarData.km) <= 0 || safeParseNumber(finalizarData.combustible) <= 0} onClick={() => modalId && finalizar(modalId)}>
+                                    <button type="button" className="btn btn-danger" disabled={!modalId || finishingId === modalId || !confirmChecked || safeParseNumber(finalizarData.km) <= 0} onClick={() => modalId && finalizar(modalId)}>
                                         {finishingId === modalId ? 'Finalizando…' : 'Finalizar viaje'}
                                     </button>
                                 </>
