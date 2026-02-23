@@ -691,9 +691,9 @@ export default function Administracion() {
     const handleDownloadFactura = async (v) => {
         if (!v?.id || !v?.facturaUrl) return;
         try {
-            await downloadFactura(v.id);
+            await downloadFactura(v.id, v.facturaUrl);
         } catch (e) {
-            showToast(e?.response?.data?.error || 'No se pudo descargar la factura', 'error');
+            showToast(e?.message || 'No se pudo descargar la factura', 'error');
         }
     };
     const AUTO_OPEN_THRESHOLD = Number(import.meta?.env?.VITE_NOTIS_AUTO_OPEN_THRESHOLD ?? 3);
