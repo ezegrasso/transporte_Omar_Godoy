@@ -24,6 +24,7 @@
     "license": "ISC",
     "type": "module",
     "dependencies": {
+        "@aws-sdk/client-s3": "^3.744.0",
         "anthropic": "^0.0.0",
         "axios": "^1.7.7",
         "bcryptjs": "^3.0.3",
@@ -37,11 +38,10 @@
         "morgan": "^1.10.1",
         "multer": "^2.0.2",
         "mysql2": "^3.15.3",
-        "nodemailer": "^6.10.1",
+        "nodemailer": "^8.0.1",
         "sequelize": "^6.37.7",
         "swagger-jsdoc": "^6.2.8",
-        "swagger-ui-express": "^5.0.1",
-        "@aws-sdk/client-s3": "^3.744.0"
+        "swagger-ui-express": "^5.0.1"
     },
     "devDependencies": {
         "nodemon": "^3.1.10"
