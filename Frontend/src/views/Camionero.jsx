@@ -102,6 +102,19 @@ export default function Camionero() {
     });
     const [estadiaSubmitting, setEstadiaSubmitting] = useState(false);
 
+    // Combustible del mes
+    const [combustibleCargas, setCombustibleCargas] = useState([]);
+    const [combustibleLoading, setCombustibleLoading] = useState(false);
+    const [showCombustibleModal, setShowCombustibleModal] = useState(false);
+    const [combustibleSubmitting, setCombustibleSubmitting] = useState(false);
+    const [combustibleForm, setCombustibleForm] = useState({
+        fechaCarga: new Date().toISOString().slice(0, 10),
+        litros: '',
+        origen: 'externo',
+        camionId: '',
+        observaciones: ''
+    });
+
 
     // Helpers de fecha (DATEONLY -> local)
     const parseDateOnlyLocal = (s) => {
@@ -156,6 +169,22 @@ export default function Camionero() {
         }
     };
 
+    const fetchCombustibleCargas = async () => {
+        try {
+            setCombustibleLoading(true);
+            const d = new Date();
+            const mesActual = String(d.getMonth() + 1).padStart(2, '0');
+            const anioActual = String(d.getFullYear());
+            const { data } = await api.get(`/combustible/mis-cargas?mes=${mesActual}&anio=${anioActual}`);
+            setCombustibleCargas(data?.cargas || []);
+        } catch (e) {
+            console.error('Error cargando combustible:', e?.message);
+            setCombustibleCargas([]);
+        } finally {
+            setCombustibleLoading(false);
+        }
+    };
+
     const handleCrearEstadia = async (e) => {
         e.preventDefault();
         if (!estadiaForm.fechaInicio || !estadiaForm.fechaFin || !estadiaForm.monto) {
@@ -195,11 +224,53 @@ export default function Camionero() {
         }
     };
 
+    const handleCrearCargaCombustible = async (e) => {
+        e.preventDefault();
+
+        if (!combustibleForm.fechaCarga || !combustibleForm.litros || !combustibleForm.camionId) {
+            showToast('Completá fecha, camión y litros', 'warning');
+            return;
+        }
+
+        try {
+            setCombustibleSubmitting(true);
+            await api.post('/combustible/cargas', {
+                fechaCarga: combustibleForm.fechaCarga,
+                litros: safeParseNumber(combustibleForm.litros),
+                origen: combustibleForm.origen,
+                camionId: Number(combustibleForm.camionId),
+                observaciones: combustibleForm.observaciones || ''
+            });
+
+            showToast(
+                combustibleForm.origen === 'predio'
+                    ? 'Carga registrada y descontada del predio'
+                    : 'Carga de combustible registrada',
+                'success'
+            );
+
+            setCombustibleForm({
+                fechaCarga: new Date().toISOString().slice(0, 10),
+                litros: '',
+                origen: 'externo',
+                camionId: '',
+                observaciones: ''
+            });
+            setShowCombustibleModal(false);
+            await fetchCombustibleCargas();
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error registrando combustible';
+            showToast(msg, 'error');
+        } finally {
+            setCombustibleSubmitting(false);
+        }
+    };
+
     useEffect(() => {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchPendientes(), fetchMios(), fetchAdelantos(), fetchEstadias()]); }
+            try { await Promise.all([fetchPendientes(), fetchMios(), fetchAdelantos(), fetchEstadias(), fetchCombustibleCargas()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando viajes'); }
             finally { setLoading(false); }
         })();
@@ -285,6 +356,28 @@ export default function Camionero() {
         if (enCurso.length === 0) return null;
         return enCurso.sort((a, b) => parseDateOnlyLocal(b.fecha || 0) - parseDateOnlyLocal(a.fecha || 0))[0];
     }, [mios]);
+
+    const camionesDisponiblesCombustible = useMemo(() => {
+        const map = new Map();
+        [...pendientes, ...mios].forEach((v) => {
+            const id = v?.camion?.id || v?.camionId;
+            if (!id) return;
+            if (!map.has(id)) {
+                map.set(id, {
+                    id,
+                    patente: v?.camion?.patente || `Camión #${id}`
+                });
+            }
+        });
+        return Array.from(map.values()).sort((a, b) => String(a.patente).localeCompare(String(b.patente)));
+    }, [pendientes, mios]);
+
+    useEffect(() => {
+        if (!showCombustibleModal || !viajeEnCursoActual) return;
+        const camionId = viajeEnCursoActual?.camion?.id || viajeEnCursoActual?.camionId || '';
+        if (!camionId) return;
+        setCombustibleForm((prev) => ({ ...prev, camionId: String(camionId) }));
+    }, [showCombustibleModal, viajeEnCursoActual]);
 
     const viajeSeleccionado = useMemo(() => mios.find(v => v.id === modalId) || null, [mios, modalId]);
 
@@ -650,6 +743,76 @@ export default function Camionero() {
                         <div className="text-center text-muted py-2">
                             No hay estadías registradas este mes.
                         </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="card shadow-sm border-warning">
+                <div className="card-header bg-warning bg-opacity-10 d-flex align-items-center gap-2 py-2">
+                    <i className="bi bi-fuel-pump text-warning" style={{ fontSize: '1.25rem' }}></i>
+                    <h6 className="mb-0 fw-bold">Combustible del Mes - {new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h6>
+                    <div className="ms-auto">
+                        <button className="btn btn-sm btn-outline-warning" onClick={() => setShowCombustibleModal(true)}>
+                            <i className="bi bi-plus-lg me-1"></i> Registrar combustible
+                        </button>
+                    </div>
+                </div>
+                <div className="card-body">
+                    {combustibleLoading ? (
+                        <div className="text-center">
+                            <span className="spinner-border spinner-border-sm text-secondary" role="status" />
+                        </div>
+                    ) : combustibleCargas.length > 0 ? (
+                        <>
+                            <div className="table-responsive">
+                                <table className="table table-sm table-borderless mb-0">
+                                    <tbody>
+                                        {combustibleCargas.map((carga) => (
+                                            <tr key={carga.id} className="border-bottom">
+                                                <td className="py-3" style={{ width: '38%' }}>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <div className="bg-warning bg-opacity-10 rounded p-2">
+                                                            <i className="bi bi-droplet-half text-warning"></i>
+                                                        </div>
+                                                        <div>
+                                                            <div className="fw-bold text-warning-emphasis" style={{ fontSize: '1.1rem' }}>
+                                                                {safeParseNumber(carga.litros).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L
+                                                            </div>
+                                                            <small className="text-muted">{formatDateOnly(carga.fechaCarga)}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 text-muted" style={{ width: '42%' }}>
+                                                    <div><strong>Camión:</strong> {carga?.camion?.patente || '-'}</div>
+                                                    <div><strong>Lugar:</strong> {carga?.lugar || '-'}</div>
+                                                </td>
+                                                <td className="py-3 text-end" style={{ width: '20%' }}>
+                                                    <span className={`badge ${carga?.origen === 'predio' ? 'text-bg-primary' : 'text-bg-secondary'}`}>
+                                                        {carga?.origen === 'predio' ? 'Predio' : 'Externo'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="mt-3 p-3 bg-light rounded d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small className="text-muted d-block mb-1">Total cargado en {new Date().toLocaleString('es-AR', { month: 'long' })}</small>
+                                    <h4 className="mb-0 text-warning-emphasis fw-bold">
+                                        {combustibleCargas.reduce((sum, c) => sum + safeParseNumber(c.litros), 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L
+                                    </h4>
+                                </div>
+                                <div className="text-end">
+                                    <small className="text-muted">
+                                        <i className="bi bi-info-circle me-1"></i>
+                                        Cargas registradas por camión
+                                    </small>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center text-muted py-2">No hay cargas de combustible registradas este mes.</div>
                     )}
                 </div>
             </div>
@@ -1037,6 +1200,91 @@ export default function Camionero() {
                 </div>
             </div>
             {showEstadiaModal && <div className="modal-backdrop show"></div>}
+
+            <div className={`modal ${showCombustibleModal ? 'show d-block' : 'fade'}`} id="modalCombustible" tabIndex="-1" aria-hidden={!showCombustibleModal}>
+                <div className="modal-dialog">
+                    <form className="modal-content" onSubmit={handleCrearCargaCombustible}>
+                        <div className="modal-header">
+                            <h1 className="modal-title fs-5 d-flex align-items-center gap-2">
+                                <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning-subtle text-warning" style={{ width: 28, height: 28 }}>
+                                    <i className="bi bi-fuel-pump"></i>
+                                </span>
+                                <span>Registrar carga de combustible</span>
+                            </h1>
+                            <button type="button" className="btn-close" onClick={() => setShowCombustibleModal(false)}></button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="row g-2">
+                                <div className="col-6">
+                                    <label className="form-label">Fecha de carga</label>
+                                    <input
+                                        className="form-control"
+                                        type="date"
+                                        value={combustibleForm.fechaCarga}
+                                        onChange={e => setCombustibleForm(x => ({ ...x, fechaCarga: e.target.value }))}
+                                        required
+                                    />
+                                </div>
+                                <div className="col-6">
+                                    <label className="form-label">Camión</label>
+                                    <select
+                                        className="form-select"
+                                        value={combustibleForm.camionId}
+                                        onChange={e => setCombustibleForm(x => ({ ...x, camionId: e.target.value }))}
+                                        required
+                                    >
+                                        <option value="">Seleccioná camión</option>
+                                        {camionesDisponiblesCombustible.map((camion) => (
+                                            <option key={camion.id} value={camion.id}>{camion.patente}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="col-6">
+                                    <label className="form-label">Litros</label>
+                                    <input
+                                        className="form-control"
+                                        type="number"
+                                        min={0.01}
+                                        step={0.01}
+                                        value={combustibleForm.litros}
+                                        onChange={e => setCombustibleForm(x => ({ ...x, litros: e.target.value }))}
+                                        placeholder="Ej: 180"
+                                        required
+                                    />
+                                </div>
+                                <div className="col-6">
+                                    <label className="form-label">Origen</label>
+                                    <select
+                                        className="form-select"
+                                        value={combustibleForm.origen}
+                                        onChange={e => setCombustibleForm(x => ({ ...x, origen: e.target.value }))}
+                                    >
+                                        <option value="externo">Carga externa</option>
+                                        <option value="predio">Carga en predio (descuenta stock)</option>
+                                    </select>
+                                </div>
+                                <div className="col-12">
+                                    <label className="form-label">Dónde cargó / observaciones</label>
+                                    <input
+                                        className="form-control"
+                                        type="text"
+                                        value={combustibleForm.observaciones}
+                                        onChange={e => setCombustibleForm(x => ({ ...x, observaciones: e.target.value }))}
+                                        placeholder="Ej: YPF Ruta 9 Km 700"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => setShowCombustibleModal(false)}>Cancelar</button>
+                            <button type="submit" className="btn btn-warning" disabled={combustibleSubmitting}>
+                                {combustibleSubmitting ? 'Guardando…' : 'Guardar carga'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {showCombustibleModal && <div className="modal-backdrop show"></div>}
 
             {/* Modal Liquidación */}
             <div className={`modal ${liqModal ? 'show d-block' : 'fade'}`} id="modalLiquidacion" tabIndex="-1" aria-hidden={!liqModal}>

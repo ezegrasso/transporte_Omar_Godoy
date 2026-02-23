@@ -16,6 +16,7 @@ import notificacionesRouter from './routes/notificaciones.js';
 import iaRouter from './routes/rutaIA.js';
 import adelantosRouter from './routes/rutaAdelantos.js';
 import estadiasRouter from './routes/rutaEstadias.js';
+import combustibleRouter from './routes/rutaCombustible.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import rutaAcoplados from './routes/rutaAcoplados.js';
 import rutaClientes from './routes/rutaClientes.js';
@@ -26,6 +27,8 @@ import Notificacion from './models/Notificacion.js';
 import Adelanto from './models/Adelanto.js';
 import Estadia from './models/Estadia.js';
 import Cliente from './models/Cliente.js';
+import './models/CombustibleMovimiento.js';
+import './models/CombustibleStock.js';
 import { setupSwagger } from './config/swagger.js';
 
 dotenv.config();
@@ -83,6 +86,7 @@ app.use('/api/notificaciones', notificacionesRouter);
 app.use('/api/ia', iaRouter);
 app.use('/api/adelantos', adelantosRouter);
 app.use('/api/estadias', estadiasRouter);
+app.use('/api/combustible', combustibleRouter);
 
 // Healthcheck simple
 app.get('/health', (req, res) => {

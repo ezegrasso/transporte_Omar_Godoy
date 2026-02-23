@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { generarListadoViajesPDF, generarDetalleViajePDF, generarFacturaViajePDF } from '../utils/pdf';
 import { ConfirmModal } from '../components/UI/ConfirmModal';
+import CeoCombustiblePanel from '../components/UI/CeoCombustiblePanel';
 import React from 'react';
 
 // Función segura para parsear números sin importar el formato local
@@ -1203,6 +1204,9 @@ export default function Ceo() {
                         </div>
                     </div>
                 </div>
+
+                <CeoCombustiblePanel showToast={showToast} />
+
                 {error && <div className="alert alert-danger" role="alert">{error}</div>}
 
                 <div className="row g-3 mt-1">
