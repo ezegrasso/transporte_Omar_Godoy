@@ -13,9 +13,7 @@ export default function UserMenu() {
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({ nombre: '', email: '', password: '', avatarUrl: '' });
 
-    if (!user) return null;
-
-    const initials = (user.nombre || user.email || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+    const initials = (user?.nombre || user?.email || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
     const isCeo = String(user?.rol || '').toLowerCase() === 'ceo';
 
 
@@ -65,6 +63,8 @@ export default function UserMenu() {
             }, 50);
         }
     }, [editing]);
+
+    if (!user) return null;
 
     return (
         <div className="position-relative">
