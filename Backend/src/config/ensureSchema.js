@@ -185,6 +185,29 @@ export const ensureSchema = async () => {
             console.error('Error al verificar tabla notas_credito:', e);
         }
     }
+
+    // Asegurar columnas económicas en combustible_movimientos
+    try {
+        const descComb = await qi.describeTable('combustible_movimientos');
+        if (!('precioUnitario' in descComb)) {
+            await qi.addColumn('combustible_movimientos', 'precioUnitario', {
+                type: DataTypes.DECIMAL(10, 2),
+                allowNull: false,
+                defaultValue: 0
+            });
+            console.log("Columna 'precioUnitario' añadida a 'combustible_movimientos'.");
+        }
+        if (!('importeTotal' in descComb)) {
+            await qi.addColumn('combustible_movimientos', 'importeTotal', {
+                type: DataTypes.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0
+            });
+            console.log("Columna 'importeTotal' añadida a 'combustible_movimientos'.");
+        }
+    } catch (e) {
+        console.error('No se pudo asegurar esquema de combustible_movimientos:', e);
+    }
 };
 
 export default ensureSchema;

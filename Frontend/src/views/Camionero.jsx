@@ -110,6 +110,7 @@ export default function Camionero() {
     const [combustibleForm, setCombustibleForm] = useState({
         fechaCarga: new Date().toISOString().slice(0, 10),
         litros: '',
+        precioUnitario: '',
         origen: 'externo',
         camionId: '',
         observaciones: ''
@@ -227,8 +228,8 @@ export default function Camionero() {
     const handleCrearCargaCombustible = async (e) => {
         e.preventDefault();
 
-        if (!combustibleForm.fechaCarga || !combustibleForm.litros || !combustibleForm.camionId) {
-            showToast('Completá fecha, camión y litros', 'warning');
+        if (!combustibleForm.fechaCarga || !combustibleForm.litros || !combustibleForm.precioUnitario || !combustibleForm.camionId) {
+            showToast('Completá fecha, camión, litros y precio unitario', 'warning');
             return;
         }
 
@@ -237,6 +238,7 @@ export default function Camionero() {
             await api.post('/combustible/cargas', {
                 fechaCarga: combustibleForm.fechaCarga,
                 litros: safeParseNumber(combustibleForm.litros),
+                precioUnitario: safeParseNumber(combustibleForm.precioUnitario),
                 origen: combustibleForm.origen,
                 camionId: Number(combustibleForm.camionId),
                 observaciones: combustibleForm.observaciones || ''
@@ -252,6 +254,7 @@ export default function Camionero() {
             setCombustibleForm({
                 fechaCarga: new Date().toISOString().slice(0, 10),
                 litros: '',
+                precioUnitario: '',
                 origen: 'externo',
                 camionId: '',
                 observaciones: ''
@@ -780,6 +783,8 @@ export default function Camionero() {
                                                 <td className="py-3 text-muted" style={{ width: '42%' }}>
                                                     <div><strong>Camión:</strong> {carga?.camion?.patente || '-'}</div>
                                                     <div><strong>Lugar:</strong> {carga?.lugar || '-'}</div>
+                                                    <div><strong>Precio unitario:</strong> ${safeParseNumber(carga?.precioUnitario).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                                    <div><strong>Total:</strong> ${safeParseNumber(carga?.importeTotal || (safeParseNumber(carga?.litros) * safeParseNumber(carga?.precioUnitario))).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                                 </td>
                                                 <td className="py-3 text-end" style={{ width: '20%' }}>
                                                     <span className={`badge ${carga?.origen === 'predio' ? 'text-bg-primary' : 'text-bg-secondary'}`}>
@@ -1241,6 +1246,19 @@ export default function Camionero() {
                                     />
                                 </div>
                                 <div className="col-6">
+                                    <label className="form-label">Precio Unitario</label>
+                                    <input
+                                        className="form-control"
+                                        type="number"
+                                        min={0.01}
+                                        step={0.01}
+                                        value={combustibleForm.precioUnitario}
+                                        onChange={e => setCombustibleForm(x => ({ ...x, precioUnitario: e.target.value }))}
+                                        placeholder="Ej: 1350"
+                                        required
+                                    />
+                                </div>
+                                <div className="col-6">
                                     <label className="form-label">Origen</label>
                                     <select
                                         className="form-select"
@@ -1260,6 +1278,14 @@ export default function Camionero() {
                                         onChange={e => setCombustibleForm(x => ({ ...x, observaciones: e.target.value }))}
                                         placeholder="Ej: YPF Ruta 9 Km 700"
                                     />
+                                </div>
+                                <div className="col-12">
+                                    <div className="alert alert-light border mb-0 py-2">
+                                        <small className="text-muted d-block">Total de la carga (litros × precio unitario)</small>
+                                        <strong>
+                                            ${(safeParseNumber(combustibleForm.litros) * safeParseNumber(combustibleForm.precioUnitario)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </strong>
+                                    </div>
                                 </div>
                             </div>
                         </div>

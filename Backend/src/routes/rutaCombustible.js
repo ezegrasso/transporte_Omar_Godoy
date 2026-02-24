@@ -70,6 +70,7 @@ router.post('/cargas',
         body('fechaCarga').isISO8601().withMessage('Fecha inválida'),
         body('lugar').optional().isString().trim().isLength({ min: 2 }).withMessage('Lugar inválido'),
         body('litros').isFloat({ min: 0.01 }).withMessage('Litros inválidos'),
+        body('precioUnitario').isFloat({ min: 0.01 }).withMessage('Precio unitario inválido'),
         body('camionId').isInt({ min: 1 }).withMessage('Camión inválido'),
         body('origen').isIn(['predio', 'externo']).withMessage('Origen inválido'),
         body('observaciones').optional().isString()
@@ -79,7 +80,7 @@ router.post('/cargas',
             const errors = validationResult(req);
             if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-            const { fechaCarga, lugar, litros, camionId, origen, observaciones } = req.body;
+            const { fechaCarga, lugar, litros, precioUnitario, camionId, origen, observaciones } = req.body;
 
             const camion = await Camion.findByPk(camionId);
             if (!camion) return res.status(404).json({ error: 'Camión no encontrado' });
@@ -87,6 +88,8 @@ router.post('/cargas',
             const fecha = String(fechaCarga).slice(0, 10);
             const [anio, mes] = fecha.split('-').map(Number);
             const litrosNum = Number(Number(litros).toFixed(2));
+            const precioUnitarioNum = Number(Number(precioUnitario).toFixed(2));
+            const importeTotalNum = Number((litrosNum * precioUnitarioNum).toFixed(2));
             const observacionesLimpias = String(observaciones || '').trim();
             const lugarFinal = String(lugar || '').trim() || (origen === 'predio' ? 'Predio Omar Godoy' : (observacionesLimpias || 'Carga externa'));
 
@@ -104,6 +107,8 @@ router.post('/cargas',
                 mes,
                 anio,
                 litros: litrosNum,
+                precioUnitario: precioUnitarioNum,
+                importeTotal: importeTotalNum,
                 lugar: lugarFinal,
                 origen,
                 tipoRegistro: 'carga',
@@ -294,12 +299,14 @@ router.get('/camion/:camionId/detalle',
             });
 
             const totalLitros = cargas.reduce((sum, item) => sum + toNum(item.litros), 0);
+            const totalImporte = cargas.reduce((sum, item) => sum + toNum(item.importeTotal || (toNum(item.litros) * toNum(item.precioUnitario))), 0);
 
             res.json({
                 camion: cargas[0]?.camion || null,
                 mes,
                 anio,
                 totalLitros: Number(totalLitros.toFixed(2)),
+                totalImporte: Number(totalImporte.toFixed(2)),
                 cargas
             });
         } catch (e) {

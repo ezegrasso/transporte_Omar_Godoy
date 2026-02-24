@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 
 const fmtLitros = (value) => Number(value || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtMoney = (value) => Number(value || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtFecha = (value) => {
     if (!value) return '-';
     try {
@@ -29,7 +30,7 @@ export default function CeoCombustiblePanel({ showToast }) {
     const [ajusteForm, setAjusteForm] = useState({ litros: '', tipo: 'ingreso', observaciones: '' });
     const [ajustando, setAjustando] = useState(false);
 
-    const [detalleModal, setDetalleModal] = useState({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0 });
+    const [detalleModal, setDetalleModal] = useState({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0 });
 
     const paramsMes = useMemo(() => {
         const [anio, mesNum] = mes.split('-').map(Number);
@@ -78,7 +79,7 @@ export default function CeoCombustiblePanel({ showToast }) {
     };
 
     const openDetalleCamion = async (row) => {
-        setDetalleModal({ open: true, loading: true, camion: row?.camion || null, cargas: [], totalLitros: 0 });
+        setDetalleModal({ open: true, loading: true, camion: row?.camion || null, cargas: [], totalLitros: 0, totalImporte: 0 });
         try {
             const { data } = await api.get(`/combustible/camion/${row.camionId}/detalle?mes=${paramsMes.mes}&anio=${paramsMes.anio}`);
             setDetalleModal({
@@ -86,10 +87,11 @@ export default function CeoCombustiblePanel({ showToast }) {
                 loading: false,
                 camion: data?.camion || row?.camion || null,
                 cargas: Array.isArray(data?.cargas) ? data.cargas : [],
-                totalLitros: Number(data?.totalLitros || 0)
+                totalLitros: Number(data?.totalLitros || 0),
+                totalImporte: Number(data?.totalImporte || 0)
             });
         } catch (e) {
-            setDetalleModal({ open: true, loading: false, camion: row?.camion || null, cargas: [], totalLitros: 0 });
+            setDetalleModal({ open: true, loading: false, camion: row?.camion || null, cargas: [], totalLitros: 0, totalImporte: 0 });
             showToast?.(e?.response?.data?.error || 'No se pudo cargar el detalle del camión', 'error');
         }
     };
@@ -232,7 +234,7 @@ export default function CeoCombustiblePanel({ showToast }) {
                             <h1 className="modal-title fs-5">
                                 Detalle de combustible - {detalleModal?.camion?.patente || 'Camión'}
                             </h1>
-                            <button type="button" className="btn-close" onClick={() => setDetalleModal({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0 })}></button>
+                            <button type="button" className="btn-close" onClick={() => setDetalleModal({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0 })}></button>
                         </div>
                         <div className="modal-body">
                             {detalleModal.loading ? (
@@ -242,6 +244,9 @@ export default function CeoCombustiblePanel({ showToast }) {
                                     <div className="mb-2 small text-body-secondary">
                                         Total cargado: <strong>{fmtLitros(detalleModal.totalLitros)} L</strong>
                                     </div>
+                                    <div className="mb-2 small text-body-secondary">
+                                        Total importe: <strong>$ {fmtMoney(detalleModal.totalImporte)}</strong>
+                                    </div>
                                     <div className="table-responsive">
                                         <table className="table table-sm align-middle">
                                             <thead>
@@ -249,6 +254,8 @@ export default function CeoCombustiblePanel({ showToast }) {
                                                     <th>Fecha</th>
                                                     <th>Lugar</th>
                                                     <th className="text-end">Litros</th>
+                                                    <th className="text-end">Precio unitario</th>
+                                                    <th className="text-end">Total</th>
                                                     <th>Origen</th>
                                                     <th>Camionero</th>
                                                 </tr>
@@ -256,7 +263,7 @@ export default function CeoCombustiblePanel({ showToast }) {
                                             <tbody>
                                                 {detalleModal.cargas.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan={5} className="text-center text-body-secondary py-3">No hay cargas para este camión en el período.</td>
+                                                        <td colSpan={7} className="text-center text-body-secondary py-3">No hay cargas para este camión en el período.</td>
                                                     </tr>
                                                 ) : (
                                                     detalleModal.cargas.map((c) => (
@@ -264,6 +271,8 @@ export default function CeoCombustiblePanel({ showToast }) {
                                                             <td>{fmtFecha(c.fechaCarga)}</td>
                                                             <td>{c.lugar || '-'}</td>
                                                             <td className="text-end fw-semibold">{fmtLitros(c.litros)} L</td>
+                                                            <td className="text-end">$ {fmtMoney(c.precioUnitario)}</td>
+                                                            <td className="text-end fw-semibold">$ {fmtMoney(c.importeTotal || (Number(c.litros || 0) * Number(c.precioUnitario || 0)))}</td>
                                                             <td>
                                                                 <span className={`badge ${c.origen === 'predio' ? 'text-bg-primary' : 'text-bg-secondary'}`}>
                                                                     {c.origen === 'predio' ? 'Predio' : 'Externo'}

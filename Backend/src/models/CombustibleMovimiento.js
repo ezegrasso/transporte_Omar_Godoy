@@ -40,6 +40,16 @@ const CombustibleMovimiento = sequelize.define('CombustibleMovimiento', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
+    precioUnitario: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0
+    },
+    importeTotal: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: false,
+        defaultValue: 0
+    },
     lugar: {
         type: DataTypes.STRING,
         allowNull: false
