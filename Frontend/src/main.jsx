@@ -9,6 +9,20 @@ import { ToastProvider } from './context/ToastContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  const retryKey = 'vite-preload-retried'
+  const alreadyRetried = sessionStorage.getItem(retryKey) === '1'
+
+  if (!alreadyRetried) {
+    sessionStorage.setItem(retryKey, '1')
+    window.location.reload()
+    return
+  }
+
+  sessionStorage.removeItem(retryKey)
+})
+
 // Parche: evitar que errores al convertir objetos a string
 // dentro de console.error rompan toda la vista ("Cannot convert object to primitive value").
 // También silenciar errores removeChild causados por extensiones del navegador.
