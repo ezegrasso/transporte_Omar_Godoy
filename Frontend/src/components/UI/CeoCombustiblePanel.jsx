@@ -253,6 +253,7 @@ export default function CeoCombustiblePanel({ showToast }) {
                                                 <tr>
                                                     <th>Fecha</th>
                                                     <th>Lugar</th>
+                                                    <th>Observaciones</th>
                                                     <th className="text-end">Litros</th>
                                                     <th className="text-end">Precio unitario</th>
                                                     <th className="text-end">Total</th>
@@ -263,13 +264,14 @@ export default function CeoCombustiblePanel({ showToast }) {
                                             <tbody>
                                                 {detalleModal.cargas.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan={7} className="text-center text-body-secondary py-3">No hay cargas para este camión en el período.</td>
+                                                        <td colSpan={8} className="text-center text-body-secondary py-3">No hay cargas para este camión en el período.</td>
                                                     </tr>
                                                 ) : (
                                                     detalleModal.cargas.map((c) => (
                                                         <tr key={c.id}>
                                                             <td>{fmtFecha(c.fechaCarga)}</td>
-                                                            <td>{c.lugar || '-'}</td>
+                                                            <td>{c.origen === 'predio' ? 'Carga predio' : 'Carga externa'}</td>
+                                                            <td>{c.observaciones || '-'}</td>
                                                             <td className="text-end fw-semibold">{fmtLitros(c.litros)} L</td>
                                                             <td className="text-end">$ {fmtMoney(c.precioUnitario)}</td>
                                                             <td className="text-end fw-semibold">$ {fmtMoney(c.importeTotal || (Number(c.litros || 0) * Number(c.precioUnitario || 0)))}</td>

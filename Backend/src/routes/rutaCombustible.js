@@ -68,7 +68,6 @@ router.post('/cargas',
     authMiddleware,
     [
         body('fechaCarga').isISO8601().withMessage('Fecha inválida'),
-        body('lugar').optional().isString().trim().isLength({ min: 2 }).withMessage('Lugar inválido'),
         body('litros').isFloat({ min: 0.01 }).withMessage('Litros inválidos'),
         body('precioUnitario').isFloat({ min: 0.01 }).withMessage('Precio unitario inválido'),
         body('camionId').isInt({ min: 1 }).withMessage('Camión inválido'),
@@ -80,7 +79,7 @@ router.post('/cargas',
             const errors = validationResult(req);
             if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-            const { fechaCarga, lugar, litros, precioUnitario, camionId, origen, observaciones } = req.body;
+            const { fechaCarga, litros, precioUnitario, camionId, origen, observaciones } = req.body;
 
             const camion = await Camion.findByPk(camionId);
             if (!camion) return res.status(404).json({ error: 'Camión no encontrado' });
@@ -91,7 +90,7 @@ router.post('/cargas',
             const precioUnitarioNum = Number(Number(precioUnitario).toFixed(2));
             const importeTotalNum = Number((litrosNum * precioUnitarioNum).toFixed(2));
             const observacionesLimpias = String(observaciones || '').trim();
-            const lugarFinal = String(lugar || '').trim() || (origen === 'predio' ? 'Predio Omar Godoy' : (observacionesLimpias || 'Carga externa'));
+            const lugarFinal = origen === 'predio' ? 'Carga predio' : 'Carga externa';
 
             const stock = await getOrCreateStock();
             const stockActual = toNum(stock.disponibleLitros);

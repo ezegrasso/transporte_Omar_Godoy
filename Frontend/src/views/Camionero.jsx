@@ -782,7 +782,8 @@ export default function Camionero() {
                                                 </td>
                                                 <td className="py-3 text-muted" style={{ width: '42%' }}>
                                                     <div><strong>Camión:</strong> {carga?.camion?.patente || '-'}</div>
-                                                    <div><strong>Lugar:</strong> {carga?.lugar || '-'}</div>
+                                                    <div><strong>Lugar:</strong> {carga?.origen === 'predio' ? 'Carga predio' : 'Carga externa'}</div>
+                                                    <div><strong>Observaciones:</strong> {carga?.observaciones || '-'}</div>
                                                     <div><strong>Precio unitario:</strong> ${safeParseNumber(carga?.precioUnitario).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                                     <div><strong>Total:</strong> ${safeParseNumber(carga?.importeTotal || (safeParseNumber(carga?.litros) * safeParseNumber(carga?.precioUnitario))).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                                 </td>
@@ -1270,7 +1271,7 @@ export default function Camionero() {
                                     </select>
                                 </div>
                                 <div className="col-12">
-                                    <label className="form-label">Dónde cargó / observaciones</label>
+                                    <label className="form-label">Observaciones</label>
                                     <input
                                         className="form-control"
                                         type="text"
