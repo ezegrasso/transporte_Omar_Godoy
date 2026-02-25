@@ -19,8 +19,11 @@ export default function CeoCombustiblePanel({ showToast }) {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     });
     const [loading, setLoading] = useState(false);
+    const [guardandoPrecioPredio, setGuardandoPrecioPredio] = useState(false);
+    const [precioUnitarioPredio, setPrecioUnitarioPredio] = useState('');
     const [resumen, setResumen] = useState({
         stockPredio: 0,
+        precioUnitarioPredio: 0,
         totalLitros: 0,
         totalPredio: 0,
         totalExterno: 0,
@@ -30,7 +33,7 @@ export default function CeoCombustiblePanel({ showToast }) {
     const [ajusteForm, setAjusteForm] = useState({ litros: '', tipo: 'ingreso', observaciones: '' });
     const [ajustando, setAjustando] = useState(false);
 
-    const [detalleModal, setDetalleModal] = useState({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0 });
+    const [detalleModal, setDetalleModal] = useState({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0, precioUnitarioPredio: 0 });
 
     const paramsMes = useMemo(() => {
         const [anio, mesNum] = mes.split('-').map(Number);
@@ -43,15 +46,32 @@ export default function CeoCombustiblePanel({ showToast }) {
             const { data } = await api.get(`/combustible/resumen?mes=${paramsMes.mes}&anio=${paramsMes.anio}`);
             setResumen({
                 stockPredio: Number(data?.stockPredio || 0),
+                precioUnitarioPredio: Number(data?.precioUnitarioPredio || 0),
                 totalLitros: Number(data?.totalLitros || 0),
                 totalPredio: Number(data?.totalPredio || 0),
                 totalExterno: Number(data?.totalExterno || 0),
                 detallePorCamion: Array.isArray(data?.detallePorCamion) ? data.detallePorCamion : []
             });
+            setPrecioUnitarioPredio(String(Number(data?.precioUnitarioPredio || 0)));
         } catch (e) {
             showToast?.(e?.response?.data?.error || 'Error cargando resumen de combustible', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const guardarPrecioUnitarioPredio = async () => {
+        try {
+            setGuardandoPrecioPredio(true);
+            await api.post('/combustible/predio/precio-unitario', {
+                precioUnitarioPredio: Number(precioUnitarioPredio || 0)
+            });
+            showToast?.('Precio unitario de predio actualizado', 'success');
+            await fetchResumen();
+        } catch (e) {
+            showToast?.(e?.response?.data?.error || 'Error actualizando precio unitario de predio', 'error');
+        } finally {
+            setGuardandoPrecioPredio(false);
         }
     };
 
@@ -79,7 +99,7 @@ export default function CeoCombustiblePanel({ showToast }) {
     };
 
     const openDetalleCamion = async (row) => {
-        setDetalleModal({ open: true, loading: true, camion: row?.camion || null, cargas: [], totalLitros: 0, totalImporte: 0 });
+        setDetalleModal({ open: true, loading: true, camion: row?.camion || null, cargas: [], totalLitros: 0, totalImporte: 0, precioUnitarioPredio: 0 });
         try {
             const { data } = await api.get(`/combustible/camion/${row.camionId}/detalle?mes=${paramsMes.mes}&anio=${paramsMes.anio}`);
             setDetalleModal({
@@ -88,10 +108,11 @@ export default function CeoCombustiblePanel({ showToast }) {
                 camion: data?.camion || row?.camion || null,
                 cargas: Array.isArray(data?.cargas) ? data.cargas : [],
                 totalLitros: Number(data?.totalLitros || 0),
-                totalImporte: Number(data?.totalImporte || 0)
+                totalImporte: Number(data?.totalImporte || 0),
+                precioUnitarioPredio: Number(data?.precioUnitarioPredio || 0)
             });
         } catch (e) {
-            setDetalleModal({ open: true, loading: false, camion: row?.camion || null, cargas: [], totalLitros: 0, totalImporte: 0 });
+            setDetalleModal({ open: true, loading: false, camion: row?.camion || null, cargas: [], totalLitros: 0, totalImporte: 0, precioUnitarioPredio: 0 });
             showToast?.(e?.response?.data?.error || 'No se pudo cargar el detalle del camión', 'error');
         }
     };
@@ -108,6 +129,28 @@ export default function CeoCombustiblePanel({ showToast }) {
                         <i className="bi bi-fuel-pump text-primary"></i>
                         Combustible
                     </h3>
+                    <div>
+                        <label className="form-label mb-1">Precio unitario predio</label>
+                        <div className="d-flex gap-1">
+                            <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                className="form-control form-control-sm"
+                                value={precioUnitarioPredio}
+                                onChange={(e) => setPrecioUnitarioPredio(e.target.value)}
+                                placeholder="Ej: 1200"
+                            />
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={guardarPrecioUnitarioPredio}
+                                disabled={guardandoPrecioPredio}
+                            >
+                                {guardandoPrecioPredio ? 'Guardando…' : 'Guardar'}
+                            </button>
+                        </div>
+                    </div>
                     <div>
                         <label className="form-label mb-1">Mes</label>
                         <input
@@ -234,7 +277,7 @@ export default function CeoCombustiblePanel({ showToast }) {
                             <h1 className="modal-title fs-5">
                                 Detalle de combustible - {detalleModal?.camion?.patente || 'Camión'}
                             </h1>
-                            <button type="button" className="btn-close" onClick={() => setDetalleModal({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0 })}></button>
+                            <button type="button" className="btn-close" onClick={() => setDetalleModal({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0, precioUnitarioPredio: 0 })}></button>
                         </div>
                         <div className="modal-body">
                             {detalleModal.loading ? (
@@ -246,6 +289,9 @@ export default function CeoCombustiblePanel({ showToast }) {
                                     </div>
                                     <div className="mb-2 small text-body-secondary">
                                         Total importe: <strong>$ {fmtMoney(detalleModal.totalImporte)}</strong>
+                                    </div>
+                                    <div className="mb-2 small text-body-secondary">
+                                        Precio unitario de predio vigente (solo nuevas cargas): <strong>$ {fmtMoney(detalleModal.precioUnitarioPredio)}</strong>
                                     </div>
                                     <div className="table-responsive">
                                         <table className="table table-sm align-middle">
@@ -273,8 +319,8 @@ export default function CeoCombustiblePanel({ showToast }) {
                                                             <td>{c.origen === 'predio' ? 'Carga predio' : 'Carga externa'}</td>
                                                             <td>{c.observaciones || '-'}</td>
                                                             <td className="text-end fw-semibold">{fmtLitros(c.litros)} L</td>
-                                                            <td className="text-end">$ {fmtMoney(c.precioUnitario)}</td>
-                                                            <td className="text-end fw-semibold">$ {fmtMoney(c.importeTotal || (Number(c.litros || 0) * Number(c.precioUnitario || 0)))}</td>
+                                                            <td className="text-end">$ {fmtMoney(c.precioUnitarioAplicado ?? c.precioUnitario)}</td>
+                                                            <td className="text-end fw-semibold">$ {fmtMoney(c.importeTotalAplicado ?? (c.importeTotal || (Number(c.litros || 0) * Number(c.precioUnitario || 0))))}</td>
                                                             <td>
                                                                 <span className={`badge ${c.origen === 'predio' ? 'text-bg-primary' : 'text-bg-secondary'}`}>
                                                                     {c.origen === 'predio' ? 'Predio' : 'Externo'}

@@ -12,6 +12,11 @@ const CombustibleStock = sequelize.define('CombustibleStock', {
         allowNull: false,
         defaultValue: 0
     },
+    precioUnitarioPredio: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0
+    },
     updatedById: {
         type: DataTypes.INTEGER,
         allowNull: true,

@@ -208,6 +208,21 @@ export const ensureSchema = async () => {
     } catch (e) {
         console.error('No se pudo asegurar esquema de combustible_movimientos:', e);
     }
+
+    // Asegurar precio unitario de predio en combustible_stock
+    try {
+        const descStock = await qi.describeTable('combustible_stock');
+        if (!('precioUnitarioPredio' in descStock)) {
+            await qi.addColumn('combustible_stock', 'precioUnitarioPredio', {
+                type: DataTypes.DECIMAL(10, 2),
+                allowNull: false,
+                defaultValue: 0
+            });
+            console.log("Columna 'precioUnitarioPredio' añadida a 'combustible_stock'.");
+        }
+    } catch (e) {
+        console.error('No se pudo asegurar esquema de combustible_stock:', e);
+    }
 };
 
 export default ensureSchema;

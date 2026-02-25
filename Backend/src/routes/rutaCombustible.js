@@ -24,7 +24,7 @@ const parseMesAnio = (query) => {
 
 const getOrCreateStock = async () => {
     let stock = await CombustibleStock.findOne({ order: [['id', 'ASC']] });
-    if (!stock) stock = await CombustibleStock.create({ disponibleLitros: 0 });
+    if (!stock) stock = await CombustibleStock.create({ disponibleLitros: 0, precioUnitarioPredio: 0 });
     return stock;
 };
 
@@ -33,6 +33,7 @@ router.get('/stock', authMiddleware, async (_req, res) => {
         const stock = await getOrCreateStock();
         res.json({
             disponibleLitros: toNum(stock.disponibleLitros),
+            precioUnitarioPredio: toNum(stock.precioUnitarioPredio),
             updatedAt: stock.updatedAt
         });
     } catch (e) {
@@ -69,7 +70,15 @@ router.post('/cargas',
     [
         body('fechaCarga').isISO8601().withMessage('Fecha inválida'),
         body('litros').isFloat({ min: 0.01 }).withMessage('Litros inválidos'),
-        body('precioUnitario').isFloat({ min: 0.01 }).withMessage('Precio unitario inválido'),
+        body('precioUnitario').custom((value, { req }) => {
+            const origen = req.body?.origen;
+            if (origen === 'predio') return true;
+            const n = Number(value);
+            if (!Number.isFinite(n) || n <= 0) {
+                throw new Error('Precio unitario inválido');
+            }
+            return true;
+        }),
         body('camionId').isInt({ min: 1 }).withMessage('Camión inválido'),
         body('origen').isIn(['predio', 'externo']).withMessage('Origen inválido'),
         body('observaciones').optional().isString()
@@ -86,17 +95,23 @@ router.post('/cargas',
 
             const fecha = String(fechaCarga).slice(0, 10);
             const [anio, mes] = fecha.split('-').map(Number);
+            const stock = await getOrCreateStock();
+            const stockActual = toNum(stock.disponibleLitros);
             const litrosNum = Number(Number(litros).toFixed(2));
-            const precioUnitarioNum = Number(Number(precioUnitario).toFixed(2));
+            const precioUnitarioIngresado = Number(Number(precioUnitario).toFixed(2));
+            const precioUnitarioNum = origen === 'predio'
+                ? Number(toNum(stock.precioUnitarioPredio).toFixed(2))
+                : precioUnitarioIngresado;
             const importeTotalNum = Number((litrosNum * precioUnitarioNum).toFixed(2));
             const observacionesLimpias = String(observaciones || '').trim();
             const lugarFinal = origen === 'predio' ? 'Carga predio' : 'Carga externa';
 
-            const stock = await getOrCreateStock();
-            const stockActual = toNum(stock.disponibleLitros);
-
             if (origen === 'predio' && stockActual < litrosNum) {
                 return res.status(400).json({ error: `Stock insuficiente en predio. Disponible: ${stockActual.toFixed(2)} L` });
+            }
+
+            if (origen === 'predio' && precioUnitarioNum <= 0) {
+                return res.status(400).json({ error: 'Define el precio unitario de predio en el panel CEO antes de registrar cargas en predio.' });
             }
 
             const carga = await CombustibleMovimiento.create({
@@ -189,6 +204,35 @@ router.post('/predio/ajuste',
     }
 );
 
+router.post('/predio/precio-unitario',
+    authMiddleware,
+    [
+        body('precioUnitarioPredio').isFloat({ min: 0 }).withMessage('Precio unitario inválido')
+    ],
+    async (req, res) => {
+        try {
+            if (!['ceo'].includes(req.user?.rol)) {
+                return res.status(403).json({ error: 'No tienes permisos para actualizar el precio unitario de predio' });
+            }
+
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+            const stock = await getOrCreateStock();
+            const precioUnitarioPredio = Number(Number(req.body.precioUnitarioPredio).toFixed(2));
+
+            stock.precioUnitarioPredio = precioUnitarioPredio;
+            stock.updatedById = req.user.id;
+            await stock.save();
+
+            res.json({ success: true, precioUnitarioPredio });
+        } catch (e) {
+            console.error('[combustible] Error guardando precio unitario de predio:', e?.message || e);
+            res.status(500).json({ error: 'Error guardando precio unitario de predio' });
+        }
+    }
+);
+
 router.get('/resumen', authMiddleware, async (req, res) => {
     try {
         if (!['ceo', 'administracion'].includes(req.user?.rol)) {
@@ -256,6 +300,7 @@ router.get('/resumen', authMiddleware, async (req, res) => {
             mes,
             anio,
             stockPredio: toNum(stock.disponibleLitros),
+            precioUnitarioPredio: toNum(stock.precioUnitarioPredio),
             totalLitros: Number(totalLitros.toFixed(2)),
             totalPredio: Number(totalPredio.toFixed(2)),
             totalExterno: Number(totalExterno.toFixed(2)),
@@ -297,16 +342,33 @@ router.get('/camion/:camionId/detalle',
                 order: [['fechaCarga', 'DESC'], ['createdAt', 'DESC']]
             });
 
-            const totalLitros = cargas.reduce((sum, item) => sum + toNum(item.litros), 0);
-            const totalImporte = cargas.reduce((sum, item) => sum + toNum(item.importeTotal || (toNum(item.litros) * toNum(item.precioUnitario))), 0);
+            const stock = await getOrCreateStock();
+            const precioUnitarioPredio = toNum(stock.precioUnitarioPredio);
+
+            const cargasConImporteAplicado = cargas.map((item) => {
+                const plain = item.toJSON();
+                const litros = toNum(plain.litros);
+                const precioUnitarioAplicado = toNum(plain.precioUnitario);
+                const importeTotalAplicado = Number(toNum(plain.importeTotal || (litros * precioUnitarioAplicado)).toFixed(2));
+
+                return {
+                    ...plain,
+                    precioUnitarioAplicado,
+                    importeTotalAplicado
+                };
+            });
+
+            const totalLitros = cargasConImporteAplicado.reduce((sum, item) => sum + toNum(item.litros), 0);
+            const totalImporte = cargasConImporteAplicado.reduce((sum, item) => sum + toNum(item.importeTotalAplicado), 0);
 
             res.json({
                 camion: cargas[0]?.camion || null,
                 mes,
                 anio,
+                precioUnitarioPredio,
                 totalLitros: Number(totalLitros.toFixed(2)),
                 totalImporte: Number(totalImporte.toFixed(2)),
-                cargas
+                cargas: cargasConImporteAplicado
             });
         } catch (e) {
             console.error('[combustible] Error obteniendo detalle por camión:', e?.message || e);

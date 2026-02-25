@@ -228,8 +228,14 @@ export default function Camionero() {
     const handleCrearCargaCombustible = async (e) => {
         e.preventDefault();
 
-        if (!combustibleForm.fechaCarga || !combustibleForm.litros || !combustibleForm.precioUnitario || !combustibleForm.camionId) {
-            showToast('Completá fecha, camión, litros y precio unitario', 'warning');
+        const requierePrecioCamionero = combustibleForm.origen === 'externo';
+        if (!combustibleForm.fechaCarga || !combustibleForm.litros || (requierePrecioCamionero && !combustibleForm.precioUnitario) || !combustibleForm.camionId) {
+            showToast(
+                requierePrecioCamionero
+                    ? 'Completá fecha, camión, litros y precio unitario'
+                    : 'Completá fecha, camión y litros',
+                'warning'
+            );
             return;
         }
 
@@ -238,7 +244,7 @@ export default function Camionero() {
             await api.post('/combustible/cargas', {
                 fechaCarga: combustibleForm.fechaCarga,
                 litros: safeParseNumber(combustibleForm.litros),
-                precioUnitario: safeParseNumber(combustibleForm.precioUnitario),
+                precioUnitario: requierePrecioCamionero ? safeParseNumber(combustibleForm.precioUnitario) : 0,
                 origen: combustibleForm.origen,
                 camionId: Number(combustibleForm.camionId),
                 observaciones: combustibleForm.observaciones || ''
@@ -1247,7 +1253,7 @@ export default function Camionero() {
                                     />
                                 </div>
                                 <div className="col-6">
-                                    <label className="form-label">Precio Unitario</label>
+                                    <label className="form-label">Precio Unitario {combustibleForm.origen === 'predio' ? '(lo define CEO)' : ''}</label>
                                     <input
                                         className="form-control"
                                         type="number"
@@ -1255,8 +1261,9 @@ export default function Camionero() {
                                         step={0.01}
                                         value={combustibleForm.precioUnitario}
                                         onChange={e => setCombustibleForm(x => ({ ...x, precioUnitario: e.target.value }))}
-                                        placeholder="Ej: 1350"
-                                        required
+                                        placeholder={combustibleForm.origen === 'predio' ? 'Se aplica el precio de predio' : 'Ej: 1350'}
+                                        required={combustibleForm.origen === 'externo'}
+                                        disabled={combustibleForm.origen === 'predio'}
                                     />
                                 </div>
                                 <div className="col-6">
@@ -1282,9 +1289,15 @@ export default function Camionero() {
                                 </div>
                                 <div className="col-12">
                                     <div className="alert alert-light border mb-0 py-2">
-                                        <small className="text-muted d-block">Total de la carga (litros × precio unitario)</small>
+                                        <small className="text-muted d-block">
+                                            {combustibleForm.origen === 'predio'
+                                                ? 'Total estimado: se calcula con el precio unitario de predio (CEO)'
+                                                : 'Total de la carga (litros × precio unitario)'}
+                                        </small>
                                         <strong>
-                                            ${(safeParseNumber(combustibleForm.litros) * safeParseNumber(combustibleForm.precioUnitario)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            {combustibleForm.origen === 'predio'
+                                                ? 'Se calculará al guardar'
+                                                : `$${(safeParseNumber(combustibleForm.litros) * safeParseNumber(combustibleForm.precioUnitario)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                         </strong>
                                     </div>
                                 </div>
