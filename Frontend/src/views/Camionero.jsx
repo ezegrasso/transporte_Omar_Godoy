@@ -107,6 +107,7 @@ export default function Camionero() {
     const [combustibleLoading, setCombustibleLoading] = useState(false);
     const [showCombustibleModal, setShowCombustibleModal] = useState(false);
     const [combustibleSubmitting, setCombustibleSubmitting] = useState(false);
+    const [camionesCombustible, setCamionesCombustible] = useState([]);
     const [combustibleForm, setCombustibleForm] = useState({
         fechaCarga: new Date().toISOString().slice(0, 10),
         litros: '',
@@ -183,6 +184,42 @@ export default function Camionero() {
             setCombustibleCargas([]);
         } finally {
             setCombustibleLoading(false);
+        }
+    };
+
+    const fetchCamionesCombustible = async () => {
+        try {
+            const limit = 100;
+            let page = 1;
+            let total = Infinity;
+            const acumulado = [];
+
+            while (acumulado.length < total) {
+                const { data } = await api.get(`/camiones?page=${page}&limit=${limit}&sortBy=patente&order=ASC`);
+                const items = Array.isArray(data?.data) ? data.data : [];
+                total = Number(data?.total ?? items.length);
+
+                if (items.length === 0) break;
+
+                items.forEach((camion) => {
+                    if (!camion?.id) return;
+                    acumulado.push({
+                        id: camion.id,
+                        patente: camion.patente || `Camión #${camion.id}`
+                    });
+                });
+
+                page += 1;
+                if (page > 100) break;
+            }
+
+            const unicos = Array.from(new Map(acumulado.map(c => [c.id, c])).values())
+                .sort((a, b) => String(a.patente).localeCompare(String(b.patente)));
+
+            setCamionesCombustible(unicos);
+        } catch (e) {
+            console.error('Error cargando camiones para combustible:', e?.message);
+            setCamionesCombustible([]);
         }
     };
 
@@ -279,7 +316,7 @@ export default function Camionero() {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchPendientes(), fetchMios(), fetchAdelantos(), fetchEstadias(), fetchCombustibleCargas()]); }
+            try { await Promise.all([fetchPendientes(), fetchMios(), fetchAdelantos(), fetchEstadias(), fetchCombustibleCargas(), fetchCamionesCombustible()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando viajes'); }
             finally { setLoading(false); }
         })();
@@ -367,6 +404,10 @@ export default function Camionero() {
     }, [mios]);
 
     const camionesDisponiblesCombustible = useMemo(() => {
+        if (Array.isArray(camionesCombustible) && camionesCombustible.length > 0) {
+            return camionesCombustible;
+        }
+
         const map = new Map();
         [...pendientes, ...mios].forEach((v) => {
             const id = v?.camion?.id || v?.camionId;
@@ -379,7 +420,7 @@ export default function Camionero() {
             }
         });
         return Array.from(map.values()).sort((a, b) => String(a.patente).localeCompare(String(b.patente)));
-    }, [pendientes, mios]);
+    }, [camionesCombustible, pendientes, mios]);
 
     useEffect(() => {
         if (!showCombustibleModal || !viajeEnCursoActual) return;
