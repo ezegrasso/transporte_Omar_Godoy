@@ -1228,7 +1228,7 @@ export default function Ceo() {
                                     </div>
                                     <div className="col-6">
                                         <select className="form-select" value={nuevoViaje.acopladoId || ''} onChange={e => setNuevoViaje(v => ({ ...v, acopladoId: e.target.value }))}>
-                                            <option value="">Sin chasis</option>
+                                            <option value="">Sin acoplado</option>
                                             {acoplados.map(a => <option key={a.id} value={a.id}>{a.patente}</option>)}
                                         </select>
                                     </div>
@@ -1433,7 +1433,7 @@ export default function Ceo() {
                                                         <span>{v.camion.patente} <small className="text-body-secondary">({v.camion.marca})</small></span>
                                                     ) : v.camionId}
                                                 </td>
-                                                <td title={v.acoplado ? v.acoplado.patente : (v.acopladoPatente || 'Sin chasis')}>{v.acoplado ? v.acoplado.patente : (v.acopladoPatente || 'Sin chasis')}</td>
+                                                <td title={v.acoplado ? v.acoplado.patente : (v.acopladoPatente || 'Sin acoplado')}>{v.acoplado ? v.acoplado.patente : (v.acopladoPatente || 'Sin acoplado')}</td>
                                                 <td title={v.camionero?.nombre || '-'}>{v.camionero?.nombre || '-'}</td>
                                                 <td title={v.tipoMercaderia || '-'}>{v.tipoMercaderia || '-'}</td>
                                                 <td title={v.cliente || '-'}>{v.cliente || '-'}</td>
@@ -2272,7 +2272,7 @@ export default function Ceo() {
                                         </div>
                                         <div className="col-12 col-md-6">
                                             <div><strong>Camión:</strong> {detalle.camion ? `${detalle.camion.patente} (${detalle.camion.marca} ${detalle.camion.modelo}, ${detalle.camion.anio})` : detalle.camionId}</div>
-                                            <div><strong>Acoplado:</strong> {detalle.acoplado ? detalle.acoplado.patente : (detalle.acopladoPatente || 'Sin chasis')}</div>
+                                            <div><strong>Acoplado:</strong> {detalle.acoplado ? detalle.acoplado.patente : (detalle.acopladoPatente || 'Sin acoplado')}</div>
                                             <div><strong>Camionero:</strong> {detalle.camionero?.nombre || '-'}</div>
                                             <div><strong>Tipo mercadería:</strong> {detalle.tipoMercaderia ?? '-'}</div>
                                             <div><strong>Cliente:</strong> {detalle.cliente ?? '-'}</div>
