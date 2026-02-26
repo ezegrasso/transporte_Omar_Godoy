@@ -136,18 +136,34 @@ router.get('/', authMiddleware, [
         let acopladoMap = new Map();
         try {
             const acs = await getAllAcoplados();
-            acopladoMap = new Map(acs.map(a => [a.id, a.patente]));
-        } catch { /* noop */ }
+            if (Array.isArray(acs)) {
+                acopladoMap = new Map(acs.map(a => [a.id, a.patente]));
+            }
+        } catch (err) {
+            console.warn('[viajes] No se pudo resolver mapa de acoplados:', err?.message || err);
+        }
 
         // Obtener suma de notas de crédito por viaje
-        const viajeIds = rows.map(v => v.id);
-        const notasCredito = await NotaCredito.findAll({
-            where: { viajeId: viajeIds },
-            attributes: ['viajeId', [sequelize.fn('SUM', sequelize.col('monto')), 'totalNC'], [sequelize.fn('COUNT', sequelize.col('id')), 'cantidadNC']],
-            group: ['viajeId'],
-            raw: true
-        });
-        const ncMap = new Map(notasCredito.map(nc => [nc.viajeId, { total: parseFloat(nc.totalNC) || 0, cantidad: parseInt(nc.cantidadNC) || 0 }]));
+        const viajeIds = rows.map(v => v.id).filter(Boolean);
+        let ncMap = new Map();
+        if (viajeIds.length > 0) {
+            try {
+                const notasCredito = await NotaCredito.findAll({
+                    where: { viajeId: viajeIds },
+                    attributes: ['viajeId', [sequelize.fn('SUM', sequelize.col('monto')), 'totalNC'], [sequelize.fn('COUNT', sequelize.col('id')), 'cantidadNC']],
+                    group: ['viajeId'],
+                    raw: true
+                });
+                ncMap = new Map(
+                    (Array.isArray(notasCredito) ? notasCredito : []).map(nc => [
+                        nc.viajeId,
+                        { total: parseFloat(nc.totalNC) || 0, cantidad: parseInt(nc.cantidadNC) || 0 }
+                    ])
+                );
+            } catch (err) {
+                console.warn('[viajes] No se pudo calcular notas de crédito en listado:', err?.message || err);
+            }
+        }
 
         const data = rows.map(v => ({
             ...v.toJSON?.() || v,
