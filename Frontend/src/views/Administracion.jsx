@@ -1508,7 +1508,7 @@ export default function Administracion() {
                                                 <td>{v.kilosCargados ?? '-'}</td>
                                                 <td>{v.precioTonelada ?? '-'}</td>
                                                 <td>{v.importe ?? '-'}</td>
-                                                <td>{v.acoplado?.patente || v.acopladoPatente || '-'}</td>
+                                                <td>{v.acoplado?.patente || v.acopladoPatente || 'Sin chasis'}</td>
                                             </tr>
                                         );
                                     })}

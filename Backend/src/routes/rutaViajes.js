@@ -190,7 +190,7 @@ router.post('/',
         body('destino').isString().notEmpty(),
         body('fecha').isISO8601(),
         body('camionId').isInt(),
-        body('acopladoId').optional().isInt(),
+        body('acopladoId').optional({ nullable: true }).isInt(),
         body('tipoMercaderia').optional().isString().isLength({ min: 2, max: 120 }),
         body('cliente').optional().isString().isLength({ min: 2, max: 120 }),
         body('precioTonelada').optional().isFloat({ min: 0 })
