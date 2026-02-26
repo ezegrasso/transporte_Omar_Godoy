@@ -14,6 +14,9 @@ const fmtFecha = (value) => {
 };
 
 export default function CeoCombustiblePanel({ showToast }) {
+    const detalleModalVacio = { open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0, precioUnitarioPredio: 0 };
+    const edicionVacia = { id: null, fechaCarga: '', camionId: '', origen: 'externo', litros: '', precioUnitario: '', observaciones: '' };
+
     const [mes, setMes] = useState(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -33,7 +36,10 @@ export default function CeoCombustiblePanel({ showToast }) {
     const [ajusteForm, setAjusteForm] = useState({ litros: '', tipo: 'ingreso', observaciones: '' });
     const [ajustando, setAjustando] = useState(false);
 
-    const [detalleModal, setDetalleModal] = useState({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0, precioUnitarioPredio: 0 });
+    const [detalleModal, setDetalleModal] = useState(detalleModalVacio);
+    const [camionesCombustible, setCamionesCombustible] = useState([]);
+    const [editandoCarga, setEditandoCarga] = useState(false);
+    const [edicionCarga, setEdicionCarga] = useState(edicionVacia);
 
     const paramsMes = useMemo(() => {
         const [anio, mesNum] = mes.split('-').map(Number);
@@ -57,6 +63,28 @@ export default function CeoCombustiblePanel({ showToast }) {
             showToast?.(e?.response?.data?.error || 'Error cargando resumen de combustible', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchCamionesCombustible = async () => {
+        try {
+            const todos = [];
+            let page = 1;
+            const limit = 100;
+            let total = 0;
+
+            do {
+                const { data } = await api.get(`/camiones?page=${page}&limit=${limit}&sortBy=patente&order=ASC`);
+                const rows = Array.isArray(data?.data) ? data.data : [];
+                total = Number(data?.total || rows.length);
+                todos.push(...rows);
+                page += 1;
+                if (rows.length === 0) break;
+            } while (todos.length < total);
+
+            setCamionesCombustible(todos);
+        } catch {
+            setCamionesCombustible([]);
         }
     };
 
@@ -99,6 +127,7 @@ export default function CeoCombustiblePanel({ showToast }) {
     };
 
     const openDetalleCamion = async (row) => {
+        setEdicionCarga(edicionVacia);
         setDetalleModal({ open: true, loading: true, camion: row?.camion || null, cargas: [], totalLitros: 0, totalImporte: 0, precioUnitarioPredio: 0 });
         try {
             const { data } = await api.get(`/combustible/camion/${row.camionId}/detalle?mes=${paramsMes.mes}&anio=${paramsMes.anio}`);
@@ -117,9 +146,66 @@ export default function CeoCombustiblePanel({ showToast }) {
         }
     };
 
+    const abrirEdicionCarga = (carga) => {
+        setEdicionCarga({
+            id: carga?.id || null,
+            fechaCarga: String(carga?.fechaCarga || '').slice(0, 10),
+            camionId: String(carga?.camionId || ''),
+            origen: carga?.origen === 'predio' ? 'predio' : 'externo',
+            litros: String(Number(carga?.litros || 0)),
+            precioUnitario: String(Number(carga?.precioUnitarioAplicado ?? carga?.precioUnitario ?? 0)),
+            observaciones: carga?.observaciones || ''
+        });
+    };
+
+    const refrescarDetalleActual = async () => {
+        if (!detalleModal?.camion?.id) return;
+        const { data } = await api.get(`/combustible/camion/${detalleModal.camion.id}/detalle?mes=${paramsMes.mes}&anio=${paramsMes.anio}`);
+        setDetalleModal((prev) => ({
+            ...prev,
+            camion: data?.camion || prev?.camion || null,
+            cargas: Array.isArray(data?.cargas) ? data.cargas : [],
+            totalLitros: Number(data?.totalLitros || 0),
+            totalImporte: Number(data?.totalImporte || 0),
+            precioUnitarioPredio: Number(data?.precioUnitarioPredio || 0)
+        }));
+    };
+
+    const guardarEdicionCarga = async () => {
+        if (!edicionCarga.id) return;
+        if (!edicionCarga.fechaCarga || !edicionCarga.camionId || !edicionCarga.litros || !edicionCarga.precioUnitario) {
+            showToast?.('Completá fecha, camión, litros y precio unitario', 'warning');
+            return;
+        }
+
+        try {
+            setEditandoCarga(true);
+            await api.put(`/combustible/cargas/${edicionCarga.id}`, {
+                fechaCarga: edicionCarga.fechaCarga,
+                camionId: Number(edicionCarga.camionId),
+                origen: edicionCarga.origen,
+                litros: Number(edicionCarga.litros),
+                precioUnitario: Number(edicionCarga.precioUnitario),
+                observaciones: edicionCarga.observaciones || ''
+            });
+
+            showToast?.('Carga de combustible actualizada', 'success');
+            setEdicionCarga(edicionVacia);
+            await Promise.all([fetchResumen(), refrescarDetalleActual()]);
+        } catch (e) {
+            showToast?.(e?.response?.data?.error || 'Error actualizando carga de combustible', 'error');
+        } finally {
+            setEditandoCarga(false);
+        }
+    };
+
     useEffect(() => {
         fetchResumen();
     }, [mes]);
+
+    useEffect(() => {
+        fetchCamionesCombustible();
+    }, []);
 
     return (
         <div className="card shadow-sm mt-3 border-primary-subtle">
@@ -277,7 +363,7 @@ export default function CeoCombustiblePanel({ showToast }) {
                             <h1 className="modal-title fs-5">
                                 Detalle de combustible - {detalleModal?.camion?.patente || 'Camión'}
                             </h1>
-                            <button type="button" className="btn-close" onClick={() => setDetalleModal({ open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0, precioUnitarioPredio: 0 })}></button>
+                            <button type="button" className="btn-close" onClick={() => { setDetalleModal(detalleModalVacio); setEdicionCarga(edicionVacia); }}></button>
                         </div>
                         <div className="modal-body">
                             {detalleModal.loading ? (
@@ -305,12 +391,13 @@ export default function CeoCombustiblePanel({ showToast }) {
                                                     <th className="text-end">Total</th>
                                                     <th>Origen</th>
                                                     <th>Camionero</th>
+                                                    <th className="text-end">Acción</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {detalleModal.cargas.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan={8} className="text-center text-body-secondary py-3">No hay cargas para este camión en el período.</td>
+                                                        <td colSpan={9} className="text-center text-body-secondary py-3">No hay cargas para este camión en el período.</td>
                                                     </tr>
                                                 ) : (
                                                     detalleModal.cargas.map((c) => (
@@ -327,12 +414,110 @@ export default function CeoCombustiblePanel({ showToast }) {
                                                                 </span>
                                                             </td>
                                                             <td>{c?.camionero?.nombre || '-'}</td>
+                                                            <td className="text-end">
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-sm btn-outline-primary"
+                                                                    onClick={() => abrirEdicionCarga(c)}
+                                                                >
+                                                                    Editar
+                                                                </button>
+                                                            </td>
                                                         </tr>
                                                     ))
                                                 )}
                                             </tbody>
                                         </table>
                                     </div>
+
+                                    {edicionCarga.id ? (
+                                        <div className="border rounded p-3 mt-3 bg-body-tertiary">
+                                            <div className="fw-semibold mb-2">Editar carga #{edicionCarga.id}</div>
+                                            <div className="row g-2">
+                                                <div className="col-12 col-md-3">
+                                                    <label className="form-label mb-1">Fecha</label>
+                                                    <input
+                                                        type="date"
+                                                        className="form-control form-control-sm"
+                                                        value={edicionCarga.fechaCarga}
+                                                        onChange={(e) => setEdicionCarga((prev) => ({ ...prev, fechaCarga: e.target.value }))}
+                                                    />
+                                                </div>
+                                                <div className="col-12 col-md-3">
+                                                    <label className="form-label mb-1">Camión</label>
+                                                    <select
+                                                        className="form-select form-select-sm"
+                                                        value={edicionCarga.camionId}
+                                                        onChange={(e) => setEdicionCarga((prev) => ({ ...prev, camionId: e.target.value }))}
+                                                    >
+                                                        <option value="">Seleccionar</option>
+                                                        {camionesCombustible.map((camion) => (
+                                                            <option key={camion.id} value={camion.id}>{camion.patente}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="col-12 col-md-2">
+                                                    <label className="form-label mb-1">Origen</label>
+                                                    <select
+                                                        className="form-select form-select-sm"
+                                                        value={edicionCarga.origen}
+                                                        onChange={(e) => setEdicionCarga((prev) => ({ ...prev, origen: e.target.value }))}
+                                                    >
+                                                        <option value="externo">Externo</option>
+                                                        <option value="predio">Predio</option>
+                                                    </select>
+                                                </div>
+                                                <div className="col-12 col-md-2">
+                                                    <label className="form-label mb-1">Litros</label>
+                                                    <input
+                                                        type="number"
+                                                        min={0.01}
+                                                        step={0.01}
+                                                        className="form-control form-control-sm"
+                                                        value={edicionCarga.litros}
+                                                        onChange={(e) => setEdicionCarga((prev) => ({ ...prev, litros: e.target.value }))}
+                                                    />
+                                                </div>
+                                                <div className="col-12 col-md-2">
+                                                    <label className="form-label mb-1">Precio unitario</label>
+                                                    <input
+                                                        type="number"
+                                                        min={0.01}
+                                                        step={0.01}
+                                                        className="form-control form-control-sm"
+                                                        value={edicionCarga.precioUnitario}
+                                                        onChange={(e) => setEdicionCarga((prev) => ({ ...prev, precioUnitario: e.target.value }))}
+                                                    />
+                                                </div>
+                                                <div className="col-12">
+                                                    <label className="form-label mb-1">Observaciones</label>
+                                                    <input
+                                                        className="form-control form-control-sm"
+                                                        value={edicionCarga.observaciones}
+                                                        onChange={(e) => setEdicionCarga((prev) => ({ ...prev, observaciones: e.target.value }))}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="d-flex justify-content-end gap-2 mt-3">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-outline-secondary"
+                                                    onClick={() => setEdicionCarga(edicionVacia)}
+                                                    disabled={editandoCarga}
+                                                >
+                                                    Cancelar
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-primary"
+                                                    onClick={guardarEdicionCarga}
+                                                    disabled={editandoCarga}
+                                                >
+                                                    {editandoCarga ? 'Guardando…' : 'Guardar cambios'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : null}
                                 </>
                             )}
                         </div>

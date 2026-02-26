@@ -233,6 +233,87 @@ router.post('/predio/precio-unitario',
     }
 );
 
+router.put('/cargas/:id',
+    authMiddleware,
+    [
+        param('id').isInt({ min: 1 }).withMessage('Carga inválida'),
+        body('fechaCarga').isISO8601().withMessage('Fecha inválida'),
+        body('litros').isFloat({ min: 0.01 }).withMessage('Litros inválidos'),
+        body('precioUnitario').isFloat({ min: 0.01 }).withMessage('Precio unitario inválido'),
+        body('camionId').isInt({ min: 1 }).withMessage('Camión inválido'),
+        body('origen').isIn(['predio', 'externo']).withMessage('Origen inválido'),
+        body('observaciones').optional().isString()
+    ],
+    async (req, res) => {
+        try {
+            if (!['ceo'].includes(req.user?.rol)) {
+                return res.status(403).json({ error: 'No tienes permisos para editar cargas de combustible' });
+            }
+
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+            const cargaId = Number(req.params.id);
+            const { fechaCarga, litros, precioUnitario, camionId, origen, observaciones } = req.body;
+
+            const carga = await CombustibleMovimiento.findByPk(cargaId);
+            if (!carga) return res.status(404).json({ error: 'Carga no encontrada' });
+            if (carga.tipoRegistro !== 'carga') return res.status(400).json({ error: 'Solo se pueden editar registros de tipo carga' });
+
+            const camion = await Camion.findByPk(camionId);
+            if (!camion) return res.status(404).json({ error: 'Camión no encontrado' });
+
+            const litrosPrevios = Number(Number(toNum(carga.litros)).toFixed(2));
+            const origenPrevio = carga.origen;
+            const consumoPredioPrevio = origenPrevio === 'predio' ? litrosPrevios : 0;
+
+            const litrosNuevos = Number(Number(litros).toFixed(2));
+            const precioUnitarioNuevo = Number(Number(precioUnitario).toFixed(2));
+            const consumoPredioNuevo = origen === 'predio' ? litrosNuevos : 0;
+
+            const stock = await getOrCreateStock();
+            const stockActual = toNum(stock.disponibleLitros);
+            const stockAjustado = Number((stockActual + consumoPredioPrevio - consumoPredioNuevo).toFixed(2));
+            if (stockAjustado < 0) {
+                return res.status(400).json({ error: `Stock insuficiente en predio para aplicar el cambio. Disponible: ${stockActual.toFixed(2)} L` });
+            }
+
+            const fecha = String(fechaCarga).slice(0, 10);
+            const [anio, mes] = fecha.split('-').map(Number);
+            const importeTotalNuevo = Number((litrosNuevos * precioUnitarioNuevo).toFixed(2));
+            const observacionesLimpias = String(observaciones || '').trim();
+            const lugarFinal = origen === 'predio' ? 'Carga predio' : 'Carga externa';
+
+            carga.camionId = camionId;
+            carga.fechaCarga = fecha;
+            carga.mes = mes;
+            carga.anio = anio;
+            carga.litros = litrosNuevos;
+            carga.precioUnitario = precioUnitarioNuevo;
+            carga.importeTotal = importeTotalNuevo;
+            carga.lugar = lugarFinal;
+            carga.origen = origen;
+            carga.observaciones = observacionesLimpias || null;
+            await carga.save();
+
+            if (consumoPredioPrevio !== consumoPredioNuevo) {
+                stock.disponibleLitros = stockAjustado;
+                stock.updatedById = req.user.id;
+                await stock.save();
+            }
+
+            res.json({
+                success: true,
+                carga,
+                stockPredio: toNum(stock.disponibleLitros)
+            });
+        } catch (e) {
+            console.error('[combustible] Error editando carga:', e?.message || e);
+            res.status(500).json({ error: 'Error editando carga de combustible' });
+        }
+    }
+);
+
 router.get('/resumen', authMiddleware, async (req, res) => {
     try {
         if (!['ceo', 'administracion'].includes(req.user?.rol)) {
