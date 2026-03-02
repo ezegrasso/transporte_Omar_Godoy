@@ -365,6 +365,16 @@ router.get('/resumen', authMiddleware, async (req, res) => {
             row.cargas.push(item);
         }
 
+        const getUltimaCargaSortTime = (row) => {
+            const ultimaCarga = row?.cargas?.[0];
+            if (!ultimaCarga) return 0;
+            const fechaCargaTs = ultimaCarga.fechaCarga
+                ? new Date(`${String(ultimaCarga.fechaCarga).slice(0, 10)}T00:00:00`).getTime()
+                : 0;
+            const createdAtTs = ultimaCarga.createdAt ? new Date(ultimaCarga.createdAt).getTime() : 0;
+            return Math.max(fechaCargaTs || 0, createdAtTs || 0);
+        };
+
         const detallePorCamion = Array.from(porCamion.values())
             .map((row) => ({
                 ...row,
@@ -373,7 +383,11 @@ router.get('/resumen', authMiddleware, async (req, res) => {
                 totalExterno: Number(row.totalExterno.toFixed(2)),
                 cantidadCargas: row.cargas.length
             }))
-            .sort((a, b) => b.totalLitros - a.totalLitros);
+            .sort((a, b) => {
+                const diffReciente = getUltimaCargaSortTime(b) - getUltimaCargaSortTime(a);
+                if (diffReciente !== 0) return diffReciente;
+                return b.totalLitros - a.totalLitros;
+            });
 
         const stock = await getOrCreateStock();
 
