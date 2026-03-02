@@ -49,6 +49,10 @@ export const ensureSchema = async () => {
             await qi.addColumn('viajes', 'finalizadoConfirmadoPor', { type: DataTypes.INTEGER, allowNull: true });
             console.log("Columna 'finalizadoConfirmadoPor' añadida a 'viajes'.");
         }
+        if (!('cgtRemitos' in descV)) {
+            await qi.addColumn('viajes', 'cgtRemitos', { type: DataTypes.STRING(20), allowNull: true });
+            console.log("Columna 'cgtRemitos' añadida a 'viajes'.");
+        }
         if (!('finalizadoConfirmadoAt' in descV)) {
             await qi.addColumn('viajes', 'finalizadoConfirmadoAt', { type: DataTypes.DATE, allowNull: true });
             console.log("Columna 'finalizadoConfirmadoAt' añadida a 'viajes'.");

@@ -728,6 +728,11 @@ export default function Administracion() {
     const [viajesPorFacturaNumero, setViajesPorFacturaNumero] = useState([]);
     const [loadingBusquedaFactura, setLoadingBusquedaFactura] = useState(false);
     const [errorBusquedaFactura, setErrorBusquedaFactura] = useState('');
+    const [cgtRemitosFiltro, setCgtRemitosFiltro] = useState('');
+    const [cgtRemitosBusqueda, setCgtRemitosBusqueda] = useState('');
+    const [viajesPorCgtRemitos, setViajesPorCgtRemitos] = useState([]);
+    const [loadingBusquedaCgtRemitos, setLoadingBusquedaCgtRemitos] = useState(false);
+    const [errorBusquedaCgtRemitos, setErrorBusquedaCgtRemitos] = useState('');
     const buscarViajesPorFacturaNumero = async () => {
         const numero = String(facturaNumeroFiltro || '').trim();
         if (!numero) {
@@ -754,6 +759,39 @@ export default function Administracion() {
             setViajesPorFacturaNumero([]);
         } finally {
             setLoadingBusquedaFactura(false);
+        }
+    };
+    const buscarViajesPorCgtRemitos = async () => {
+        const numero = String(cgtRemitosFiltro || '').trim();
+        if (!numero) {
+            setCgtRemitosBusqueda('');
+            setViajesPorCgtRemitos([]);
+            setErrorBusquedaCgtRemitos('');
+            return;
+        }
+        if (!/^\d{1,11}$/.test(numero)) {
+            setErrorBusquedaCgtRemitos('El número CTG/Remitos debe tener hasta 11 dígitos');
+            setViajesPorCgtRemitos([]);
+            return;
+        }
+        setLoadingBusquedaCgtRemitos(true);
+        setErrorBusquedaCgtRemitos('');
+        try {
+            const { data } = await api.get('/viajes', {
+                params: {
+                    cgtRemitos: numero,
+                    limit: 500,
+                    order: 'DESC',
+                    sortBy: 'fecha'
+                }
+            });
+            setCgtRemitosBusqueda(numero);
+            setViajesPorCgtRemitos(data?.data || data?.items || []);
+        } catch (e) {
+            setErrorBusquedaCgtRemitos(e?.response?.data?.error || 'No se pudo buscar por CGT/Remitos');
+            setViajesPorCgtRemitos([]);
+        } finally {
+            setLoadingBusquedaCgtRemitos(false);
         }
     };
     const AUTO_OPEN_THRESHOLD = Number(import.meta?.env?.VITE_NOTIS_AUTO_OPEN_THRESHOLD ?? 3);
@@ -1536,6 +1574,76 @@ export default function Administracion() {
 
             <div className="card shadow-sm mt-3">
                 <div className="card-body">
+                    <div className="d-flex flex-wrap align-items-end gap-2 mb-3">
+                        <div>
+                            <label className="form-label mb-1">Buscar por CTG/Remitos</label>
+                            <input
+                                className="form-control"
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={11}
+                                placeholder="Ej: 20304050607"
+                                value={cgtRemitosFiltro}
+                                onChange={(e) => setCgtRemitosFiltro(String(e.target.value || '').replace(/\D/g, '').slice(0, 11))}
+                                onKeyDown={(e) => { if (e.key === 'Enter') buscarViajesPorCgtRemitos(); }}
+                            />
+                        </div>
+                        <button className="btn btn-primary" onClick={buscarViajesPorCgtRemitos} disabled={loadingBusquedaCgtRemitos}>
+                            {loadingBusquedaCgtRemitos ? 'Buscando...' : 'Buscar'}
+                        </button>
+                        <button
+                            className="btn btn-outline-secondary"
+                            onClick={() => {
+                                setCgtRemitosFiltro('');
+                                setCgtRemitosBusqueda('');
+                                setViajesPorCgtRemitos([]);
+                                setErrorBusquedaCgtRemitos('');
+                            }}
+                        >
+                            Limpiar
+                        </button>
+                    </div>
+
+                    {errorBusquedaCgtRemitos ? (
+                        <div className="alert alert-danger py-2 mb-3">{errorBusquedaCgtRemitos}</div>
+                    ) : (
+                        <>
+                            <div className="small text-body-secondary mb-2">
+                                {cgtRemitosBusqueda
+                                    ? `Resultados para ${cgtRemitosBusqueda}: ${viajesPorCgtRemitos.length} viaje(s)`
+                                    : 'Ingresá un número CTG/Remitos y presioná Buscar para ver los viajes asociados.'}
+                            </div>
+                            {viajesPorCgtRemitos.length > 0 && (
+                                <div className="table-responsive mb-3">
+                                    <table className="table table-sm table-striped align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">Cliente</th>
+                                                <th scope="col">Fecha viaje</th>
+                                                <th scope="col">Origen</th>
+                                                <th scope="col">Destino</th>
+                                                <th scope="col">Estado</th>
+                                                <th scope="col">Viaje ID</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {viajesPorCgtRemitos.map(v => (
+                                                <tr key={`cgt-remitos-${v.id}`}>
+                                                    <td>{v.cliente || '-'}</td>
+                                                    <td>{formatDateOnly(v.fecha)}</td>
+                                                    <td>{v.origen || '-'}</td>
+                                                    <td>{v.destino || '-'}</td>
+                                                    <td>{v.estado || '-'}</td>
+                                                    <td>{v.id}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </>
+                    )}
+
                     <div className="d-flex flex-wrap align-items-end gap-2 mb-3">
                         <div>
                             <label className="form-label mb-1">Buscar por número de factura</label>

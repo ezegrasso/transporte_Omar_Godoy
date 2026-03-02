@@ -337,7 +337,7 @@ export default function Ceo() {
 
     const openFinalizarModal = (id) => {
         setModalFinalizarId(id);
-        setFinalizarData({ km: '', kilosCargados: '', importe: '' });
+        setFinalizarData({ km: '', kilosCargados: '', importe: '', cgtRemitos: '' });
         setFinalizarPasoConfirm(false);
         setConfirmChecked(false);
         setTimeout(() => {
@@ -374,8 +374,17 @@ export default function Ceo() {
         try {
             const body = { km: safeParseNumber(finalizarData.km), combustible: 0, importe: safeParseNumber(finalizarData.importe) };
             if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = safeParseNumber(finalizarData.kilosCargados);
+            if (String(finalizarData.cgtRemitos || '').trim() !== '') {
+                const cgt = String(finalizarData.cgtRemitos).trim();
+                if (!/^\d{1,11}$/.test(cgt)) {
+                    showToast('CTG/Remitos debe tener hasta 11 dígitos', 'error');
+                    setFinishingId(null);
+                    return;
+                }
+                body.cgtRemitos = cgt;
+            }
             await api.patch(`/viajes/${id}/finalizar`, body);
-            setFinalizarData({ km: '', kilosCargados: '', importe: '' });
+            setFinalizarData({ km: '', kilosCargados: '', importe: '', cgtRemitos: '' });
             await new Promise(r => setTimeout(r, 400));
             await fetchViajes();
             showToast('Viaje finalizado', 'success');
@@ -791,7 +800,7 @@ export default function Ceo() {
     const [savedUsuarioId, setSavedUsuarioId] = useState(null);
 
     // Estados para finalizar viaje (CEO puede finalizar viajes en curso)
-    const [finalizarData, setFinalizarData] = useState({ km: '', kilosCargados: '', importe: '' });
+    const [finalizarData, setFinalizarData] = useState({ km: '', kilosCargados: '', importe: '', cgtRemitos: '' });
     const [finalizarPasoConfirm, setFinalizarPasoConfirm] = useState(false);
     const [confirmChecked, setConfirmChecked] = useState(false);
     const [showFinalizarModal, setShowFinalizarModal] = useState(false);
@@ -2277,8 +2286,7 @@ export default function Ceo() {
                                             <div><strong>Tipo mercadería:</strong> {detalle.tipoMercaderia ?? '-'}</div>
                                             <div><strong>Cliente:</strong> {detalle.cliente ?? '-'}</div>
                                             <div><strong>Kilómetros:</strong> {detalle.km ?? '-'}</div>
-                                            <div><strong>Combustible:</strong> {detalle.combustible ?? '-'}</div>
-                                            <div><strong>Toneladas cargadas:</strong> {detalle.kilosCargados ?? '-'}</div>
+                                            <div><strong>Toneladas descargadas:</strong> {detalle.kilosCargados ?? '-'}</div>
                                             <div><strong>Precio por tonelada:</strong> {detalle.precioTonelada ?? '-'}</div>
                                             <div><strong>Importe:</strong> {detalle.importe ?? '-'}</div>
                                         </div>
@@ -2390,7 +2398,7 @@ export default function Ceo() {
                                                         <div><strong>Tipo:</strong> {viajeSeleccionado.tipoMercaderia || '-'}</div>
                                                         <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
                                                         <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
-                                                        <div><strong>Toneladas cargadas:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
+                                                        <div><strong>Toneladas descargadas:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
                                                     </div>
                                                 </div>
                                                 <hr />
@@ -2402,12 +2410,24 @@ export default function Ceo() {
                                                         <input className="form-control" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} />
                                                     </div>
                                                     <div className="col-12">
-                                                        <label className="form-label">Toneladas cargadas</label>
-                                                        <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} placeholder="Ingresa las toneladas cargadas" />
+                                                        <label className="form-label">Toneladas descargadas</label>
+                                                        <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} placeholder="Ingresa las toneladas descargadas" />
                                                     </div>
                                                     <div className="col-12">
                                                         <label className="form-label">Importe del viaje *</label>
                                                         <input className="form-control" type="number" min={0} step={0.01} value={finalizarData.importe} onChange={e => setFinalizarData(x => ({ ...x, importe: e.target.value }))} placeholder="Ingresa el importe del viaje" />
+                                                    </div>
+                                                    <div className="col-12">
+                                                        <label className="form-label">CTG/Remitos</label>
+                                                        <input
+                                                            className="form-control"
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            maxLength={11}
+                                                            value={finalizarData.cgtRemitos}
+                                                            onChange={e => setFinalizarData(x => ({ ...x, cgtRemitos: String(e.target.value || '').replace(/\D/g, '').slice(0, 11) }))}
+                                                            placeholder="Número (hasta 11 dígitos)"
+                                                        />
                                                     </div>
                                                     <div className="col-12 mt-2">
                                                         <div className="alert alert-warning py-2 mb-0 small">
@@ -2422,8 +2442,9 @@ export default function Ceo() {
                                                     <ul className="small mb-2">
                                                         <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
                                                         <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
-                                                        <li><strong>Toneladas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
+                                                        <li><strong>Toneladas descargadas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
                                                         <li><strong>Importe del viaje:</strong> ${finalizarData.importe || '0'}</li>
+                                                        <li><strong>CTG/Remitos:</strong> {finalizarData.cgtRemitos || '—'}</li>
                                                     </ul>
                                                     <div className="alert alert-danger py-2 small mb-2">
                                                         Una vez finalizado el viaje, no podrás volverlo a "en curso".

@@ -88,6 +88,7 @@ const saveLocalFile = (id, file, base) => {
 router.get('/', authMiddleware, [
     query('estado').optional().isString(),
     query('facturaNumero').optional().isString(),
+    query('cgtRemitos').optional().isString(),
     query('from').optional().isISO8601(),
     query('to').optional().isISO8601(),
     query('page').optional().isInt({ min: 1 }),
@@ -105,9 +106,11 @@ router.get('/', authMiddleware, [
         const order = (req.query.order || 'ASC').toUpperCase();
         const estado = req.query.estado;
         const facturaNumero = String(req.query.facturaNumero || '').trim();
+        const cgtRemitos = String(req.query.cgtRemitos || '').trim();
         const where = {};
         if (estado) where.estado = estado;
         if (facturaNumero) where.facturaNumero = facturaNumero;
+        if (cgtRemitos) where.cgtRemitos = cgtRemitos;
         // Restricción por rol
         if (req.user.rol !== 'ceo' && req.user.rol !== 'administracion') {
             // Mostrar SOLO viajes donde el camionero está asignado (camioneroId)
@@ -348,7 +351,21 @@ router.patch('/:id/finalizar',
     authMiddleware,
     // Permitir que el camionero finalice su propio viaje y que el CEO/Administración pueda finalizar desde su panel
     roleMiddleware(['camionero', 'ceo', 'administracion']),
-    [param('id').isInt(), body('km').isInt({ min: 0 }), body('combustible').isFloat({ min: 0 }), body('kilosCargados').optional().isFloat({ min: 0 }), body('importe').optional().isFloat({ min: 0 })],
+    [
+        param('id').isInt(),
+        body('km').isInt({ min: 0 }),
+        body('combustible').isFloat({ min: 0 }),
+        body('kilosCargados').optional().isFloat({ min: 0 }),
+        body('importe').optional().isFloat({ min: 0 }),
+        body('cgtRemitos').optional({ nullable: true }).custom((value) => {
+            if (value === null || value === undefined || String(value).trim() === '') return true;
+            const s = String(value).trim();
+            if (!/^\d{1,11}$/.test(s)) {
+                throw new Error('CTG/Remitos debe tener hasta 11 dígitos numéricos');
+            }
+            return true;
+        })
+    ],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -387,6 +404,10 @@ router.patch('/:id/finalizar',
             // Usar el importe enviado manualmente desde el frontend
             if (req.body.importe !== undefined) {
                 viaje.importe = Number(req.body.importe);
+            }
+            if (req.body.cgtRemitos !== undefined) {
+                const cgtRemitos = String(req.body.cgtRemitos || '').trim();
+                viaje.cgtRemitos = cgtRemitos || null;
             }
             // Si por alguna razón no quedó seteado al tomar, persistimos los datos del camionero aquí
             if (!viaje.camioneroNombre) viaje.camioneroNombre = req.user?.nombre;

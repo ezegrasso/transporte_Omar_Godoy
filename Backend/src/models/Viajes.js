@@ -97,6 +97,10 @@ const Viaje = sequelize.define('Viaje', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    cgtRemitos: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+    },
     camionId: {
         type: DataTypes.INTEGER,
         allowNull: false,

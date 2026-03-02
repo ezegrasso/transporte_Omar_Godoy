@@ -44,7 +44,7 @@ export default function Camionero() {
     const [mios, setMios] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [finalizarData, setFinalizarData] = useState({ km: '', kilosCargados: '', importe: '' });
+    const [finalizarData, setFinalizarData] = useState({ km: '', kilosCargados: '', importe: '', cgtRemitos: '' });
     const [takingId, setTakingId] = useState(null);
     const [finishingId, setFinishingId] = useState(null);
     // Paso extra de confirmación antes de ejecutar la finalización
@@ -433,7 +433,7 @@ export default function Camionero() {
 
     const openFinalizarModal = (id) => {
         setModalId(id);
-        setFinalizarData({ km: '', kilosCargados: '', importe: '' });
+        setFinalizarData({ km: '', kilosCargados: '', importe: '', cgtRemitos: '' });
         setFinalizarPasoConfirm(false);
         setConfirmChecked(false);
         // Abrir modal: si hay Bootstrap JS lo usa; si no, fallback por estado
@@ -502,8 +502,17 @@ export default function Camionero() {
         try {
             const body = { km: safeParseNumber(finalizarData.km), combustible: 0, importe: safeParseNumber(finalizarData.importe) };
             if (String(finalizarData.kilosCargados).trim() !== '') body.kilosCargados = safeParseNumber(finalizarData.kilosCargados);
+            if (String(finalizarData.cgtRemitos || '').trim() !== '') {
+                const cgt = String(finalizarData.cgtRemitos).trim();
+                if (!/^\d{1,11}$/.test(cgt)) {
+                    showToast('CTG/Remitos debe tener hasta 11 dígitos', 'error');
+                    setFinishingId(null);
+                    return;
+                }
+                body.cgtRemitos = cgt;
+            }
             await api.patch(`/viajes/${id}/finalizar`, body);
-            setFinalizarData({ km: '', kilosCargados: '', importe: '' });
+            setFinalizarData({ km: '', kilosCargados: '', importe: '', cgtRemitos: '' });
             setSavedMioId(id);
             await new Promise(r => setTimeout(r, 400));
             await Promise.all([fetchPendientes(), fetchMios()]);
@@ -1100,7 +1109,7 @@ export default function Camionero() {
                                             <div><strong>Tipo:</strong> {viajeSeleccionado.tipoMercaderia || '-'}</div>
                                             <div><strong>Cliente:</strong> {viajeSeleccionado.cliente || '-'}</div>
                                             <div><strong>Km (actual):</strong> {viajeSeleccionado.km ?? '-'}</div>
-                                            <div><strong>Toneladas cargadas:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
+                                            <div><strong>Toneladas descargadas:</strong> {viajeSeleccionado.kilosCargados ?? '-'}</div>
                                         </div>
                                     </div>
                                     <hr />
@@ -1113,12 +1122,24 @@ export default function Camionero() {
                                         <input className="form-control" type="number" min={1} value={finalizarData.km} onChange={e => setFinalizarData(x => ({ ...x, km: e.target.value }))} />
                                     </div>
                                     <div className="col-12">
-                                        <label className="form-label">Toneladas cargadas</label>
+                                        <label className="form-label">Toneladas descargadas</label>
                                         <input className="form-control" type="number" min={0} step={1} value={finalizarData.kilosCargados} onChange={e => setFinalizarData(x => ({ ...x, kilosCargados: e.target.value }))} />
                                     </div>
                                     <div className="col-12">
                                         <label className="form-label">Importe</label>
                                         <input className="form-control" type="number" min={0} step={0.01} value={finalizarData.importe} onChange={e => setFinalizarData(x => ({ ...x, importe: e.target.value }))} placeholder="Ingresa el importe del viaje" />
+                                    </div>
+                                    <div className="col-12">
+                                        <label className="form-label">CTG/Remitos</label>
+                                        <input
+                                            className="form-control"
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={11}
+                                            value={finalizarData.cgtRemitos}
+                                            onChange={e => setFinalizarData(x => ({ ...x, cgtRemitos: String(e.target.value || '').replace(/\D/g, '').slice(0, 11) }))}
+                                            placeholder="Número (hasta 11 dígitos)"
+                                        />
                                     </div>
                                     <div className="col-12 mt-2">
                                         <div className="alert alert-warning py-2 mb-0 small">
@@ -1132,8 +1153,9 @@ export default function Camionero() {
                                     <p className="small mb-2">Revisá los datos antes de finalizar definitivamente el viaje:</p>
                                     <ul className="small mb-2">
                                         <li><strong>Km a registrar:</strong> {finalizarData.km}</li>
-                                        <li><strong>Toneladas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
+                                        <li><strong>Toneladas descargadas a registrar:</strong> {finalizarData.kilosCargados || '—'}</li>
                                         <li><strong>Importe a registrar:</strong> {finalizarData.importe || '—'}</li>
+                                        <li><strong>CTG/Remitos:</strong> {finalizarData.cgtRemitos || '—'}</li>
                                         <li><strong>Viaje:</strong> #{viajeSeleccionado?.id} {viajeSeleccionado?.origen} → {viajeSeleccionado?.destino}</li>
                                     </ul>
                                     <div className="alert alert-danger py-2 small mb-2">
