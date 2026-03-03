@@ -21,6 +21,12 @@ import { sendEmailToCEO, sendEmailToCamioneros, sendEmail } from '../services/em
 
 const router = Router();
 
+const normalizeRole = (rawRole) => String(rawRole || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
 // Configuración de subida de archivos (memoria). Si hay credenciales S3, sube a bucket; si no, guarda en disco local.
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -89,6 +95,11 @@ router.get('/', authMiddleware, [
     query('estado').optional().isString(),
     query('facturaNumero').optional().isString(),
     query('cgtRemitos').optional().isString(),
+    query('q').optional().isString(),
+    query('camionPatente').optional().isString(),
+    query('camioneroNombre').optional().isString(),
+    query('tipoMercaderia').optional().isString(),
+    query('cliente').optional().isString(),
     query('from').optional().isISO8601(),
     query('to').optional().isISO8601(),
     query('page').optional().isInt({ min: 1 }),
@@ -107,12 +118,36 @@ router.get('/', authMiddleware, [
         const estado = req.query.estado;
         const facturaNumero = String(req.query.facturaNumero || '').trim();
         const cgtRemitos = String(req.query.cgtRemitos || '').trim();
+        const q = String(req.query.q || '').trim();
+        const camionPatente = String(req.query.camionPatente || '').trim();
+        const camioneroNombre = String(req.query.camioneroNombre || '').trim();
+        const tipoMercaderia = String(req.query.tipoMercaderia || '').trim();
+        const cliente = String(req.query.cliente || '').trim();
         const where = {};
         if (estado) where.estado = estado;
         if (facturaNumero) where.facturaNumero = facturaNumero;
         if (cgtRemitos) where.cgtRemitos = cgtRemitos;
+        if (tipoMercaderia) where.tipoMercaderia = tipoMercaderia;
+        if (cliente) where.cliente = cliente;
+        if (q) {
+            where[Op.or] = [
+                { origen: { [Op.like]: `%${q}%` } },
+                { destino: { [Op.like]: `%${q}%` } },
+                { tipoMercaderia: { [Op.like]: `%${q}%` } },
+                { cliente: { [Op.like]: `%${q}%` } }
+            ];
+        }
+
+        let effectiveRole = normalizeRole(req.user?.rol);
+        if (!effectiveRole && req.user?.id) {
+            try {
+                const authUser = await Usuario.findByPk(req.user.id, { attributes: ['rol'] });
+                effectiveRole = normalizeRole(authUser?.rol);
+            } catch { /* noop */ }
+        }
+
         // Restricción por rol
-        if (req.user.rol !== 'ceo' && req.user.rol !== 'administracion') {
+        if (effectiveRole !== 'ceo' && effectiveRole !== 'administracion') {
             // Mostrar SOLO viajes donde el camionero está asignado (camioneroId)
             // No filtrar por camionId porque eso causa mezcla de viajes cuando cambian de camión
             where.camioneroId = req.user.id;
@@ -124,15 +159,28 @@ router.get('/', authMiddleware, [
             if (req.query.from) where.fecha[Op.gte] = req.query.from;
             if (req.query.to) where.fecha[Op.lte] = req.query.to;
         }
+        const camionInclude = { model: Camion, as: 'camion', attributes: ['id', 'patente', 'marca', 'modelo', 'anio'] };
+        if (camionPatente) {
+            camionInclude.where = { patente: camionPatente };
+            camionInclude.required = true;
+        }
+
+        const camioneroInclude = { model: Usuario, as: 'camionero', attributes: ['id', 'nombre', 'email'] };
+        if (camioneroNombre) {
+            camioneroInclude.where = { nombre: camioneroNombre };
+            camioneroInclude.required = true;
+        }
+
         const { rows, count } = await Viaje.findAndCountAll({
             where,
             limit,
             offset,
             order: [[sortBy, order]],
             include: [
-                { model: Camion, as: 'camion', attributes: ['id', 'patente', 'marca', 'modelo', 'anio'] },
-                { model: Usuario, as: 'camionero', attributes: ['id', 'nombre', 'email'] }
-            ]
+                camionInclude,
+                camioneroInclude
+            ],
+            distinct: true
         });
 
         // Adjuntar patente de acoplado sin N+1: cargar todos y mapear

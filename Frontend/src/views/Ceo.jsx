@@ -214,7 +214,8 @@ export default function Ceo() {
     const [sortKey, setSortKey] = useState('fecha');
     const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(1);
-    const pageSize = 10;
+    const pageSize = 50;
+    const [totalViajes, setTotalViajes] = useState(0);
     const compact = true;
 
     const viajesFinalizados = useMemo(() => (viajes || []).filter(v => (v.estado || '').toLowerCase() === 'finalizado'), [viajes]);
@@ -304,10 +305,24 @@ export default function Ceo() {
         setCamiones(list);
         return list;
     };
-    const fetchViajes = async () => {
-        const { data } = await api.get('/viajes?limit=100');
+    const fetchViajes = async (pageArg = page) => {
+        const params = {
+            limit: pageSize,
+            page: pageArg,
+            order: 'DESC',
+            sortBy: 'fecha'
+        };
+        if (filtroEstado) params.estado = filtroEstado;
+        if (busqueda?.trim()) params.q = busqueda.trim();
+        if (filtroCamion) params.camionPatente = filtroCamion;
+        if (filtroCamionero) params.camioneroNombre = filtroCamionero;
+        if (filtroTipo) params.tipoMercaderia = filtroTipo;
+        if (filtroCliente) params.cliente = filtroCliente;
+
+        const { data } = await api.get('/viajes', { params });
         const list = data.items || data.data || [];
         setViajes(list);
+        setTotalViajes(Number(data?.total || list.length || 0));
         return list;
     };
     const fetchAcoplados = async () => {
@@ -473,11 +488,19 @@ export default function Ceo() {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchCamiones(), fetchAcoplados(), fetchViajes(), fetchUsuarios(), fetchClientes()]); }
+            try { await Promise.all([fetchCamiones(), fetchAcoplados(), fetchUsuarios(), fetchClientes()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando datos'); }
             finally { setLoading(false); }
         })();
     }, []);
+
+    useEffect(() => {
+        fetchViajes(page).catch((e) => {
+            const msg = e?.response?.data?.error || 'Error cargando viajes';
+            setError(msg);
+            showToast(msg, 'error');
+        });
+    }, [page, filtroEstado, busqueda, filtroCamion, filtroCamionero, filtroTipo, filtroCliente]);
 
     // Inicialización de tooltips de Bootstrap: se coloca más abajo, después de calcular viajesPagina
 
@@ -679,19 +702,7 @@ export default function Ceo() {
         return list.slice(0, 5);
     }, [viajes]);
 
-    const viajesFiltrados = useMemo(() => {
-        const term = busqueda.trim().toLowerCase();
-        return viajes.filter(v => {
-            const okEstado = !filtroEstado || v.estado === filtroEstado;
-            const text = `${v.origen ?? ''} ${v.destino ?? ''} ${v.tipoMercaderia ?? ''} ${v.cliente ?? ''} ${v.camion?.patente ?? v.camionId ?? ''} ${v.acoplado?.patente ?? v.acopladoPatente ?? ''} ${v.camionero?.nombre ?? ''}`.toLowerCase();
-            const okTexto = !term || text.includes(term);
-            const okCamion = !filtroCamion || (v.camion?.patente || v.camionId || '') === filtroCamion;
-            const okCamionero = !filtroCamionero || (v.camionero?.nombre || '') === filtroCamionero;
-            const okTipo = !filtroTipo || (v.tipoMercaderia || '') === filtroTipo;
-            const okCliente = !filtroCliente || (v.cliente || '') === filtroCliente;
-            return okEstado && okTexto && okCamion && okCamionero && okTipo && okCliente;
-        });
-    }, [viajes, filtroEstado, busqueda, filtroCamion, filtroCamionero, filtroTipo, filtroCliente]);
+    const viajesFiltrados = useMemo(() => viajes, [viajes]);
     // Helpers de fecha (DATEONLY -> local)
     const parseDateOnlyLocal = (s) => {
         if (!s) return 0;
@@ -731,12 +742,9 @@ export default function Ceo() {
         return arr;
     }, [viajesFiltrados, sortKey, sortDir]);
 
-    const totalPages = Math.max(1, Math.ceil(viajesFiltrados.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(totalViajes / pageSize));
     const currentPage = Math.min(page, totalPages);
-    const viajesPagina = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
-        return viajesOrdenados.slice(start, start + pageSize);
-    }, [viajesOrdenados, currentPage]);
+    const viajesPagina = useMemo(() => viajesOrdenados, [viajesOrdenados]);
 
     // (Se reemplaza CSV por PDF)
 
@@ -1686,7 +1694,7 @@ export default function Ceo() {
                             )}
                         </div>
                         <div className="d-flex justify-content-between align-items-center mt-2">
-                            <small className="text-body-secondary">Mostrando {(viajesPagina.length && (currentPage - 1) * pageSize + 1) || 0} - {(currentPage - 1) * pageSize + viajesPagina.length} de {viajesFiltrados.length}</small>
+                            <small className="text-body-secondary">Mostrando {(viajesPagina.length && (currentPage - 1) * pageSize + 1) || 0} - {(currentPage - 1) * pageSize + viajesPagina.length} de {totalViajes}</small>
                             <div className="btn-group btn-group-sm" role="group">
                                 <button className="btn btn-outline-secondary" disabled={currentPage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</button>
                                 <button className="btn btn-outline-secondary" disabled={currentPage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Siguiente</button>
