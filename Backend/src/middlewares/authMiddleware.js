@@ -26,7 +26,11 @@ export const authMiddleware = (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Token malformado' });
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        decoded.rol = normalizeRole(decoded?.rol);
+        const normalizedUserId = decoded?.id ?? decoded?.userId ?? decoded?.sub ?? null;
+        const normalizedRole = normalizeRole(decoded?.rol ?? decoded?.role);
+
+        decoded.id = normalizedUserId;
+        decoded.rol = normalizedRole;
         req.user = decoded;
         next();
     } catch (error) {
@@ -35,7 +39,9 @@ export const authMiddleware = (req, res, next) => {
 };
 
 export const roleMiddleware = (roles) => (req, res, next) => {
-    if (!roles.includes(req.user.rol)) {
+    const normalizedUserRole = normalizeRole(req.user?.rol);
+    const normalizedAllowedRoles = (roles || []).map((r) => normalizeRole(r));
+    if (!normalizedAllowedRoles.includes(normalizedUserRole)) {
         return res.status(403).json({ error: 'No autorizado' });
     }
     next();
