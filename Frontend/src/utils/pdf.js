@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { companyBrand } from '../config/brand';
 
 // Genera un PDF con listado de viajes (mejorado con resumen financiero)
@@ -38,7 +38,7 @@ export function generarListadoViajesPDF(titulo, headers, rows, fileName = 'viaje
     const body = rows.map(r => r.map(v => v == null ? '' : String(v)));
 
     // Tabla de viajes
-    doc.autoTable({
+    autoTable(doc, {
         startY: 36,
         head: [headers],
         body,
@@ -140,7 +140,7 @@ export function generarDetalleViajePDF(viaje, fileName = `viaje_${viaje.id}.pdf`
         ['Tipo Mercadería', viaje.tipoMercaderia || '-']
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: 50,
         body: infoGeneral,
         styles: { fontSize: 9, cellPadding: 2 },
@@ -163,7 +163,7 @@ export function generarDetalleViajePDF(viaje, fileName = `viaje_${viaje.id}.pdf`
         ['Email Camionero', viaje.camionero?.email || viaje.camioneroEmail || '-']
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: tableHeight + 13,
         body: infoVehiculo,
         styles: { fontSize: 9, cellPadding: 2 },
@@ -186,7 +186,7 @@ export function generarDetalleViajePDF(viaje, fileName = `viaje_${viaje.id}.pdf`
         ['Precio por Tonelada', `$${(viaje.precioTonelada ?? '-')}`],
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: tableHeight2 + 13,
         body: infoOperacional,
         styles: { fontSize: 9, cellPadding: 2 },
@@ -210,7 +210,7 @@ export function generarDetalleViajePDF(viaje, fileName = `viaje_${viaje.id}.pdf`
         ['Remitos', (() => { try { return (JSON.parse(viaje.remitosJson || '[]') || []).length; } catch { return 0; } })()]
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: tableHeight3 + 13,
         body: infoFinanciera,
         styles: { fontSize: 9, cellPadding: 2 },
@@ -307,7 +307,7 @@ export function generarFacturaViajePDF(viaje, fileName = `factura_viaje_${viaje.
         }
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: y,
         head: [['Descripción', 'Detalles', 'Cantidad', `Unitario (${moneda})`, `Total (${moneda})`]],
         body: serviceData.map(s => [
@@ -360,7 +360,7 @@ export function generarFacturaViajePDF(viaje, fileName = `factura_viaje_${viaje.
     const datoViajeY = afterTableY + totalBoxHeight + 8;
     doc.text('DATOS DEL VIAJE', 14, datoViajeY);
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: datoViajeY + 3,
         body: viajeDatos,
         styles: { fontSize: 8, cellPadding: 2 },
