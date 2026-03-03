@@ -485,6 +485,7 @@ export default function Ceo() {
     const camioneros = useMemo(() => (usuarios || []).filter(u => u.rol === 'camionero'), [usuarios]);
 
     useEffect(() => {
+        setPage(1);
         (async () => {
             setLoading(true);
             setError('');
@@ -1695,9 +1696,13 @@ export default function Ceo() {
                         </div>
                         <div className="d-flex justify-content-between align-items-center mt-2">
                             <small className="text-body-secondary">Mostrando {(viajesPagina.length && (currentPage - 1) * pageSize + 1) || 0} - {(currentPage - 1) * pageSize + viajesPagina.length} de {totalViajes}</small>
-                            <div className="btn-group btn-group-sm" role="group">
-                                <button className="btn btn-outline-secondary" disabled={currentPage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</button>
-                                <button className="btn btn-outline-secondary" disabled={currentPage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Siguiente</button>
+                            <div className="d-flex align-items-center gap-2">
+                                <small className="text-body-secondary">Página {currentPage} de {totalPages}</small>
+                                <button className="btn btn-outline-secondary btn-sm" disabled={currentPage <= 1} onClick={() => setPage(1)}>Recientes</button>
+                                <div className="btn-group btn-group-sm" role="group">
+                                    <button className="btn btn-outline-secondary" disabled={currentPage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</button>
+                                    <button className="btn btn-outline-secondary" disabled={currentPage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Siguiente</button>
+                                </div>
                             </div>
                         </div>
                     </div>
