@@ -1488,7 +1488,7 @@ export default function Ceo() {
                                                         >
                                                             <i className="bi bi-eye"></i>
                                                         </button>
-                                                        {v.estado === 'pendiente' && (
+                                                        {(v.estado === 'pendiente' || v.estado === 'finalizado') && (
                                                             <>
                                                                 <button
                                                                     className="btn btn-sm d-inline-flex align-items-center justify-content-center"
@@ -1524,7 +1524,7 @@ export default function Ceo() {
                                                                         setConfirmModal({
                                                                             show: true,
                                                                             title: 'Eliminar viaje',
-                                                                            message: '¿Estás seguro de eliminar este viaje pendiente? Esta acción no se puede deshacer.',
+                                                                            message: '¿Estás seguro de eliminar este viaje? Esta acción no se puede deshacer.',
                                                                             onConfirm: async () => {
                                                                                 try { await api.delete(`/viajes/${v.id}`); showToast('Viaje eliminado', 'success'); await fetchViajes(); }
                                                                                 catch (e) { const msg = e?.response?.data?.error || 'Error eliminando viaje'; setError(msg); showToast(msg, 'error'); }

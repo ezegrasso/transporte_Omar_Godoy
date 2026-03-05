@@ -1043,7 +1043,7 @@ router.patch('/:id',
     }
 );
 
-// Eliminar viaje (solo ceo; permitido solo si está pendiente)
+// Eliminar viaje (solo ceo; permitido si está pendiente o finalizado)
 router.delete('/:id',
     authMiddleware,
     roleMiddleware(['ceo']),
@@ -1054,7 +1054,10 @@ router.delete('/:id',
         try {
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
-            if (viaje.estado !== 'pendiente') return res.status(400).json({ error: 'Solo se puede eliminar viajes pendientes' });
+            // No permitir eliminar viajes en curso, pero sí pendientes o finalizados
+            if (viaje.estado === 'en curso') {
+                return res.status(400).json({ error: 'Solo se puede eliminar viajes pendientes o finalizados' });
+            }
             await viaje.destroy();
             res.json({ ok: true });
         } catch (e) {
