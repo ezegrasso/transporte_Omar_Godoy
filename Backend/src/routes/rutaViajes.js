@@ -90,6 +90,36 @@ const saveLocalFile = (id, file, base) => {
     }
 };
 
+// Stats globales de viajes (para KPI cards, sin paginación)
+router.get('/stats', authMiddleware, async (req, res) => {
+    try {
+        const effectiveRole = normalizeRole(req.user?.rol);
+        const where = {};
+        if (effectiveRole !== 'ceo' && effectiveRole !== 'administracion') {
+            where.camioneroId = req.user.id;
+        }
+
+        const [total, enCurso, finalizados, pendientes, kmResult] = await Promise.all([
+            Viaje.count({ where }),
+            Viaje.count({ where: { ...where, estado: 'en curso' } }),
+            Viaje.count({ where: { ...where, estado: 'finalizado' } }),
+            Viaje.count({ where: { ...where, estado: 'pendiente' } }),
+            Viaje.sum('km', { where: { ...where, estado: 'finalizado' } })
+        ]);
+
+        res.json({
+            total,
+            enCurso,
+            finalizados,
+            pendientes,
+            kmTotales: Number(kmResult || 0)
+        });
+    } catch (e) {
+        console.error('[viajes/stats] Error:', e?.message || e);
+        res.status(500).json({ error: 'Error obteniendo estadísticas de viajes' });
+    }
+});
+
 // Obtener viajes (ceo/administracion ven todos; camionero ve disponibles/asignados)
 router.get('/', authMiddleware, [
     query('estado').optional().isString(),

@@ -218,6 +218,8 @@ export default function Ceo() {
     const [totalViajes, setTotalViajes] = useState(0);
     const compact = true;
 
+    const [statsGlobales, setStatsGlobales] = useState({ total: 0, enCurso: 0, finalizados: 0, pendientes: 0, kmTotales: 0 });
+
     const viajesFinalizados = useMemo(() => (viajes || []).filter(v => (v.estado || '').toLowerCase() === 'finalizado'), [viajes]);
 
     // Detalle de viaje
@@ -323,7 +325,22 @@ export default function Ceo() {
         const list = data.items || data.data || [];
         setViajes(list);
         setTotalViajes(Number(data?.total || list.length || 0));
+        fetchStats();
         return list;
+    };
+    const fetchStats = async () => {
+        try {
+            const { data } = await api.get('/viajes/stats');
+            setStatsGlobales({
+                total: Number(data?.total || 0),
+                enCurso: Number(data?.enCurso || 0),
+                finalizados: Number(data?.finalizados || 0),
+                pendientes: Number(data?.pendientes || 0),
+                kmTotales: Number(data?.kmTotales || 0)
+            });
+        } catch {
+            // Si falla, los stats quedan en 0 pero no rompe la app
+        }
     };
     const fetchAcoplados = async () => {
         const { data } = await api.get('/acoplados');
@@ -489,7 +506,7 @@ export default function Ceo() {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchCamiones(), fetchAcoplados(), fetchUsuarios(), fetchClientes()]); }
+            try { await Promise.all([fetchCamiones(), fetchAcoplados(), fetchUsuarios(), fetchClientes(), fetchStats()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando datos'); }
             finally { setLoading(false); }
         })();
@@ -1187,7 +1204,7 @@ export default function Ceo() {
                         <div className="card shadow-sm h-100 kpi-card">
                             <div className="card-body py-3">
                                 <div className="text-body-secondary small text-uppercase">Viajes</div>
-                                <div className="fs-4 fw-bold">{reporte.total}</div>
+                                <div className="fs-4 fw-bold">{statsGlobales.total}</div>
                             </div>
                         </div>
                     </div>
@@ -1195,7 +1212,7 @@ export default function Ceo() {
                         <div className="card shadow-sm h-100 kpi-card">
                             <div className="card-body py-3">
                                 <div className="text-body-secondary small text-uppercase">En curso</div>
-                                <div className="fs-4 fw-bold">{viajes.filter(v => v.estado === 'en curso').length}</div>
+                                <div className="fs-4 fw-bold">{statsGlobales.enCurso}</div>
                             </div>
                         </div>
                     </div>
@@ -1203,7 +1220,7 @@ export default function Ceo() {
                         <div className="card shadow-sm h-100 kpi-card">
                             <div className="card-body py-3">
                                 <div className="text-body-secondary small text-uppercase">Finalizados</div>
-                                <div className="fs-4 fw-bold">{viajes.filter(v => v.estado === 'finalizado').length}</div>
+                                <div className="fs-4 fw-bold">{statsGlobales.finalizados}</div>
                             </div>
                         </div>
                     </div>
@@ -1211,7 +1228,7 @@ export default function Ceo() {
                         <div className="card shadow-sm h-100 kpi-card">
                             <div className="card-body py-3">
                                 <div className="text-body-secondary small text-uppercase">Km totales</div>
-                                <div className="fs-4 fw-bold">{reporte.km}</div>
+                                <div className="fs-4 fw-bold">{statsGlobales.kmTotales.toLocaleString('es-AR')}</div>
                             </div>
                         </div>
                     </div>
