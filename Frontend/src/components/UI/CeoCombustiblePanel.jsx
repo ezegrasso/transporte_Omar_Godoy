@@ -13,6 +13,20 @@ const fmtFecha = (value) => {
     }
 };
 
+const hoyISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const ingresoFormVacio = () => ({
+    fechaIngreso: hoyISO(),
+    litros: '',
+    precioUnitario: '',
+    proveedor: '',
+    observaciones: '',
+    tipo: 'ingreso',
+});
+
 export default function CeoCombustiblePanel({ showToast }) {
     const detalleModalVacio = { open: false, loading: false, camion: null, cargas: [], totalLitros: 0, totalImporte: 0, precioUnitarioPredio: 0 };
     const edicionVacia = { id: null, fechaCarga: '', camionId: '', origen: 'externo', litros: '', precioUnitario: '', observaciones: '' };
@@ -33,8 +47,12 @@ export default function CeoCombustiblePanel({ showToast }) {
         detallePorCamion: []
     });
 
-    const [ajusteForm, setAjusteForm] = useState({ litros: '', tipo: 'ingreso', observaciones: '' });
-    const [ajustando, setAjustando] = useState(false);
+    const [ingresoForm, setIngresoForm] = useState(ingresoFormVacio());
+    const [guardandoIngreso, setGuardandoIngreso] = useState(false);
+
+    const [historialIngresos, setHistorialIngresos] = useState([]);
+    const [loadingHistorial, setLoadingHistorial] = useState(false);
+    const [mostrarHistorial, setMostrarHistorial] = useState(false);
 
     const [detalleModal, setDetalleModal] = useState(detalleModalVacio);
     const [camionesCombustible, setCamionesCombustible] = useState([]);
@@ -63,6 +81,18 @@ export default function CeoCombustiblePanel({ showToast }) {
             showToast?.(e?.response?.data?.error || 'Error cargando resumen de combustible', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchHistorialIngresos = async () => {
+        try {
+            setLoadingHistorial(true);
+            const { data } = await api.get('/combustible/predio/ingresos?limit=50');
+            setHistorialIngresos(Array.isArray(data?.ingresos) ? data.ingresos : []);
+        } catch (e) {
+            showToast?.(e?.response?.data?.error || 'Error cargando historial de ingresos', 'error');
+        } finally {
+            setLoadingHistorial(false);
         }
     };
 
@@ -105,24 +135,37 @@ export default function CeoCombustiblePanel({ showToast }) {
 
     const handleAjuste = async (e) => {
         e.preventDefault();
-        if (!ajusteForm.litros) {
-            showToast?.('Ingresá litros para el ajuste', 'warning');
+        if (!ingresoForm.litros) {
+            showToast?.('Ingresá los litros', 'warning');
+            return;
+        }
+        if (!ingresoForm.fechaIngreso) {
+            showToast?.('Ingresá la fecha', 'warning');
             return;
         }
         try {
-            setAjustando(true);
-            await api.post('/combustible/predio/ajuste', {
-                litros: Number(ajusteForm.litros),
-                tipo: ajusteForm.tipo,
-                observaciones: ajusteForm.observaciones || ''
-            });
-            showToast?.('Stock de predio actualizado', 'success');
-            setAjusteForm({ litros: '', tipo: 'ingreso', observaciones: '' });
-            await fetchResumen();
+            setGuardandoIngreso(true);
+            const payload = {
+                litros: Number(ingresoForm.litros),
+                tipo: ingresoForm.tipo,
+                fechaIngreso: ingresoForm.fechaIngreso,
+                precioUnitario: ingresoForm.precioUnitario ? Number(ingresoForm.precioUnitario) : undefined,
+                proveedor: ingresoForm.proveedor || '',
+                observaciones: ingresoForm.observaciones || ''
+            };
+            const { data } = await api.post('/combustible/predio/ajuste', payload);
+            const tipoLabel = ingresoForm.tipo === 'ingreso' ? 'Ingreso de combustible registrado' : 'Egreso / corrección registrada';
+            showToast?.(tipoLabel, 'success');
+            // Si el backend actualizó el precio de predio, sincronizar
+            if (data?.precioUnitarioPredio != null) {
+                setPrecioUnitarioPredio(String(Number(data.precioUnitarioPredio)));
+            }
+            setIngresoForm(ingresoFormVacio());
+            await Promise.all([fetchResumen(), fetchHistorialIngresos()]);
         } catch (e) {
-            showToast?.(e?.response?.data?.error || 'Error ajustando stock de predio', 'error');
+            showToast?.(e?.response?.data?.error || 'Error registrando movimiento de stock', 'error');
         } finally {
-            setAjustando(false);
+            setGuardandoIngreso(false);
         }
     };
 
@@ -205,6 +248,7 @@ export default function CeoCombustiblePanel({ showToast }) {
 
     useEffect(() => {
         fetchCamionesCombustible();
+        fetchHistorialIngresos();
     }, []);
 
     return (
@@ -269,45 +313,304 @@ export default function CeoCombustiblePanel({ showToast }) {
                     </div>
                 </div>
 
-                <form onSubmit={handleAjuste} className="row g-2 align-items-end mb-3">
-                    <div className="col-12 col-md-2">
-                        <label className="form-label mb-1">Tipo ajuste</label>
-                        <select
-                            className="form-select form-select-sm"
-                            value={ajusteForm.tipo}
-                            onChange={(e) => setAjusteForm((prev) => ({ ...prev, tipo: e.target.value }))}
-                        >
-                            <option value="ingreso">Ingreso</option>
-                            <option value="egreso">Egreso</option>
-                        </select>
-                    </div>
-                    <div className="col-12 col-md-2">
-                        <label className="form-label mb-1">Litros</label>
-                        <input
-                            className="form-control form-control-sm"
-                            type="number"
-                            min={0.01}
-                            step={0.01}
-                            value={ajusteForm.litros}
-                            onChange={(e) => setAjusteForm((prev) => ({ ...prev, litros: e.target.value }))}
-                            placeholder="Ej: 500"
-                        />
-                    </div>
-                    <div className="col-12 col-md-6">
-                        <label className="form-label mb-1">Observación</label>
-                        <input
-                            className="form-control form-control-sm"
-                            value={ajusteForm.observaciones}
-                            onChange={(e) => setAjusteForm((prev) => ({ ...prev, observaciones: e.target.value }))}
-                            placeholder="Compra de gasoil / corrección de stock"
-                        />
-                    </div>
-                    <div className="col-12 col-md-2 d-grid">
-                        <button className="btn btn-sm btn-outline-primary" type="submit" disabled={ajustando}>
-                            {ajustando ? 'Guardando…' : 'Aplicar ajuste'}
-                        </button>
+                <form onSubmit={handleAjuste} className="mb-4">
+                    <div className="border rounded-3 overflow-hidden">
+                        {/* Header del formulario */}
+                        <div className="px-3 py-2 d-flex align-items-center justify-content-between"
+                            style={{ background: 'linear-gradient(135deg, #0d6efd15 0%, #0d6efd08 100%)', borderBottom: '1px solid #dee2e6' }}>
+                            <div className="d-flex align-items-center gap-2">
+                                <i className="bi bi-fuel-pump-fill text-primary"></i>
+                                <span className="fw-semibold text-primary-emphasis">
+                                    {ingresoForm.tipo === 'ingreso' ? 'Registrar ingreso de combustible al predio' : 'Registrar egreso / corrección de stock'}
+                                </span>
+                            </div>
+                            <div className="d-flex gap-1">
+                                <button
+                                    type="button"
+                                    className={`btn btn-sm ${ingresoForm.tipo === 'ingreso' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                    onClick={() => setIngresoForm((p) => ({ ...p, tipo: 'ingreso' }))}
+                                >
+                                    <i className="bi bi-plus-circle me-1"></i>Ingreso
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-sm ${ingresoForm.tipo === 'egreso' ? 'btn-warning' : 'btn-outline-warning'}`}
+                                    onClick={() => setIngresoForm((p) => ({ ...p, tipo: 'egreso' }))}
+                                >
+                                    <i className="bi bi-dash-circle me-1"></i>Egreso / corrección
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Campos del formulario */}
+                        <div className="p-3">
+                            <div className="row g-3">
+                                {/* Fecha */}
+                                <div className="col-12 col-sm-6 col-md-3">
+                                    <label className="form-label fw-medium mb-1">
+                                        <i className="bi bi-calendar3 me-1 text-primary opacity-75"></i>
+                                        Fecha de entrega
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className="form-control"
+                                        value={ingresoForm.fechaIngreso}
+                                        onChange={(e) => setIngresoForm((p) => ({ ...p, fechaIngreso: e.target.value }))}
+                                        required
+                                    />
+                                </div>
+
+                                {/* Litros */}
+                                <div className="col-12 col-sm-6 col-md-2">
+                                    <label className="form-label fw-medium mb-1">
+                                        <i className="bi bi-droplet-fill me-1 text-info opacity-75"></i>
+                                        Litros
+                                    </label>
+                                    <div className="input-group">
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            min={0.01}
+                                            step={0.01}
+                                            value={ingresoForm.litros}
+                                            onChange={(e) => setIngresoForm((p) => ({ ...p, litros: e.target.value }))}
+                                            placeholder="0.00"
+                                            required
+                                        />
+                                        <span className="input-group-text text-body-secondary">L</span>
+                                    </div>
+                                </div>
+
+                                {/* Precio por litro */}
+                                {ingresoForm.tipo === 'ingreso' && (
+                                    <div className="col-12 col-sm-6 col-md-2">
+                                        <label className="form-label fw-medium mb-1">
+                                            <i className="bi bi-currency-dollar me-1 text-success opacity-75"></i>
+                                            Precio / litro
+                                        </label>
+                                        <div className="input-group">
+                                            <span className="input-group-text text-body-secondary">$</span>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                min={0}
+                                                step={0.01}
+                                                value={ingresoForm.precioUnitario}
+                                                onChange={(e) => setIngresoForm((p) => ({ ...p, precioUnitario: e.target.value }))}
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                        {ingresoForm.litros && ingresoForm.precioUnitario && (
+                                            <div className="form-text text-success fw-semibold">
+                                                Total: ${fmtMoney(Number(ingresoForm.litros) * Number(ingresoForm.precioUnitario))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Proveedor */}
+                                {ingresoForm.tipo === 'ingreso' && (
+                                    <div className="col-12 col-sm-6 col-md-3">
+                                        <label className="form-label fw-medium mb-1">
+                                            <i className="bi bi-truck me-1 text-secondary opacity-75"></i>
+                                            Proveedor / procedencia
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={ingresoForm.proveedor}
+                                            onChange={(e) => setIngresoForm((p) => ({ ...p, proveedor: e.target.value }))}
+                                            placeholder="Ej: YPF, Refinor, ..."
+                                            maxLength={120}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Observaciones */}
+                                <div className="col-12 col-md-4">
+                                    <label className="form-label fw-medium mb-1">
+                                        <i className="bi bi-chat-text me-1 text-secondary opacity-75"></i>
+                                        Observaciones
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={ingresoForm.observaciones}
+                                        onChange={(e) => setIngresoForm((p) => ({ ...p, observaciones: e.target.value }))}
+                                        placeholder="Notas adicionales…"
+                                        maxLength={300}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Preview y botón */}
+                            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-3 border-top">
+                                {ingresoForm.tipo === 'ingreso' && ingresoForm.litros ? (
+                                    <div className="d-flex gap-3 flex-wrap">
+                                        <div className="text-body-secondary small">
+                                            <i className="bi bi-arrow-up-circle-fill text-success me-1"></i>
+                                            Nuevo stock estimado:{' '}
+                                            <strong className="text-success">
+                                                {fmtLitros(resumen.stockPredio + Number(ingresoForm.litros || 0))} L
+                                            </strong>
+                                        </div>
+                                        {ingresoForm.precioUnitario && (
+                                            <div className="text-body-secondary small">
+                                                <i className="bi bi-receipt me-1 text-primary"></i>
+                                                Importe total:{' '}
+                                                <strong className="text-primary">
+                                                    ${fmtMoney(Number(ingresoForm.litros) * Number(ingresoForm.precioUnitario))}
+                                                </strong>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : ingresoForm.tipo === 'egreso' && ingresoForm.litros ? (
+                                    <div className="text-body-secondary small">
+                                        <i className="bi bi-arrow-down-circle-fill text-warning me-1"></i>
+                                        Nuevo stock estimado:{' '}
+                                        <strong className={resumen.stockPredio - Number(ingresoForm.litros || 0) < 0 ? 'text-danger' : 'text-warning'}>
+                                            {fmtLitros(resumen.stockPredio - Number(ingresoForm.litros || 0))} L
+                                        </strong>
+                                    </div>
+                                ) : <span />}
+
+                                <button
+                                    type="submit"
+                                    className={`btn ${ingresoForm.tipo === 'ingreso' ? 'btn-primary' : 'btn-warning'} px-4`}
+                                    disabled={guardandoIngreso}
+                                >
+                                    {guardandoIngreso ? (
+                                        <><span className="spinner-border spinner-border-sm me-2" role="status" />Guardando…</>
+                                    ) : ingresoForm.tipo === 'ingreso' ? (
+                                        <><i className="bi bi-check-circle me-2"></i>Registrar ingreso</>
+                                    ) : (
+                                        <><i className="bi bi-check-circle me-2"></i>Registrar egreso</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </form>
+
+                {/* Historial de ingresos / movimientos de predio */}
+                <div className="mb-4">
+                    <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2"
+                        onClick={() => {
+                            setMostrarHistorial((v) => !v);
+                            if (!mostrarHistorial && historialIngresos.length === 0) fetchHistorialIngresos();
+                        }}
+                    >
+                        <i className={`bi bi-chevron-${mostrarHistorial ? 'up' : 'down'}`}></i>
+                        Historial de movimientos de stock de predio
+                        {historialIngresos.length > 0 && (
+                            <span className="badge text-bg-secondary">{historialIngresos.length}</span>
+                        )}
+                    </button>
+
+                    {mostrarHistorial && (
+                        <div className="border rounded-3 mt-2 overflow-hidden">
+                            <div className="px-3 py-2 d-flex align-items-center justify-content-between"
+                                style={{ background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
+                                <span className="fw-semibold text-body-secondary small">
+                                    <i className="bi bi-clock-history me-1"></i>
+                                    Últimos movimientos registrados
+                                </span>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-secondary"
+                                    onClick={fetchHistorialIngresos}
+                                    disabled={loadingHistorial}
+                                >
+                                    <i className="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                            <div className="table-responsive">
+                                <table className="table table-sm table-hover align-middle mb-0">
+                                    <thead className="table-light">
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Tipo</th>
+                                            <th>Procedencia / proveedor</th>
+                                            <th className="text-end">Litros</th>
+                                            <th className="text-end">Precio / L</th>
+                                            <th className="text-end">Total</th>
+                                            <th>Observaciones</th>
+                                            <th>Registrado por</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {loadingHistorial ? (
+                                            <tr>
+                                                <td colSpan={8} className="text-center py-3">
+                                                    <span className="spinner-border spinner-border-sm text-secondary" role="status" />
+                                                </td>
+                                            </tr>
+                                        ) : historialIngresos.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={8} className="text-center text-body-secondary py-3">
+                                                    No hay movimientos registrados aún.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            historialIngresos.map((item) => {
+                                                const esIngreso = !item.lugar?.toLowerCase().includes('egreso');
+                                                const lugarparsed = item.lugar || '';
+                                                const precioItem = Number(item.precioUnitario || 0);
+                                                const importeItem = Number(item.importeTotal || 0);
+                                                return (
+                                                    <tr key={item.id}>
+                                                        <td className="fw-medium">{fmtFecha(item.fechaCarga)}</td>
+                                                        <td>
+                                                            <span className={`badge ${esIngreso ? 'text-bg-success' : 'text-bg-warning'}`}>
+                                                                <i className={`bi bi-arrow-${esIngreso ? 'up' : 'down'}-circle me-1`}></i>
+                                                                {esIngreso ? 'Ingreso' : 'Egreso'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-body-secondary">
+                                                            {lugarparsed && lugarparsed !== 'Predio Omar Godoy' && lugarparsed !== 'Ingreso de combustible' && lugarparsed !== 'Egreso / corrección'
+                                                                ? lugarparsed
+                                                                : <span className="text-body-tertiary fst-italic">—</span>
+                                                            }
+                                                        </td>
+                                                        <td className="text-end fw-semibold">
+                                                            <span className={esIngreso ? 'text-success' : 'text-warning'}>
+                                                                {esIngreso ? '+' : '-'}{fmtLitros(item.litros)} L
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-end text-body-secondary">
+                                                            {precioItem > 0 ? `$${fmtMoney(precioItem)}` : <span className="text-body-tertiary">—</span>}
+                                                        </td>
+                                                        <td className="text-end fw-semibold">
+                                                            {importeItem > 0
+                                                                ? <span className="text-primary">${fmtMoney(importeItem)}</span>
+                                                                : <span className="text-body-tertiary">—</span>
+                                                            }
+                                                        </td>
+                                                        <td className="text-body-secondary small">
+                                                            {item.observaciones ? (
+                                                                <span title={item.observaciones}>
+                                                                    {item.observaciones.length > 50
+                                                                        ? item.observaciones.slice(0, 50) + '…'
+                                                                        : item.observaciones
+                                                                    }
+                                                                </span>
+                                                            ) : <span className="text-body-tertiary">—</span>}
+                                                        </td>
+                                                        <td className="text-body-secondary small">
+                                                            {item?.camionero?.nombre || '—'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 <div className="table-responsive">
                     <table className="table table-sm table-hover align-middle mb-0">

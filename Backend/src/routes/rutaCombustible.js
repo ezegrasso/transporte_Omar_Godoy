@@ -153,7 +153,10 @@ router.post('/predio/ajuste',
     [
         body('litros').isFloat({ min: 0.01 }).withMessage('Litros inválidos'),
         body('tipo').isIn(['ingreso', 'egreso']).withMessage('Tipo inválido'),
-        body('observaciones').optional().isString()
+        body('precioUnitario').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('Precio unitario inválido'),
+        body('fechaIngreso').optional({ nullable: true }).isISO8601().withMessage('Fecha inválida'),
+        body('proveedor').optional({ nullable: true }).isString(),
+        body('observaciones').optional({ nullable: true }).isString()
     ],
     async (req, res) => {
         try {
@@ -164,8 +167,10 @@ router.post('/predio/ajuste',
             const errors = validationResult(req);
             if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-            const { litros, tipo, observaciones } = req.body;
+            const { litros, tipo, precioUnitario, fechaIngreso, proveedor, observaciones } = req.body;
             const litrosNum = Number(Number(litros).toFixed(2));
+            const precioUnitarioNum = precioUnitario != null ? Number(Number(precioUnitario).toFixed(2)) : 0;
+            const importeTotalNum = Number((litrosNum * precioUnitarioNum).toFixed(2));
 
             const stock = await getOrCreateStock();
             const stockActual = toNum(stock.disponibleLitros);
@@ -177,29 +182,69 @@ router.post('/predio/ajuste',
             }
 
             const now = new Date();
-            const fecha = now.toISOString().slice(0, 10);
+            const fecha = fechaIngreso ? String(fechaIngreso).slice(0, 10) : now.toISOString().slice(0, 10);
+            const [fechaAnio, fechaMes] = fecha.split('-').map(Number);
+
+            const proveedorLimpio = String(proveedor || '').trim();
+            const observacionesLimpias = String(observaciones || '').trim();
+            const lugarFinal = tipo === 'ingreso' ? (proveedorLimpio || 'Ingreso de combustible') : 'Egreso / corrección';
+            const notaFinal = observacionesLimpias || (tipo === 'egreso' ? 'Egreso / corrección manual' : null);
 
             await CombustibleMovimiento.create({
                 camionId: null,
                 camioneroId: req.user.id,
                 fechaCarga: fecha,
-                mes: now.getMonth() + 1,
-                anio: now.getFullYear(),
+                mes: fechaMes,
+                anio: fechaAnio,
                 litros: litrosNum,
-                lugar: 'Predio Omar Godoy',
+                precioUnitario: precioUnitarioNum,
+                importeTotal: importeTotalNum,
+                lugar: lugarFinal,
                 origen: 'ajuste',
                 tipoRegistro: 'ajuste',
-                observaciones: observaciones || `Ajuste manual (${tipo})`
+                observaciones: notaFinal
             });
+
+            // Si es ingreso de combustible, actualizar también el precio de predio con el nuevo precio
+            if (tipo === 'ingreso' && precioUnitarioNum > 0) {
+                stock.precioUnitarioPredio = precioUnitarioNum;
+            }
 
             stock.disponibleLitros = nuevoStock;
             stock.updatedById = req.user.id;
             await stock.save();
 
-            res.json({ success: true, disponibleLitros: nuevoStock });
+            res.json({ success: true, disponibleLitros: nuevoStock, precioUnitarioPredio: toNum(stock.precioUnitarioPredio) });
         } catch (e) {
             console.error('[combustible] Error ajustando stock:', e?.message || e);
             res.status(500).json({ error: 'Error ajustando stock de combustible' });
+        }
+    }
+);
+
+router.get('/predio/ingresos',
+    authMiddleware,
+    async (req, res) => {
+        try {
+            if (!['ceo', 'administracion'].includes(req.user?.rol)) {
+                return res.status(403).json({ error: 'No tienes permisos para ver el historial de ingresos' });
+            }
+
+            const limit = Math.min(Number(req.query?.limit) || 50, 200);
+            const offset = Math.max(Number(req.query?.offset) || 0, 0);
+
+            const { count, rows } = await CombustibleMovimiento.findAndCountAll({
+                where: { tipoRegistro: 'ajuste' },
+                include: [{ model: Usuario, as: 'camionero', attributes: ['id', 'nombre', 'email'] }],
+                order: [['fechaCarga', 'DESC'], ['createdAt', 'DESC']],
+                limit,
+                offset
+            });
+
+            res.json({ total: count, ingresos: rows });
+        } catch (e) {
+            console.error('[combustible] Error obteniendo historial de ingresos:', e?.message || e);
+            res.status(500).json({ error: 'Error obteniendo historial de ingresos de predio' });
         }
     }
 );
