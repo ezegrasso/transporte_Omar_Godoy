@@ -647,7 +647,7 @@ router.post('/:id/factura',
                 }
             }
             viaje.facturaUrl = url;
-            if (req.body.fechaFactura) viaje.fechaFactura = new Date(req.body.fechaFactura);
+            if (req.body.fechaFactura) viaje.fechaFactura = String(req.body.fechaFactura).slice(0, 10);
             if (req.body.facturaEstado) viaje.facturaEstado = req.body.facturaEstado;
             if (req.body.facturaEmisor !== undefined) {
                 const emisor = String(req.body.facturaEmisor || '').trim();
@@ -764,7 +764,7 @@ router.patch('/:id/factura',
                 const numero = String(req.body.facturaNumero || '').trim();
                 viaje.facturaNumero = numero || null;
             }
-            if (req.body.fechaFactura) viaje.fechaFactura = new Date(req.body.fechaFactura);
+            if (req.body.fechaFactura) viaje.fechaFactura = String(req.body.fechaFactura).slice(0, 10);
             if (req.body.ivaPercentaje !== undefined) {
                 viaje.ivaPercentaje = parseFloat(String(req.body.ivaPercentaje)) || 0;
             }

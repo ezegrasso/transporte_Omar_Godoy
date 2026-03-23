@@ -727,6 +727,7 @@ export default function Administracion() {
     const [facturaNumeroBusqueda, setFacturaNumeroBusqueda] = useState('');
     const [viajesPorFacturaNumero, setViajesPorFacturaNumero] = useState([]);
     const [loadingBusquedaFactura, setLoadingBusquedaFactura] = useState(false);
+    const [cobrandoFacturaId, setCobrandoFacturaId] = useState(null);
     const [errorBusquedaFactura, setErrorBusquedaFactura] = useState('');
     const [cgtRemitosFiltro, setCgtRemitosFiltro] = useState('');
     const [cgtRemitosBusqueda, setCgtRemitosBusqueda] = useState('');
@@ -759,6 +760,32 @@ export default function Administracion() {
             setViajesPorFacturaNumero([]);
         } finally {
             setLoadingBusquedaFactura(false);
+        }
+    };
+    const marcarFacturaComoCobrada = async (viaje) => {
+        if (!viaje?.id) return;
+        if ((viaje?.facturaEstado || '').toLowerCase() === 'cobrada') return;
+        try {
+            const hoy = new Date();
+            const fechaCobro = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+            setCobrandoFacturaId(viaje.id);
+            await api.patch(`/viajes/${viaje.id}/factura`, { facturaEstado: 'cobrada', fechaFactura: fechaCobro });
+
+            setViajesPorFacturaNumero((prev) => (prev || []).map((v) => (
+                v.id === viaje.id ? { ...v, facturaEstado: 'cobrada', fechaFactura: fechaCobro } : v
+            )));
+            setViajes((prev) => (prev || []).map((v) => (
+                v.id === viaje.id ? { ...v, facturaEstado: 'cobrada', fechaFactura: fechaCobro } : v
+            )));
+            setViajesMesFinanzas((prev) => (prev || []).map((v) => (
+                v.id === viaje.id ? { ...v, facturaEstado: 'cobrada', fechaFactura: fechaCobro } : v
+            )));
+
+            showToast(`Factura ${viaje.facturaNumero || `#${viaje.id}`} marcada como cobrada`, 'success');
+        } catch (e) {
+            showToast(e?.response?.data?.error || 'No se pudo marcar la factura como cobrada', 'error');
+        } finally {
+            setCobrandoFacturaId(null);
         }
     };
     const buscarViajesPorCgtRemitos = async () => {
@@ -1693,6 +1720,7 @@ export default function Administracion() {
                                                 <th scope="col">Estado factura</th>
                                                 <th scope="col">Total a cobrar</th>
                                                 <th scope="col">Viaje ID</th>
+                                                <th scope="col" className="text-end">Acción</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1715,6 +1743,20 @@ export default function Administracion() {
                                                         <td>{v.facturaEstado || '-'}</td>
                                                         <td>{(hasSubtotal || hasNegro) ? Number(totalCobrar.toFixed(2)) : '-'}</td>
                                                         <td>{v.id}</td>
+                                                        <td className="text-end">
+                                                            {(String(v.facturaEstado || '').toLowerCase() === 'cobrada') ? (
+                                                                <span className="badge text-bg-success">Cobrada</span>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-sm btn-success"
+                                                                    onClick={() => marcarFacturaComoCobrada(v)}
+                                                                    disabled={cobrandoFacturaId === v.id}
+                                                                >
+                                                                    {cobrandoFacturaId === v.id ? 'Cobrando...' : 'Cobrar'}
+                                                                </button>
+                                                            )}
+                                                        </td>
                                                     </tr>
                                                 );
                                             })}
