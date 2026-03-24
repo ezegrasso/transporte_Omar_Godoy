@@ -1377,14 +1377,8 @@ export default function Administracion() {
                                         <th scope="col">Emisor</th>
                                         <th scope="col">Cliente</th>
                                         <th scope="col">Número de factura</th>
-                                        <th scope="col">Subtotal</th>
-                                        <th scope="col">Subtotal Negro</th>
                                         <th scope="col">Total a cobrar</th>
-                                        <th scope="col">NC</th>
-                                        <th scope="col">Factura</th>
                                         <th scope="col">Estado factura</th>
-                                        <th scope="col">Fecha factura</th>
-                                        <th className="text-end">Acciones</th>
                                         <th scope="col">Fecha viaje</th>
                                         <th scope="col">Estado</th>
                                         <th scope="col">Origen</th>
@@ -1396,6 +1390,12 @@ export default function Administracion() {
                                         <th scope="col">Precio/Tn</th>
                                         <th scope="col">Importe</th>
                                         <th scope="col">Acoplado</th>
+                                        <th scope="col">Subtotal</th>
+                                        <th scope="col">Subtotal Negro</th>
+                                        <th scope="col">NC</th>
+                                        <th scope="col">Factura</th>
+                                        <th scope="col">Fecha factura</th>
+                                        <th className="text-end">Acciones</th>
                                     </tr>
                                 </thead>
 
@@ -1471,11 +1471,33 @@ export default function Administracion() {
                                                         aria-label={`Número de factura del viaje ${v.id}`}
                                                     />
                                                 </td>
+                                                <td>{(hasSubtotal || hasNegro) ? Number(totalCobrar.toFixed(2)) : '-'}</td>
+                                                <td>
+                                                    {v.facturaEstado ? (
+                                                        <span className={`badge text-capitalize ${(v.facturaEstado.toLowerCase() === 'cobrada') ? 'bg-success-subtle text-success' :
+                                                            (v.facturaEstado.toLowerCase() === 'emitida') ? 'bg-info-subtle text-info' :
+                                                                (v.facturaEstado.toLowerCase() === 'vencida') ? 'bg-warning-subtle text-warning' :
+                                                                    'bg-secondary-subtle text-secondary'
+                                                            }`}>
+                                                            {v.facturaEstado}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td>{formatDateOnly(v.fecha)}</td>
+                                                <td><span className={`badge badge-dot ${v.estado === 'finalizado' ? 'badge-estado-finalizado' : v.estado === 'en curso' ? 'badge-estado-en_curso' : 'badge-estado-pendiente'} text-capitalize`}>{v.estado}</span></td>
+                                                <td>{v.origen || '-'}</td>
+                                                <td>{v.destino || '-'}</td>
+                                                <td>{v.camion?.patente || v.camionId || '-'}</td>
+                                                <td>{v.camionero?.nombre || v.camioneroNombre || '-'}</td>
+                                                <td>{v.tipoMercaderia || '-'}</td>
+                                                <td>{v.kilosCargados ?? '-'}</td>
+                                                <td>{v.precioTonelada ?? '-'}</td>
+                                                <td>{v.importe ?? '-'}</td>
+                                                <td>{v.acoplado?.patente || v.acopladoPatente || 'Sin chasis'}</td>
                                                 <td>
                                                     {hasSubtotal ? subtotalCalc : (v.precioUnitarioFactura ?? '-')}
                                                 </td>
                                                 <td>{hasNegro ? subtotalNegroCalc : '-'}</td>
-                                                <td>{(hasSubtotal || hasNegro) ? Number(totalCobrar.toFixed(2)) : '-'}</td>
                                                 <td>
                                                     {v.notasCreditoCantidad > 0 ? (
                                                         <span className="badge bg-danger-subtle text-danger" title={`Total NC: $${v.notasCreditoTotal}`}>
@@ -1493,17 +1515,6 @@ export default function Administracion() {
                                                         >
                                                             Ver
                                                         </button>
-                                                    ) : '-'}
-                                                </td>
-                                                <td>
-                                                    {v.facturaEstado ? (
-                                                        <span className={`badge text-capitalize ${(v.facturaEstado.toLowerCase() === 'cobrada') ? 'bg-success-subtle text-success' :
-                                                            (v.facturaEstado.toLowerCase() === 'emitida') ? 'bg-info-subtle text-info' :
-                                                                (v.facturaEstado.toLowerCase() === 'vencida') ? 'bg-warning-subtle text-warning' :
-                                                                    'bg-secondary-subtle text-secondary'
-                                                            }`}>
-                                                            {v.facturaEstado}
-                                                        </span>
                                                     ) : '-'}
                                                 </td>
                                                 <td>{v.fechaFactura ? formatDateOnly(v.fechaFactura) : '-'}</td>
@@ -1563,17 +1574,6 @@ export default function Administracion() {
                                                         </div>, portalRef.current
                                                     )}
                                                 </td>
-                                                <td>{formatDateOnly(v.fecha)}</td>
-                                                <td><span className={`badge badge-dot ${v.estado === 'finalizado' ? 'badge-estado-finalizado' : v.estado === 'en curso' ? 'badge-estado-en_curso' : 'badge-estado-pendiente'} text-capitalize`}>{v.estado}</span></td>
-                                                <td>{v.origen || '-'}</td>
-                                                <td>{v.destino || '-'}</td>
-                                                <td>{v.camion?.patente || v.camionId || '-'}</td>
-                                                <td>{v.camionero?.nombre || v.camioneroNombre || '-'}</td>
-                                                <td>{v.tipoMercaderia || '-'}</td>
-                                                <td>{v.kilosCargados ?? '-'}</td>
-                                                <td>{v.precioTonelada ?? '-'}</td>
-                                                <td>{v.importe ?? '-'}</td>
-                                                <td>{v.acoplado?.patente || v.acopladoPatente || 'Sin chasis'}</td>
                                             </tr>
                                         );
                                     })}
@@ -1745,15 +1745,29 @@ export default function Administracion() {
                                                         <td>{v.id}</td>
                                                         <td className="text-end">
                                                             {(String(v.facturaEstado || '').toLowerCase() === 'cobrada') ? (
-                                                                <span className="badge text-bg-success">Cobrada</span>
+                                                                <span className="badge rounded-pill text-bg-success px-3 py-2 fw-semibold">
+                                                                    <i className="bi bi-check-circle-fill me-1"></i>
+                                                                    Cobrada
+                                                                </span>
                                                             ) : (
                                                                 <button
                                                                     type="button"
-                                                                    className="btn btn-sm btn-success"
+                                                                    className="btn btn-sm btn-success rounded-pill d-inline-flex align-items-center gap-1 px-3 fw-semibold shadow-sm"
                                                                     onClick={() => marcarFacturaComoCobrada(v)}
                                                                     disabled={cobrandoFacturaId === v.id}
+                                                                    title="Marcar factura como cobrada"
                                                                 >
-                                                                    {cobrandoFacturaId === v.id ? 'Cobrando...' : 'Cobrar'}
+                                                                    {cobrandoFacturaId === v.id ? (
+                                                                        <>
+                                                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                                            Cobrando...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <i className="bi bi-cash-coin"></i>
+                                                                            Cobrar
+                                                                        </>
+                                                                    )}
                                                                 </button>
                                                             )}
                                                         </td>
