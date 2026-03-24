@@ -18,6 +18,20 @@ export const ensureSchema = async () => {
 
     // Asegurar columnas historicas de camionero en viajes
     try {
+        // Asegurar tabla comisionistas
+        try {
+            await qi.createTable('comisionistas', {
+                id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+                nombre: { type: DataTypes.STRING, allowNull: false, unique: true },
+                porcentaje: { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 },
+                createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+                updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW }
+            });
+            console.log("Tabla 'comisionistas' creada.");
+        } catch {
+            // Si ya existe, continuar
+        }
+
         const descV = await qi.describeTable('viajes');
         // Convertir columnas de fecha a DATEONLY para evitar desfases por timezone
         if ('fecha' in descV && descV.fecha.type.toLowerCase().includes('datetime')) {
@@ -95,6 +109,14 @@ export const ensureSchema = async () => {
             await qi.addColumn('viajes', 'precioUnitarioNegro', { type: DataTypes.DECIMAL(10, 2), allowNull: true });
             console.log("Columna 'precioUnitarioNegro' añadida a 'viajes'.");
         }
+        if (!('comisionistaId' in descV)) {
+            await qi.addColumn('viajes', 'comisionistaId', { type: DataTypes.INTEGER, allowNull: true });
+            console.log("Columna 'comisionistaId' añadida a 'viajes'.");
+        }
+        if (!('comisionPorcentaje' in descV)) {
+            await qi.addColumn('viajes', 'comisionPorcentaje', { type: DataTypes.DECIMAL(5, 2), allowNull: true });
+            console.log("Columna 'comisionPorcentaje' añadida a 'viajes'.");
+        }
         if (!('observaciones' in descV)) {
             await qi.addColumn('viajes', 'observaciones', { type: DataTypes.TEXT, allowNull: true });
             console.log("Columna 'observaciones' añadida a 'viajes'.");
@@ -132,6 +154,31 @@ export const ensureSchema = async () => {
             if (!hasIndex('idx_viajes_cliente')) {
                 await qi.addIndex('viajes', ['cliente'], { name: 'idx_viajes_cliente' });
                 console.log("Índice 'idx_viajes_cliente' creado en 'viajes'(cliente).");
+            }
+            if (!hasIndex('idx_viajes_comisionistaId')) {
+                await qi.addIndex('viajes', ['comisionistaId'], { name: 'idx_viajes_comisionistaId' });
+                console.log("Índice 'idx_viajes_comisionistaId' creado en 'viajes'(comisionistaId).");
+            }
+
+            // Asegurar FK viajes.comisionistaId -> comisionistas.id si aún no existe
+            const [fkRows] = await sequelize.query(`
+                SELECT CONSTRAINT_NAME
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'viajes'
+                  AND COLUMN_NAME = 'comisionistaId'
+                  AND REFERENCED_TABLE_NAME = 'comisionistas'
+            `);
+            if (!Array.isArray(fkRows) || fkRows.length === 0) {
+                await sequelize.query(`
+                    ALTER TABLE viajes
+                    ADD CONSTRAINT fk_viajes_comisionista
+                    FOREIGN KEY (comisionistaId)
+                    REFERENCES comisionistas(id)
+                    ON UPDATE CASCADE
+                    ON DELETE SET NULL
+                `);
+                console.log("FK 'fk_viajes_comisionista' creada en 'viajes'.");
             }
         } catch (e) {
             console.warn('No se pudieron asegurar índices en viajes:', e?.message || e);
