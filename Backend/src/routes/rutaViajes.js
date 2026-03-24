@@ -28,6 +28,21 @@ const normalizeRole = (rawRole) => String(rawRole || '')
     .toLowerCase()
     .trim();
 
+const getIntermediarioIdFromBody = (body = {}) => {
+    if (Object.prototype.hasOwnProperty.call(body, 'intermediarioId')) return body.intermediarioId;
+    if (Object.prototype.hasOwnProperty.call(body, 'comisionistaId')) return body.comisionistaId;
+    return undefined;
+};
+
+const withIntermediarioAlias = (viajeLike) => {
+    const json = viajeLike?.toJSON?.() || viajeLike;
+    return {
+        ...json,
+        intermediarioId: json?.comisionistaId ?? null,
+        intermediario: json?.comisionista || null
+    };
+};
+
 // Configuración de subida de archivos (memoria). Si hay credenciales S3, sube a bucket; si no, guarda en disco local.
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -249,7 +264,7 @@ router.get('/', authMiddleware, [
         }
 
         const data = rows.map(v => ({
-            ...v.toJSON?.() || v,
+            ...withIntermediarioAlias(v),
             acopladoPatente: v.acopladoId ? (acopladoMap.get(v.acopladoId) || null) : null,
             notasCreditoTotal: ncMap.get(v.id)?.total || 0,
             notasCreditoCantidad: ncMap.get(v.id)?.cantidad || 0
@@ -329,11 +344,12 @@ router.post('/',
                 }
             }
 
-            // Si se seleccionó comisionista al crear viaje, guardar el porcentaje aplicado en snapshot
-            if (payload.comisionistaId) {
-                const comisionista = await Comisionista.findByPk(payload.comisionistaId);
+            // Si se seleccionó intermediario al crear viaje, guardar el porcentaje aplicado en snapshot.
+            const requestedIntermediarioId = getIntermediarioIdFromBody(req.body);
+            if (requestedIntermediarioId) {
+                const comisionista = await Comisionista.findByPk(Number(requestedIntermediarioId));
                 if (!comisionista) {
-                    return res.status(404).json({ error: 'Comisionista no encontrado' });
+                    return res.status(404).json({ error: 'Intermediario no encontrado' });
                 }
                 payload.comisionistaId = comisionista.id;
                 payload.comisionPorcentaje = Number(Number(comisionista.porcentaje || 0).toFixed(2));
@@ -345,7 +361,7 @@ router.post('/',
             const nuevoViaje = await Viaje.create(payload);
 
             // (Eliminado: antes se disparaba broadcast WhatsApp y notificación resumen)
-            res.status(201).json(nuevoViaje);
+            res.status(201).json(withIntermediarioAlias(nuevoViaje));
 
             // Aviso por email solo al camionero asignado al camión
             try {
@@ -910,7 +926,7 @@ router.get('/:id',
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
             let acopladoPatente = null;
             try { if (viaje.acopladoId) { const ac = await getAcopladoById(viaje.acopladoId); acopladoPatente = ac?.patente || null; } } catch { }
-            const json = viaje.toJSON?.() || viaje;
+            const json = withIntermediarioAlias(viaje);
             res.json({ ...json, acopladoPatente });
         } catch (error) {
             res.status(500).json({ error: 'Error al obtener detalle' });
@@ -1069,6 +1085,7 @@ router.patch('/:id',
         body('camionId').optional().isInt(),
         body('acopladoId').optional({ nullable: true }).isInt(),
         body('comisionistaId').optional({ nullable: true }).isInt({ min: 1 }),
+        body('intermediarioId').optional({ nullable: true }).isInt({ min: 1 }),
         body('tipoMercaderia').optional({ nullable: true }).isString().isLength({ min: 2, max: 120 }),
         body('cliente').optional({ nullable: true }).isString().isLength({ min: 2, max: 120 })
     ],
@@ -1086,11 +1103,12 @@ router.patch('/:id',
                 if (req.body.hasOwnProperty(f)) viaje[f] = req.body[f] ?? null;
             }
 
-            if (req.body.hasOwnProperty('comisionistaId')) {
-                const comisionistaId = req.body.comisionistaId ? Number(req.body.comisionistaId) : null;
+            const requestedIntermediarioId = getIntermediarioIdFromBody(req.body);
+            if (requestedIntermediarioId !== undefined) {
+                const comisionistaId = requestedIntermediarioId ? Number(requestedIntermediarioId) : null;
                 if (comisionistaId) {
                     const comisionista = await Comisionista.findByPk(comisionistaId);
-                    if (!comisionista) return res.status(404).json({ error: 'Comisionista no encontrado' });
+                    if (!comisionista) return res.status(404).json({ error: 'Intermediario no encontrado' });
                     viaje.comisionistaId = comisionista.id;
                     viaje.comisionPorcentaje = Number(Number(comisionista.porcentaje || 0).toFixed(2));
                 } else {
@@ -1100,7 +1118,7 @@ router.patch('/:id',
             }
 
             await viaje.save();
-            res.json(viaje);
+            res.json(withIntermediarioAlias(viaje));
         } catch (e) {
             res.status(500).json({ error: 'Error al editar viaje' });
         }

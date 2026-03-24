@@ -84,6 +84,7 @@ app.use('/api/viajes', viajesRouter);
 app.use('/api/acoplados', rutaAcoplados);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/clientes', rutaClientes);
+app.use('/api/intermediarios', rutaComisionistas);
 app.use('/api/comisionistas', rutaComisionistas);
 app.use('/api/notificaciones', notificacionesRouter);
 app.use('/api/ia', iaRouter);

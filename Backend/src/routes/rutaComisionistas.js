@@ -29,8 +29,8 @@ router.get('/', authMiddleware, async (_req, res) => {
         const rows = await Comisionista.findAll({ order: [['nombre', 'ASC']] });
         res.json({ data: rows || [] });
     } catch (e) {
-        console.error('[comisionistas] GET error:', e?.message || e);
-        res.status(500).json({ error: 'Error obteniendo comisionistas' });
+        console.error('[intermediarios] GET error:', e?.message || e);
+        res.status(500).json({ error: 'Error obteniendo intermediarios' });
     }
 });
 
@@ -39,17 +39,17 @@ router.post('/', authMiddleware, async (req, res) => {
         const nombre = String(req.body?.nombre || '').trim();
         const porcentaje = toNum(req.body?.porcentaje);
 
-        if (!nombre) return res.status(400).json({ error: 'El nombre del comisionista es requerido' });
+        if (!nombre) return res.status(400).json({ error: 'El nombre del intermediario es requerido' });
         if (porcentaje < 0 || porcentaje > 100) return res.status(400).json({ error: 'El porcentaje debe estar entre 0 y 100' });
 
         const dup = await Comisionista.findOne({ where: { nombre } });
-        if (dup) return res.status(400).json({ error: 'Ese comisionista ya existe' });
+        if (dup) return res.status(400).json({ error: 'Ese intermediario ya existe' });
 
         const row = await Comisionista.create({ nombre, porcentaje: Number(porcentaje.toFixed(2)) });
         res.status(201).json(row);
     } catch (e) {
-        console.error('[comisionistas] POST error:', e?.message || e);
-        res.status(500).json({ error: 'Error creando comisionista' });
+        console.error('[intermediarios] POST error:', e?.message || e);
+        res.status(500).json({ error: 'Error creando intermediario' });
     }
 });
 
@@ -57,16 +57,16 @@ router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const id = Number(req.params.id);
         const row = await Comisionista.findByPk(id);
-        if (!row) return res.status(404).json({ error: 'Comisionista no encontrado' });
+        if (!row) return res.status(404).json({ error: 'Intermediario no encontrado' });
 
         const nombre = req.body?.nombre !== undefined ? String(req.body.nombre || '').trim() : row.nombre;
         const porcentaje = req.body?.porcentaje !== undefined ? toNum(req.body.porcentaje) : toNum(row.porcentaje);
 
-        if (!nombre) return res.status(400).json({ error: 'El nombre del comisionista es requerido' });
+        if (!nombre) return res.status(400).json({ error: 'El nombre del intermediario es requerido' });
         if (porcentaje < 0 || porcentaje > 100) return res.status(400).json({ error: 'El porcentaje debe estar entre 0 y 100' });
 
         const dup = await Comisionista.findOne({ where: { nombre, id: { [Op.ne]: id } } });
-        if (dup) return res.status(400).json({ error: 'Ya existe otro comisionista con ese nombre' });
+        if (dup) return res.status(400).json({ error: 'Ya existe otro intermediario con ese nombre' });
 
         row.nombre = nombre;
         row.porcentaje = Number(porcentaje.toFixed(2));
@@ -81,8 +81,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
         res.json(row);
     } catch (e) {
-        console.error('[comisionistas] PUT error:', e?.message || e);
-        res.status(500).json({ error: 'Error actualizando comisionista' });
+        console.error('[intermediarios] PUT error:', e?.message || e);
+        res.status(500).json({ error: 'Error actualizando intermediario' });
     }
 });
 
@@ -90,15 +90,15 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const id = Number(req.params.id);
         const row = await Comisionista.findByPk(id);
-        if (!row) return res.status(404).json({ error: 'Comisionista no encontrado' });
+        if (!row) return res.status(404).json({ error: 'Intermediario no encontrado' });
 
         await Viaje.update({ comisionistaId: null, comisionPorcentaje: null }, { where: { comisionistaId: id } });
         await row.destroy();
 
         res.json({ success: true });
     } catch (e) {
-        console.error('[comisionistas] DELETE error:', e?.message || e);
-        res.status(500).json({ error: 'Error eliminando comisionista' });
+        console.error('[intermediarios] DELETE error:', e?.message || e);
+        res.status(500).json({ error: 'Error eliminando intermediario' });
     }
 });
 
@@ -137,7 +137,8 @@ router.get('/resumen', authMiddleware, async (req, res) => {
             if (!map.has(comId)) {
                 map.set(comId, {
                     comisionistaId: comId,
-                    nombre: v.comisionista?.nombre || `Comisionista #${comId}`,
+                    intermediarioId: comId,
+                    nombre: v.comisionista?.nombre || `Intermediario #${comId}`,
                     porcentajeDefault: toNum(v.comisionista?.porcentaje),
                     totalViajes: 0,
                     totalImporte: 0,
@@ -178,8 +179,8 @@ router.get('/resumen', authMiddleware, async (req, res) => {
             data
         });
     } catch (e) {
-        console.error('[comisionistas] RESUMEN error:', e?.message || e);
-        res.status(500).json({ error: 'Error obteniendo resumen de comisionistas' });
+        console.error('[intermediarios] RESUMEN error:', e?.message || e);
+        res.status(500).json({ error: 'Error obteniendo resumen de intermediarios' });
     }
 });
 
@@ -187,7 +188,7 @@ router.get('/:id/viajes', authMiddleware, async (req, res) => {
     try {
         const id = Number(req.params.id);
         const row = await Comisionista.findByPk(id);
-        if (!row) return res.status(404).json({ error: 'Comisionista no encontrado' });
+        if (!row) return res.status(404).json({ error: 'Intermediario no encontrado' });
 
         const now = new Date();
         const mes = Number(req.query?.mes) || (now.getMonth() + 1);
@@ -227,6 +228,7 @@ router.get('/:id/viajes', authMiddleware, async (req, res) => {
         const totalImporte = list.reduce((sum, v) => sum + toNum(v.importe), 0);
 
         res.json({
+            intermediario: row,
             comisionista: row,
             mes: range.month,
             anio: range.year,
@@ -236,8 +238,8 @@ router.get('/:id/viajes', authMiddleware, async (req, res) => {
             data: list
         });
     } catch (e) {
-        console.error('[comisionistas] VIAJES error:', e?.message || e);
-        res.status(500).json({ error: 'Error obteniendo viajes del comisionista' });
+        console.error('[intermediarios] VIAJES error:', e?.message || e);
+        res.status(500).json({ error: 'Error obteniendo viajes del intermediario' });
     }
 });
 
