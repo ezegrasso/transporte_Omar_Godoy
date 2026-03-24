@@ -1409,7 +1409,7 @@ export default function Administracion() {
                                         <th scope="col">Importe</th>
                                         <th scope="col">Acoplado</th>
                                         <th scope="col">Subtotal</th>
-                                        <th scope="col">Subtotal Negro</th>
+                                        <th scope="col">Subtotal N</th>
                                         <th scope="col">NC</th>
                                         <th scope="col">Factura</th>
                                         <th scope="col">Fecha factura</th>
