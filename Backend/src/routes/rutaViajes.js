@@ -8,6 +8,7 @@ import { body, param, query, validationResult } from 'express-validator';
 import sequelize from '../config/db.js';
 import { Op } from 'sequelize';
 import Viaje from '../models/Viajes.js';
+import Comisionista from '../models/Comisionista.js';
 import Usuario from '../models/Usuario.js';
 import Camion from '../models/Camion.js';
 import { getAll as getAllAcoplados, getById as getAcopladoById } from '../models/Acoplado.js';
@@ -208,7 +209,8 @@ router.get('/', authMiddleware, [
             order: [[sortBy, order]],
             include: [
                 camionInclude,
-                camioneroInclude
+                camioneroInclude,
+                { model: Comisionista, as: 'comisionista', attributes: ['id', 'nombre', 'porcentaje'] }
             ],
             distinct: true
         });
@@ -288,6 +290,7 @@ router.post('/',
         body('fecha').isISO8601(),
         body('camionId').isInt(),
         body('acopladoId').optional({ nullable: true }).isInt(),
+        body('comisionistaId').optional({ nullable: true }).isInt({ min: 1 }),
         body('tipoMercaderia').optional().isString().isLength({ min: 2, max: 120 }),
         body('cliente').optional().isString().isLength({ min: 2, max: 120 }),
         body('precioTonelada').optional().isFloat({ min: 0 })
@@ -324,6 +327,19 @@ router.post('/',
                 } catch (err) {
                     console.error('[viajes] Error buscando camión/camionero:', err.message);
                 }
+            }
+
+            // Si se seleccionó comisionista al crear viaje, guardar el porcentaje aplicado en snapshot
+            if (payload.comisionistaId) {
+                const comisionista = await Comisionista.findByPk(payload.comisionistaId);
+                if (!comisionista) {
+                    return res.status(404).json({ error: 'Comisionista no encontrado' });
+                }
+                payload.comisionistaId = comisionista.id;
+                payload.comisionPorcentaje = Number(Number(comisionista.porcentaje || 0).toFixed(2));
+            } else {
+                payload.comisionistaId = null;
+                payload.comisionPorcentaje = null;
             }
 
             const nuevoViaje = await Viaje.create(payload);
@@ -887,7 +903,8 @@ router.get('/:id',
             const viaje = await Viaje.findByPk(req.params.id, {
                 include: [
                     { model: Camion, as: 'camion', attributes: ['id', 'patente', 'marca', 'modelo', 'anio'] },
-                    { model: Usuario, as: 'camionero', attributes: ['id', 'nombre', 'email'] }
+                    { model: Usuario, as: 'camionero', attributes: ['id', 'nombre', 'email'] },
+                    { model: Comisionista, as: 'comisionista', attributes: ['id', 'nombre', 'porcentaje'] }
                 ]
             });
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
@@ -1040,17 +1057,18 @@ router.get('/:id/notas-credito',
 );
 
 export default router;
-// Editar viaje (solo ceo; permitido solo si está pendiente)
+// Editar viaje (solo ceo; permitido si está pendiente o finalizado)
 router.patch('/:id',
     authMiddleware,
     roleMiddleware(['ceo']),
     [
         param('id').isInt(),
-        body('origen').optional().isString().isLength({ min: 2, max: 120 }),
-        body('destino').optional().isString().isLength({ min: 2, max: 120 }),
+        body('origen').optional().isString().isLength({ min: 1, max: 120 }),
+        body('destino').optional().isString().isLength({ min: 1, max: 120 }),
         body('fecha').optional().isISO8601(),
         body('camionId').optional().isInt(),
         body('acopladoId').optional({ nullable: true }).isInt(),
+        body('comisionistaId').optional({ nullable: true }).isInt({ min: 1 }),
         body('tipoMercaderia').optional({ nullable: true }).isString().isLength({ min: 2, max: 120 }),
         body('cliente').optional({ nullable: true }).isString().isLength({ min: 2, max: 120 })
     ],
@@ -1060,11 +1078,27 @@ router.patch('/:id',
         try {
             const viaje = await Viaje.findByPk(req.params.id);
             if (!viaje) return res.status(404).json({ error: 'Viaje no encontrado' });
-            if (viaje.estado !== 'pendiente') return res.status(400).json({ error: 'Solo se puede editar viajes pendientes' });
+            if (viaje.estado === 'en curso') {
+                return res.status(400).json({ error: 'Solo se puede editar viajes pendientes o finalizados' });
+            }
             const fields = ['origen', 'destino', 'fecha', 'camionId', 'acopladoId', 'tipoMercaderia', 'cliente'];
             for (const f of fields) {
                 if (req.body.hasOwnProperty(f)) viaje[f] = req.body[f] ?? null;
             }
+
+            if (req.body.hasOwnProperty('comisionistaId')) {
+                const comisionistaId = req.body.comisionistaId ? Number(req.body.comisionistaId) : null;
+                if (comisionistaId) {
+                    const comisionista = await Comisionista.findByPk(comisionistaId);
+                    if (!comisionista) return res.status(404).json({ error: 'Comisionista no encontrado' });
+                    viaje.comisionistaId = comisionista.id;
+                    viaje.comisionPorcentaje = Number(Number(comisionista.porcentaje || 0).toFixed(2));
+                } else {
+                    viaje.comisionistaId = null;
+                    viaje.comisionPorcentaje = null;
+                }
+            }
+
             await viaje.save();
             res.json(viaje);
         } catch (e) {
@@ -1088,9 +1122,13 @@ router.delete('/:id',
             if (viaje.estado === 'en curso') {
                 return res.status(400).json({ error: 'Solo se puede eliminar viajes pendientes o finalizados' });
             }
+            // Algunos entornos pueden tener FK sin ON DELETE CASCADE.
+            // Eliminamos hijos explícitamente para evitar error 500 por restricción.
+            await NotaCredito.destroy({ where: { viajeId: viaje.id } });
             await viaje.destroy();
             res.json({ ok: true });
         } catch (e) {
+            console.error('[viajes/delete] Error eliminando viaje:', e?.message || e);
             res.status(500).json({ error: 'Error al eliminar viaje' });
         }
     }

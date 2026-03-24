@@ -190,6 +190,7 @@ export default function Ceo() {
     const [viajes, setViajes] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
     const [clientes, setClientes] = useState([]);
+    const [comisionistas, setComisionistas] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -201,13 +202,25 @@ export default function Ceo() {
 
     const [nuevoCamion, setNuevoCamion] = useState({ patente: '', marca: '', modelo: '', anio: '' });
     const [camionErrors, setCamionErrors] = useState({});
-    const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '', tipoMercaderia: '', cliente: '', precioTonelada: '' });
+    const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', precioTonelada: '', comisionistaId: '' });
     const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '', rol: 'camionero' });
     const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', cuit: '' });
+    const [nuevoComisionista, setNuevoComisionista] = useState({ nombre: '', porcentaje: '' });
     const [savingCamion, setSavingCamion] = useState(false);
     const [savingViaje, setSavingViaje] = useState(false);
     const [savingUsuario, setSavingUsuario] = useState(false);
     const [savingCliente, setSavingCliente] = useState(false);
+    const [savingComisionista, setSavingComisionista] = useState(false);
+    const [editingComisionistaId, setEditingComisionistaId] = useState(null);
+    const [editingComisionistaData, setEditingComisionistaData] = useState({ nombre: '', porcentaje: '' });
+    const [mesComisionistas, setMesComisionistas] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [comisionistasResumen, setComisionistasResumen] = useState({ totalComisiones: 0, data: [] });
+    const [loadingComisionistasResumen, setLoadingComisionistasResumen] = useState(false);
+    const [detalleComisionistaModal, setDetalleComisionistaModal] = useState({ open: false, item: null });
+    const [periodoComisionesModal, setPeriodoComisionesModal] = useState({ open: false, value: '' });
     const { showToast } = useToast();
     const [filtroEstado, setFiltroEstado] = useState('');
     const [busqueda, setBusqueda] = useState('');
@@ -254,7 +267,7 @@ export default function Ceo() {
     };
 
     // Edición de viaje (solo pendientes)
-    const [editViajeModal, setEditViajeModal] = useState({ open: false, id: null, data: { origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '' }, loading: false, error: '' });
+    const [editViajeModal, setEditViajeModal] = useState({ open: false, id: null, data: { origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', comisionistaId: '' }, loading: false, error: '' });
     const openEditViaje = (v) => {
         setEditViajeModal({
             open: true,
@@ -266,13 +279,14 @@ export default function Ceo() {
                 camionId: v.camion?.id || v.camionId || '',
                 acopladoId: v.acoplado?.id || v.acopladoId || '',
                 tipoMercaderia: v.tipoMercaderia || '',
-                cliente: v.cliente || ''
+                cliente: v.cliente || '',
+                comisionistaId: v.comisionista?.id || v.comisionistaId || ''
             },
             loading: false,
             error: ''
         });
     };
-    const closeEditViaje = () => setEditViajeModal({ open: false, id: null, data: { origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '' }, loading: false, error: '' });
+    const closeEditViaje = () => setEditViajeModal({ open: false, id: null, data: { origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', comisionistaId: '' }, loading: false, error: '' });
     const saveEditViaje = async () => {
         if (!editViajeModal.id) return;
         setEditViajeModal(m => ({ ...m, loading: true, error: '' }));
@@ -289,15 +303,64 @@ export default function Ceo() {
                 fecha: fechaNormalizada, // asegurar formato ISO
                 camionId: editViajeModal.data.camionId ? Number(editViajeModal.data.camionId) : undefined,
                 acopladoId: editViajeModal.data.acopladoId ? Number(editViajeModal.data.acopladoId) : null,
+                comisionistaId: editViajeModal.data.comisionistaId ? Number(editViajeModal.data.comisionistaId) : null,
                 tipoMercaderia: editViajeModal.data.tipoMercaderia?.trim() || null,
                 cliente: editViajeModal.data.cliente?.trim() || null
             };
             await api.patch(`/viajes/${editViajeModal.id}`, body);
+
+            // Reflejar cambios al instante en UI sin depender de recargar la página.
+            const camionSeleccionado = camiones.find(c => c.id === body.camionId) || null;
+            const acopladoSeleccionado = acoplados.find(a => a.id === body.acopladoId) || null;
+            const comisionistaSeleccionado = comisionistas.find(c => c.id === body.comisionistaId) || null;
+
+            setViajes(prev => (prev || []).map(v => {
+                if (v.id !== editViajeModal.id) return v;
+                return {
+                    ...v,
+                    origen: body.origen,
+                    destino: body.destino,
+                    fecha: body.fecha,
+                    camionId: body.camionId ?? v.camionId,
+                    camion: camionSeleccionado || v.camion,
+                    acopladoId: body.acopladoId,
+                    acoplado: acopladoSeleccionado || null,
+                    acopladoPatente: acopladoSeleccionado?.patente || null,
+                    tipoMercaderia: body.tipoMercaderia,
+                    cliente: body.cliente,
+                    comisionistaId: body.comisionistaId,
+                    comisionista: comisionistaSeleccionado || null
+                };
+            }));
+
+            if (detalle?.id === editViajeModal.id) {
+                setDetalle(prev => prev ? {
+                    ...prev,
+                    origen: body.origen,
+                    destino: body.destino,
+                    fecha: body.fecha,
+                    camionId: body.camionId ?? prev.camionId,
+                    camion: camionSeleccionado || prev.camion,
+                    acopladoId: body.acopladoId,
+                    acoplado: acopladoSeleccionado || null,
+                    tipoMercaderia: body.tipoMercaderia,
+                    cliente: body.cliente,
+                    comisionistaId: body.comisionistaId,
+                    comisionista: comisionistaSeleccionado || null
+                } : prev);
+            }
+
+            await fetchComisionistasResumen();
             showToast('Viaje actualizado', 'success');
             closeEditViaje();
-            await fetchViajes();
         } catch (e) {
-            setEditViajeModal(m => ({ ...m, loading: false, error: e?.response?.data?.error || 'Error actualizando viaje' }));
+            const backendError = e?.response?.data?.error;
+            const firstValidationError = Array.isArray(e?.response?.data?.errors)
+                ? e.response.data.errors[0]?.msg
+                : null;
+            const msg = backendError || firstValidationError || 'Error actualizando viaje';
+            setEditViajeModal(m => ({ ...m, loading: false, error: msg }));
+            showToast(msg, 'error');
         }
     };
 
@@ -367,6 +430,97 @@ export default function Ceo() {
         }
     };
 
+    const fetchComisionistas = async () => {
+        try {
+            const { data } = await api.get('/comisionistas');
+            const list = Array.isArray(data) ? data : (data.data || []);
+            setComisionistas(list);
+            return list;
+        } catch (e) {
+            console.error('Error cargando comisionistas:', e);
+            setComisionistas([]);
+            return [];
+        }
+    };
+
+    const fetchComisionistasResumen = async (mesValue = mesComisionistas) => {
+        if (!mesValue) return { totalComisiones: 0, data: [] };
+        const [anio, mes] = String(mesValue).split('-').map(Number);
+        try {
+            setLoadingComisionistasResumen(true);
+            const { data } = await api.get(`/comisionistas/resumen?mes=${mes}&anio=${anio}`);
+            const normalized = {
+                totalComisiones: Number(data?.totalComisiones || 0),
+                data: Array.isArray(data?.data) ? data.data : []
+            };
+            setComisionistasResumen(normalized);
+            return normalized;
+        } catch (e) {
+            showToast(e?.response?.data?.error || 'Error cargando resumen de comisionistas', 'error');
+            setComisionistasResumen({ totalComisiones: 0, data: [] });
+            return { totalComisiones: 0, data: [] };
+        } finally {
+            setLoadingComisionistasResumen(false);
+        }
+    };
+
+    const crearComisionista = async (e) => {
+        e.preventDefault();
+        setSavingComisionista(true);
+        try {
+            const body = {
+                nombre: (nuevoComisionista.nombre || '').trim(),
+                porcentaje: Number(nuevoComisionista.porcentaje || 0)
+            };
+            if (!body.nombre) {
+                showToast('El nombre del comisionista es requerido', 'error');
+                setSavingComisionista(false);
+                return;
+            }
+            await api.post('/comisionistas', body);
+            setNuevoComisionista({ nombre: '', porcentaje: '' });
+            await Promise.all([fetchComisionistas(), fetchComisionistasResumen()]);
+            showToast('Comisionista creado', 'success');
+        } catch (e) {
+            const msg = e?.response?.data?.error || 'Error creando comisionista';
+            setError(msg);
+            showToast(msg, 'error');
+        } finally {
+            setSavingComisionista(false);
+        }
+    };
+
+    const guardarComisionista = async (id) => {
+        try {
+            const body = {
+                nombre: (editingComisionistaData.nombre || '').trim(),
+                porcentaje: Number(editingComisionistaData.porcentaje || 0)
+            };
+            if (!body.nombre) {
+                showToast('El nombre del comisionista es requerido', 'error');
+                return;
+            }
+            await api.put(`/comisionistas/${id}`, body);
+            setEditingComisionistaId(null);
+            await Promise.all([fetchComisionistas(), fetchComisionistasResumen()]);
+            showToast('Comisionista actualizado', 'success');
+        } catch (e) {
+            showToast(e?.response?.data?.error || 'Error actualizando comisionista', 'error');
+        }
+    };
+
+    const eliminarComisionista = async (id, nombre) => {
+        if (!window.confirm(`¿Eliminar comisionista "${nombre}"?`)) return;
+        try {
+            await api.delete(`/comisionistas/${id}`);
+            if (editingComisionistaId === id) setEditingComisionistaId(null);
+            await Promise.all([fetchComisionistas(), fetchComisionistasResumen()]);
+            showToast('Comisionista eliminado', 'success');
+        } catch (e) {
+            showToast(e?.response?.data?.error || 'Error eliminando comisionista', 'error');
+        }
+    };
+
     const openFinalizarModal = (id) => {
         setModalFinalizarId(id);
         setFinalizarData({ km: '', kilosCargados: '', importe: '', cgtRemitos: '' });
@@ -419,6 +573,18 @@ export default function Ceo() {
             setFinalizarData({ km: '', kilosCargados: '', importe: '', cgtRemitos: '' });
             await new Promise(r => setTimeout(r, 400));
             await fetchViajes();
+
+            // Recalcular comisiones en vivo para no depender de recargar la página.
+            const resumenActualizado = await fetchComisionistasResumen();
+            if (detalleComisionistaModal.open && detalleComisionistaModal.item?.comisionistaId) {
+                const updatedItem = (resumenActualizado?.data || []).find(
+                    x => x.comisionistaId === detalleComisionistaModal.item.comisionistaId
+                );
+                if (updatedItem) {
+                    setDetalleComisionistaModal({ open: true, item: updatedItem });
+                }
+            }
+
             showToast('Viaje finalizado', 'success');
             try {
                 const el = document.getElementById('modalFinalizarCeo');
@@ -506,11 +672,15 @@ export default function Ceo() {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchCamiones(), fetchAcoplados(), fetchUsuarios(), fetchClientes(), fetchStats()]); }
+            try { await Promise.all([fetchCamiones(), fetchAcoplados(), fetchUsuarios(), fetchClientes(), fetchComisionistas(), fetchStats(), fetchComisionistasResumen()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando datos'); }
             finally { setLoading(false); }
         })();
     }, []);
+
+    useEffect(() => {
+        fetchComisionistasResumen(mesComisionistas);
+    }, [mesComisionistas]);
 
     useEffect(() => {
         fetchViajes(page).catch((e) => {
@@ -595,12 +765,14 @@ export default function Ceo() {
                 fecha: fechaNormalizada, // asegurar formato ISO
                 camionId: Number(nuevoViaje.camionId) || 0,
                 acopladoId: nuevoViaje.acopladoId ? Number(nuevoViaje.acopladoId) : null,
+                comisionistaId: nuevoViaje.comisionistaId ? Number(nuevoViaje.comisionistaId) : null,
                 tipoMercaderia: nuevoViaje.tipoMercaderia?.trim() || null,
                 cliente: nuevoViaje.cliente?.trim() || null,
                 precioTonelada: nuevoViaje.precioTonelada ? Number(nuevoViaje.precioTonelada) : undefined
             };
             await api.post('/viajes', body);
-            setNuevoViaje({ origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', precioTonelada: '' });
+            setNuevoViaje({ origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', precioTonelada: '', comisionistaId: '' });
+            await fetchComisionistasResumen();
             await fetchViajes();
             showToast('Viaje creado', 'success');
         } catch (e) {
@@ -730,6 +902,28 @@ export default function Ceo() {
         if (!s) return '';
         try { const [y, m, d] = String(s).split('-').map(Number); const dt = new Date(y, (m || 1) - 1, d || 1); return dt.toLocaleDateString(); } catch { return s; }
     };
+    const formatMonthYear = (value) => {
+        if (!value) return '-';
+        try {
+            const [y, m] = String(value).split('-').map(Number);
+            const label = new Date(y, (m || 1) - 1, 1).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+            return label.charAt(0).toUpperCase() + label.slice(1);
+        } catch {
+            return value;
+        }
+    };
+    const openPeriodoComisionesModal = () => {
+        setPeriodoComisionesModal({ open: true, value: mesComisionistas });
+    };
+    const closePeriodoComisionesModal = () => {
+        setPeriodoComisionesModal({ open: false, value: '' });
+    };
+    const applyPeriodoComisionesModal = () => {
+        if (periodoComisionesModal.value) {
+            setMesComisionistas(periodoComisionesModal.value);
+        }
+        closePeriodoComisionesModal();
+    };
 
     const viajesOrdenados = useMemo(() => {
         const arr = [...viajesFiltrados];
@@ -855,9 +1049,24 @@ export default function Ceo() {
         }
         setEditarImporteModal(prev => ({ ...prev, loading: true }));
         try {
-            await api.patch(`/viajes/${viajeId}/editar-importe`, { importe: Number(nuevoImporte) });
+            const nuevoImporteNum = Number(nuevoImporte);
+            await api.patch(`/viajes/${viajeId}/editar-importe`, { importe: nuevoImporteNum });
+
+            // Reflejar el nuevo importe inmediatamente en tabla local.
+            setViajes(prev => (prev || []).map(v => v.id === viajeId ? { ...v, importe: nuevoImporteNum } : v));
+
+            // Recalcular resumen mensual de comisiones y sincronizar modal detalle abierto.
+            const resumenActualizado = await fetchComisionistasResumen();
+            if (detalleComisionistaModal.open && detalleComisionistaModal.item?.comisionistaId) {
+                const updatedItem = (resumenActualizado?.data || []).find(
+                    x => x.comisionistaId === detalleComisionistaModal.item.comisionistaId
+                );
+                if (updatedItem) {
+                    setDetalleComisionistaModal({ open: true, item: updatedItem });
+                }
+            }
+
             showToast('Importe actualizado correctamente', 'success');
-            await fetchViajes();
             closeEditarImporteModal();
         } catch (e) {
             const msg = e?.response?.data?.error || 'Error actualizando importe';
@@ -1256,6 +1465,12 @@ export default function Ceo() {
                                     <div className="col-6"><input className="form-control" type="date" placeholder="Fecha" value={nuevoViaje.fecha} onChange={e => setNuevoViaje(v => ({ ...v, fecha: e.target.value }))} /></div>
                                     <div className="col-6"><input className="form-control" type="number" min={0} step={0.01} placeholder="Precio por tonelada" value={nuevoViaje.precioTonelada} onChange={e => setNuevoViaje(v => ({ ...v, precioTonelada: e.target.value }))} /></div>
                                     <div className="col-6">
+                                        <select className="form-select" value={nuevoViaje.comisionistaId || ''} onChange={e => setNuevoViaje(v => ({ ...v, comisionistaId: e.target.value }))}>
+                                            <option value="">Sin comisionista</option>
+                                            {comisionistas.map(c => <option key={c.id} value={c.id}>{c.nombre} ({Number(c.porcentaje || 0)}%)</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="col-6">
                                         <select className="form-select" value={nuevoViaje.camionId} onChange={e => setNuevoViaje(v => ({ ...v, camionId: e.target.value }))}>
                                             <option value="">Seleccioná camión</option>
                                             {camiones.map(c => <option key={c.id} value={c.id}>{c.patente}</option>)}
@@ -1422,7 +1637,7 @@ export default function Ceo() {
                                 <table className={`table table-sm table-striped table-hover table-sticky table-cols-bordered`}>
                                     <thead>
                                         <tr>
-                                            {['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Km', 'Toneladas', 'Precio/Tn', 'Importe'].map((label) => (
+                                            {['Fecha', 'Estado', 'Origen', 'Destino', 'Camión', 'Acoplado', 'Camionero', 'Tipo', 'Cliente', 'Comisionista', 'Km', 'Toneladas', 'Precio/Tn', 'Importe'].map((label) => (
                                                 <th
                                                     key={label.toLowerCase()}
                                                     role="button"
@@ -1472,6 +1687,7 @@ export default function Ceo() {
                                                 <td title={v.camionero?.nombre || '-'}>{v.camionero?.nombre || '-'}</td>
                                                 <td title={v.tipoMercaderia || '-'}>{v.tipoMercaderia || '-'}</td>
                                                 <td title={v.cliente || '-'}>{v.cliente || '-'}</td>
+                                                <td title={v.comisionista?.nombre || '-'}>{v.comisionista?.nombre || '-'}</td>
                                                 <td className="text-end">{v.km ?? '-'}</td>
                                                 <td className="text-end">{v.kilosCargados ?? '-'}</td>
                                                 <td className="text-end">{v.precioTonelada ?? '-'}</td>
@@ -1972,6 +2188,152 @@ export default function Ceo() {
                 </div>
 
                 <div className="row g-3 mt-3">
+                    <div className="col-12 col-xl-5">
+                        <div className="card shadow-sm h-100">
+                            <div className="card-body">
+                                <h3 className="h5">Comisionistas</h3>
+                                <form onSubmit={crearComisionista} className="row g-2 mt-2" style={{ opacity: savingComisionista ? 0.85 : 1 }}>
+                                    <div className="col-8">
+                                        <input
+                                            className="form-control"
+                                            placeholder="Nombre del comisionista"
+                                            value={nuevoComisionista.nombre}
+                                            onChange={e => setNuevoComisionista(v => ({ ...v, nombre: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className="col-4">
+                                        <input
+                                            className="form-control"
+                                            type="number"
+                                            min={0}
+                                            max={100}
+                                            step={0.01}
+                                            placeholder="%"
+                                            value={nuevoComisionista.porcentaje}
+                                            onChange={e => setNuevoComisionista(v => ({ ...v, porcentaje: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className="col-12">
+                                        <button className="btn btn-primary" disabled={savingComisionista}>{savingComisionista ? 'Creando…' : 'Crear comisionista'}</button>
+                                    </div>
+                                </form>
+
+                                <div className="table-responsive mt-3">
+                                    {comisionistas.length === 0 ? (
+                                        <EmptyState title="Sin comisionistas" description="Todavía no cargaste comisionistas" />
+                                    ) : (
+                                        <table className="table table-sm table-hover align-middle mb-0 table-sticky table-cols-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th className="text-uppercase small">Nombre</th>
+                                                    <th className="text-uppercase small">%</th>
+                                                    <th className="text-end text-uppercase small" style={{ minWidth: 140 }}>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {comisionistas.map(c => (
+                                                    <tr key={c.id}>
+                                                        <td>
+                                                            {editingComisionistaId === c.id ? (
+                                                                <input className="form-control form-control-sm" value={editingComisionistaData.nombre} onChange={e => setEditingComisionistaData(v => ({ ...v, nombre: e.target.value }))} />
+                                                            ) : c.nombre}
+                                                        </td>
+                                                        <td style={{ maxWidth: 120 }}>
+                                                            {editingComisionistaId === c.id ? (
+                                                                <input className="form-control form-control-sm" type="number" min={0} max={100} step={0.01} value={editingComisionistaData.porcentaje} onChange={e => setEditingComisionistaData(v => ({ ...v, porcentaje: e.target.value }))} />
+                                                            ) : `${Number(c.porcentaje || 0).toFixed(2)}%`}
+                                                        </td>
+                                                        <td className="text-end">
+                                                            {editingComisionistaId === c.id ? (
+                                                                <div className="btn-group btn-group-sm">
+                                                                    <button className="btn btn-success" onClick={() => guardarComisionista(c.id)}><i className="bi bi-check-lg"></i></button>
+                                                                    <button className="btn btn-outline-secondary" onClick={() => setEditingComisionistaId(null)}><i className="bi bi-x-lg"></i></button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="btn-group btn-group-sm">
+                                                                    <button className="btn btn-sm btn-outline-primary" onClick={() => { setEditingComisionistaId(c.id); setEditingComisionistaData({ nombre: c.nombre, porcentaje: String(Number(c.porcentaje || 0)) }); }} title="Editar">
+                                                                        <i className="bi bi-pencil"></i>
+                                                                    </button>
+                                                                    <button className="btn btn-sm btn-outline-danger" onClick={() => eliminarComisionista(c.id, c.nombre)} title="Eliminar">
+                                                                        <i className="bi bi-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-12 col-xl-7">
+                        <div className="card shadow-sm h-100">
+                            <div className="card-body">
+                                <div className="d-flex flex-wrap align-items-end gap-3 mb-3">
+                                    <div className="me-auto">
+                                        <h3 className="h5 mb-1">Comisiones por comisionista</h3>
+                                        <div className="small text-body-secondary">Filtrá por mes para ver el cierre y el detalle.</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 d-inline-flex align-items-center gap-2"
+                                        onClick={openPeriodoComisionesModal}
+                                        title="Seleccionar mes"
+                                    >
+                                        <i className="bi bi-calendar3"></i>
+                                        <span className="fw-semibold">{formatMonthYear(mesComisionistas)}</span>
+                                    </button>
+                                </div>
+
+                                <div className="p-3 mb-3 rounded border border-success-subtle bg-success bg-opacity-10">
+                                    <div className="small text-success-emphasis fw-semibold">Total comisiones del mes</div>
+                                    <div className="fs-4 fw-bold text-success">$ {Number(comisionistasResumen.totalComisiones || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                </div>
+
+                                <div className="table-responsive">
+                                    <table className="table table-sm table-hover align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Comisionista</th>
+                                                <th className="text-end">Viajes</th>
+                                                <th className="text-end">Total importes</th>
+                                                <th className="text-end">Total comisiones</th>
+                                                <th className="text-end">Detalle</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {loadingComisionistasResumen ? (
+                                                <tr><td colSpan={5} className="text-center py-3"><span className="spinner-border spinner-border-sm text-secondary" role="status" /></td></tr>
+                                            ) : comisionistasResumen.data.length === 0 ? (
+                                                <tr><td colSpan={5} className="text-center text-body-secondary py-3">No hay comisiones para el mes seleccionado.</td></tr>
+                                            ) : (
+                                                comisionistasResumen.data.map(item => (
+                                                    <tr key={item.comisionistaId}>
+                                                        <td>
+                                                            <strong>{item.nombre}</strong>
+                                                            <div className="small text-body-secondary">% base: {Number(item.porcentajeDefault || 0).toFixed(2)}%</div>
+                                                        </td>
+                                                        <td className="text-end">{item.totalViajes}</td>
+                                                        <td className="text-end">$ {Number(item.totalImporte || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                        <td className="text-end fw-semibold">$ {Number(item.totalComision || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                        <td className="text-end">
+                                                            <button className="btn btn-sm btn-outline-primary" onClick={() => setDetalleComisionistaModal({ open: true, item })}>Ver viajes</button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="row g-3 mt-3">
                     <div className="col-12">
                         <div className="card shadow-sm">
                             <div className="card-body">
@@ -2279,6 +2641,92 @@ export default function Ceo() {
                 </div>
 
 
+                {/* Modal período comisiones */}
+                <div className={`modal ${periodoComisionesModal.open ? 'show d-block' : 'fade'}`} tabIndex="-1" aria-hidden={!periodoComisionesModal.open}>
+                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 360 }}>
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h1 className="modal-title fs-6">Seleccionar mes</h1>
+                                <button type="button" className="btn-close" onClick={closePeriodoComisionesModal}></button>
+                            </div>
+                            <div className="modal-body">
+                                <label className="form-label small text-body-secondary mb-2">Elegí el período a consultar</label>
+                                <input
+                                    type="month"
+                                    className="form-control"
+                                    value={periodoComisionesModal.value || ''}
+                                    onChange={(e) => setPeriodoComisionesModal((prev) => ({ ...prev, value: e.target.value }))}
+                                />
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-outline-secondary" onClick={closePeriodoComisionesModal}>Cancelar</button>
+                                <button type="button" className="btn btn-primary" onClick={applyPeriodoComisionesModal}>Aplicar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {periodoComisionesModal.open && <div className="modal-backdrop show" onClick={closePeriodoComisionesModal}></div>}
+
+                {/* Modal detalle comisionista */}
+                <div className={`modal ${detalleComisionistaModal.open ? 'show d-block' : 'fade'}`} tabIndex="-1" aria-hidden={!detalleComisionistaModal.open}>
+                    <div className="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h1 className="modal-title fs-5">
+                                    Detalle de comisiones - {detalleComisionistaModal.item?.nombre || 'Comisionista'}
+                                </h1>
+                                <button type="button" className="btn-close" onClick={() => setDetalleComisionistaModal({ open: false, item: null })}></button>
+                            </div>
+                            <div className="modal-body">
+                                {!detalleComisionistaModal.item ? (
+                                    <div className="text-body-secondary">Sin datos para mostrar.</div>
+                                ) : (
+                                    <>
+                                        <div className="d-flex flex-wrap gap-3 mb-3">
+                                            <div className="small text-body-secondary">Viajes: <strong>{detalleComisionistaModal.item.totalViajes}</strong></div>
+                                            <div className="small text-body-secondary">Total importes: <strong>$ {Number(detalleComisionistaModal.item.totalImporte || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                                            <div className="small text-success-emphasis">Total comisiones: <strong>$ {Number(detalleComisionistaModal.item.totalComision || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                                        </div>
+                                        <div className="table-responsive">
+                                            <table className="table table-sm table-hover align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Fecha</th>
+                                                        <th>Origen</th>
+                                                        <th>Destino</th>
+                                                        <th>Camionero</th>
+                                                        <th className="text-end">Importe viaje</th>
+                                                        <th className="text-end">Porcentaje</th>
+                                                        <th className="text-end">Comisión</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(detalleComisionistaModal.item.viajes || []).length === 0 ? (
+                                                        <tr><td colSpan={7} className="text-center text-body-secondary py-3">No hay viajes para este comisionista en el mes seleccionado.</td></tr>
+                                                    ) : (
+                                                        (detalleComisionistaModal.item.viajes || []).map(v => (
+                                                            <tr key={v.id}>
+                                                                <td>{formatDateOnly(v.fecha)}</td>
+                                                                <td>{v.origen || '-'}</td>
+                                                                <td>{v.destino || '-'}</td>
+                                                                <td>{v.camionero?.nombre || v.camioneroNombre || '-'}</td>
+                                                                <td className="text-end">$ {Number(v.importe || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                <td className="text-end">{Number(v.porcentaje || 0).toFixed(2)}%</td>
+                                                                <td className="text-end fw-semibold">$ {Number(v.comision || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {detalleComisionistaModal.open && <div className="modal-backdrop show"></div>}
+
                 {/* Modal detalle viaje */}
                 <div className={`modal ${showDetalleModal ? 'show d-block' : 'fade'}`} id="modalDetalleViaje" tabIndex="-1" aria-hidden={!showDetalleModal}>
                     <div className="modal-dialog modal-lg">
@@ -2391,6 +2839,12 @@ export default function Ceo() {
                                     </div>
                                     <div className="col-6"><label className="form-label">Tipo mercadería</label><input className="form-control" value={editViajeModal.data.tipoMercaderia} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, tipoMercaderia: e.target.value } }))} /></div>
                                     <div className="col-6"><label className="form-label">Cliente</label><input className="form-control" value={editViajeModal.data.cliente} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, cliente: e.target.value } }))} /></div>
+                                    <div className="col-6"><label className="form-label">Comisionista</label>
+                                        <select className="form-select" value={editViajeModal.data.comisionistaId || ''} onChange={e => setEditViajeModal(m => ({ ...m, data: { ...m.data, comisionistaId: e.target.value } }))}>
+                                            <option value="">Sin comisionista</option>
+                                            {comisionistas.map(c => <option key={c.id} value={c.id}>{c.nombre} ({Number(c.porcentaje || 0)}%)</option>)}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                             <div className="modal-footer">

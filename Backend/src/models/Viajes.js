@@ -97,6 +97,18 @@ const Viaje = sequelize.define('Viaje', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    comisionistaId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'comisionistas',
+            key: 'id'
+        }
+    },
+    comisionPorcentaje: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: true
+    },
     cgtRemitos: {
         type: DataTypes.STRING(20),
         allowNull: true

@@ -1,4 +1,7 @@
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const env = process.env.NODE_ENV || 'development';
 const common = {

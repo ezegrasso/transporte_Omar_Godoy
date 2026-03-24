@@ -1402,6 +1402,7 @@ export default function Administracion() {
                                         <th scope="col">Destino</th>
                                         <th scope="col">Camión</th>
                                         <th scope="col">Camionero</th>
+                                        <th scope="col">Comisionista</th>
                                         <th scope="col">Tipo</th>
                                         <th scope="col">Toneladas</th>
                                         <th scope="col">Precio/Tn</th>
@@ -1506,6 +1507,7 @@ export default function Administracion() {
                                                 <td>{v.destino || '-'}</td>
                                                 <td>{v.camion?.patente || v.camionId || '-'}</td>
                                                 <td>{v.camionero?.nombre || v.camioneroNombre || '-'}</td>
+                                                <td>{v.comisionista?.nombre || '-'}</td>
                                                 <td>{v.tipoMercaderia || '-'}</td>
                                                 <td>{v.kilosCargados ?? '-'}</td>
                                                 <td>{v.precioTonelada ?? '-'}</td>
