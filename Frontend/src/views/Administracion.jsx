@@ -211,6 +211,7 @@ export default function Administracion() {
         console.log('[submitFactura] usando:', facturaModal.file ? 'POST' : 'PATCH');
         setFacturaModal((m) => ({ ...m, loading: true, error: '' }));
         try {
+            let viajeActualizado = null;
             // Si hay archivo, POST multipart; si no, PATCH solo estado/fecha
             if (facturaModal.file) {
                 const fd = new FormData();
@@ -219,16 +220,28 @@ export default function Administracion() {
                 if (facturaModal.fecha) fd.append('fechaFactura', facturaModal.fecha);
                 if (String(facturaModal.precioUnitario).trim() !== '') fd.append('precioUnitario', String(facturaModal.precioUnitario));
                 fd.append('ivaPercentaje', facturaModal.ivaPercentaje);
-                await api.post(`/viajes/${facturaModal.id}/factura`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                const { data } = await api.post(`/viajes/${facturaModal.id}/factura`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                viajeActualizado = data;
             } else {
-                await api.patch(`/viajes/${facturaModal.id}/factura`, {
+                const { data } = await api.patch(`/viajes/${facturaModal.id}/factura`, {
                     facturaEstado: facturaModal.estado,
                     fechaFactura: facturaModal.fecha || null,
                     precioUnitario: String(facturaModal.precioUnitario || '').trim() !== '' ? safeParseNumber(facturaModal.precioUnitario) : undefined,
                     precioUnitarioNegro: String(facturaModal.precioUnitarioNegro || '').trim() !== '' ? safeParseNumber(facturaModal.precioUnitarioNegro) : undefined,
                     ivaPercentaje: facturaModal.ivaPercentaje,
                 });
+                viajeActualizado = data;
             }
+
+            updateViajeLocal(facturaModal.id, {
+                facturaEstado: viajeActualizado?.facturaEstado || facturaModal.estado || null,
+                fechaFactura: viajeActualizado?.fechaFactura || facturaModal.fecha || null,
+                facturaUrl: viajeActualizado?.facturaUrl,
+                precioUnitarioFactura: viajeActualizado?.precioUnitarioFactura ?? (String(facturaModal.precioUnitario || '').trim() !== '' ? safeParseNumber(facturaModal.precioUnitario) : null),
+                precioUnitarioNegro: viajeActualizado?.precioUnitarioNegro ?? (String(facturaModal.precioUnitarioNegro || '').trim() !== '' ? safeParseNumber(facturaModal.precioUnitarioNegro) : null),
+                ivaPercentaje: viajeActualizado?.ivaPercentaje ?? facturaModal.ivaPercentaje,
+            });
+
             showToast('Factura actualizada', 'success');
             closeFactura();
             fetchSemana();
@@ -707,10 +720,23 @@ export default function Administracion() {
         if (nombre === 'Adrian Godoy') return 'bg-info-subtle text-info';
         return 'bg-secondary-subtle text-secondary';
     };
+    const updateViajeLocal = (viajeId, patch) => {
+        if (!viajeId || !patch) return;
+        const applyPatch = (v) => (v.id === viajeId ? { ...v, ...patch } : v);
+
+        setViajes((prev) => (prev || []).map(applyPatch));
+        setViajesMesFinanzas((prev) => (prev || []).map(applyPatch));
+        setViajesPorFacturaNumero((prev) => (prev || []).map(applyPatch));
+        setViajesPorCgtRemitos((prev) => (prev || []).map(applyPatch));
+        setDetalleClienteModal((prev) => ({
+            ...prev,
+            viajes: (prev?.viajes || []).map(applyPatch)
+        }));
+    };
     const handleFacturaEmisorChange = async (viajeId, facturaEmisor) => {
         try {
             await api.patch(`/viajes/${viajeId}/factura`, { facturaEmisor });
-            setViajes((prev) => (prev || []).map(v => (v.id === viajeId ? { ...v, facturaEmisor: facturaEmisor || null } : v)));
+            updateViajeLocal(viajeId, { facturaEmisor: facturaEmisor || null });
         } catch (e) {
             showToast(e?.response?.data?.error || 'No se pudo guardar el emisor', 'error');
         }
@@ -718,7 +744,7 @@ export default function Administracion() {
     const handleFacturaNumeroChange = async (viajeId, facturaNumero) => {
         try {
             await api.patch(`/viajes/${viajeId}/factura`, { facturaNumero });
-            setViajes((prev) => (prev || []).map(v => (v.id === viajeId ? { ...v, facturaNumero: facturaNumero || null } : v)));
+            updateViajeLocal(viajeId, { facturaNumero: facturaNumero || null });
         } catch (e) {
             showToast(e?.response?.data?.error || 'No se pudo guardar el número de factura', 'error');
         }
@@ -770,16 +796,7 @@ export default function Administracion() {
             const fechaCobro = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
             setCobrandoFacturaId(viaje.id);
             await api.patch(`/viajes/${viaje.id}/factura`, { facturaEstado: 'cobrada', fechaFactura: fechaCobro });
-
-            setViajesPorFacturaNumero((prev) => (prev || []).map((v) => (
-                v.id === viaje.id ? { ...v, facturaEstado: 'cobrada', fechaFactura: fechaCobro } : v
-            )));
-            setViajes((prev) => (prev || []).map((v) => (
-                v.id === viaje.id ? { ...v, facturaEstado: 'cobrada', fechaFactura: fechaCobro } : v
-            )));
-            setViajesMesFinanzas((prev) => (prev || []).map((v) => (
-                v.id === viaje.id ? { ...v, facturaEstado: 'cobrada', fechaFactura: fechaCobro } : v
-            )));
+            updateViajeLocal(viaje.id, { facturaEstado: 'cobrada', fechaFactura: fechaCobro });
 
             showToast(`Factura ${viaje.facturaNumero || `#${viaje.id}`} marcada como cobrada`, 'success');
         } catch (e) {
@@ -2091,6 +2108,8 @@ export default function Administracion() {
                                                 <tr>
                                                     <th>Fecha</th>
                                                     <th>Origen - Destino</th>
+                                                    <th>Camionero</th>
+                                                    <th>N° factura</th>
                                                     <th className="text-end">Total a cobrar</th>
                                                     <th>Estado</th>
                                                 </tr>
@@ -2111,6 +2130,8 @@ export default function Administracion() {
                                                         <tr key={v.id}>
                                                             <td>{fechaFormateada}</td>
                                                             <td>{v.origen} - {v.destino}</td>
+                                                            <td>{v.camionero?.nombre || v.camioneroNombre || '-'}</td>
+                                                            <td>{v.facturaNumero || '-'}</td>
                                                             <td className="text-end fw-bold">
                                                                 ${formatearMoneda(totalCobrar)}
                                                             </td>
@@ -2129,7 +2150,7 @@ export default function Administracion() {
                                             </tbody>
                                             <tfoot>
                                                 <tr className="table-primary fw-bold">
-                                                    <td colSpan="2" className="text-end">Total:</td>
+                                                    <td colSpan="4" className="text-end">Total:</td>
                                                     <td className="text-end">
                                                         ${formatearMoneda(detalleClienteModal.viajes.reduce((sum, v) => sum + calcularTotalCobrarViaje(v), 0))}
                                                     </td>
