@@ -377,3 +377,131 @@ export function generarFacturaViajePDF(viaje, fileName = `factura_viaje_${viaje.
 
     doc.save(fileName);
 }
+
+// Reporte mensual ejecutivo de finanzas
+export function generarReporteFinanzasPDF({ mes, resumen, gastosFijos = [] }) {
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const { logoBase64, nombre, cuit, direccion, telefono, email } = companyBrand;
+
+    const toNum = (value) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    };
+    const money = (value) => toNum(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    let logoWidth = 0;
+    if (logoBase64) {
+        try {
+            doc.addImage(logoBase64, 'PNG', 14, 10, 30, 10);
+            logoWidth = 50;
+        } catch {
+            // noop
+        }
+    }
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text(nombre, 14 + logoWidth, 12);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(`CUIT: ${cuit}`, 14 + logoWidth, 17);
+    doc.text(`${direccion} | Tel: ${telefono} | ${email}`, 14 + logoWidth, 21);
+
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text(`REPORTE FINANCIERO MENSUAL - ${mes}`, 14, 30);
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Generado: ${new Date().toLocaleString('es-AR')}`, 14, 35);
+
+    const datosResumen = resumen?.resumen || {};
+    const gastosSistema = resumen?.gastosSistema || {};
+    const totalGastosFijos = (gastosFijos || []).reduce((sum, g) => sum + toNum(g?.monto), 0);
+    const totalIngresos = toNum(datosResumen.ingresosTotales);
+    const totalGastosSistema = toNum(datosResumen.totalGastosSistema);
+    const totalGastosEmpresa = totalGastosSistema + totalGastosFijos;
+    const utilidadNeta = totalIngresos - totalGastosEmpresa;
+    const margen = totalIngresos > 0 ? (utilidadNeta / totalIngresos) * 100 : 0;
+
+    autoTable(doc, {
+        startY: 40,
+        head: [['Indicador', 'Valor']],
+        body: [
+            ['Ingresos Totales', `$ ${money(datosResumen.ingresosTotales)}`],
+            ['Ingresos Cobrados', `$ ${money(datosResumen.ingresosCobrados)}`],
+            ['Ingresos Pendientes', `$ ${money(datosResumen.ingresosPendientes)}`],
+            ['Gastos Sistema', `$ ${money(totalGastosSistema)}`],
+            ['Gastos Fijos', `$ ${money(totalGastosFijos)}`],
+            ['Gastos Empresa (Total)', `$ ${money(totalGastosEmpresa)}`],
+            ['Utilidad Neta', `$ ${money(utilidadNeta)}`],
+            ['Margen Neto', `${margen.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`]
+        ],
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold' },
+        margin: { left: 14, right: 150 }
+    });
+
+    autoTable(doc, {
+        startY: 40,
+        head: [['Gastos Sistema', 'Monto']],
+        body: [
+            ['Sueldos camioneros', `$ ${money(gastosSistema.sueldosCamioneros)}`],
+            ['Combustible', `$ ${money(gastosSistema.combustible)}`],
+            ['Comisiones intermediarios', `$ ${money(gastosSistema.comisionesIntermediarios)}`]
+        ],
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        margin: { left: 150, right: 14 }
+    });
+
+    const startGastosFijos = Math.max(doc.lastAutoTable?.finalY || 90, 90) + 6;
+    autoTable(doc, {
+        startY: startGastosFijos,
+        head: [['Gastos Fijos Mensuales', 'Monto']],
+        body: (gastosFijos || []).length > 0
+            ? gastosFijos.map((g) => [String(g?.nombre || 'Concepto'), `$ ${money(g?.monto)}`])
+            : [['Sin gastos fijos cargados', '$ 0,00']],
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [75, 85, 99], textColor: 255, fontStyle: 'bold' },
+        margin: { left: 14, right: 190 }
+    });
+
+    const startCamionero = Math.max(doc.lastAutoTable?.finalY || startGastosFijos + 20, startGastosFijos) + 6;
+    autoTable(doc, {
+        startY: startCamionero,
+        head: [['Camionero', 'Viajes', 'Bruto', 'Sueldo', 'Adelantos', 'Estadias', 'Combustible', 'Neto']],
+        body: (resumen?.facturacionPorCamionero || []).length > 0
+            ? resumen.facturacionPorCamionero.map((row) => [
+                row.camioneroNombre,
+                String(toNum(row.viajes)),
+                `$ ${money(row.bruto)}`,
+                `$ ${money(row.sueldo)}`,
+                `$ ${money(row.adelantos)}`,
+                `$ ${money(row.estadias)}`,
+                `$ ${money(row.combustibleImporte)}`,
+                `$ ${money(row.neto)}`
+            ])
+            : [['Sin datos', '-', '-', '-', '-', '-', '-', '-']],
+        styles: { fontSize: 7.5, cellPadding: 1.8 },
+        headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold' }
+    });
+
+    const startCliente = (doc.lastAutoTable?.finalY || startCamionero + 40) + 6;
+    autoTable(doc, {
+        startY: startCliente,
+        head: [['Cliente', 'Viajes', 'Total', 'Cobradas', 'Pendientes']],
+        body: (resumen?.facturacionPorCliente || []).length > 0
+            ? resumen.facturacionPorCliente.map((row) => [
+                row.cliente,
+                String(toNum(row.viajes)),
+                `$ ${money(row.total)}`,
+                `$ ${money(row.cobradas)}`,
+                `$ ${money(row.pendientes)}`
+            ])
+            : [['Sin datos', '-', '-', '-', '-']],
+        styles: { fontSize: 8, cellPadding: 1.8 },
+        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' }
+    });
+
+    doc.save(`finanzas_${mes}.pdf`);
+}

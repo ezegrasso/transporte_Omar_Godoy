@@ -17,6 +17,7 @@ import iaRouter from './routes/rutaIA.js';
 import adelantosRouter from './routes/rutaAdelantos.js';
 import estadiasRouter from './routes/rutaEstadias.js';
 import combustibleRouter from './routes/rutaCombustible.js';
+import finanzasRouter from './routes/rutaFinanzas.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import rutaAcoplados from './routes/rutaAcoplados.js';
 import rutaClientes from './routes/rutaClientes.js';
@@ -91,6 +92,7 @@ app.use('/api/ia', iaRouter);
 app.use('/api/adelantos', adelantosRouter);
 app.use('/api/estadias', estadiasRouter);
 app.use('/api/combustible', combustibleRouter);
+app.use('/api/finanzas', finanzasRouter);
 
 // Healthcheck simple
 app.get('/health', (req, res) => {

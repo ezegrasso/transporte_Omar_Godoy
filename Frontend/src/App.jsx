@@ -11,6 +11,7 @@ const Graficos = lazy(() => import('./views/Graficos'))
 const GraficosAdministracion = lazy(() => import('./views/GraficosAdministracion'))
 const Administracion = lazy(() => import('./views/Administracion'))
 const Camionero = lazy(() => import('./views/Camionero'))
+const Finanzas = lazy(() => import('./views/Finanzas'))
 
 function NavBar() {
   const { user } = useAuth()
@@ -64,18 +65,24 @@ function NavBar() {
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item"><Link className="nav-link" to="/">Inicio</Link></li>
             {!user && <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>}
-            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos') && (
+            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos' || location.pathname === '/finanzas') && (
               <li className="nav-item"><Link className="nav-link" to="/ceo">Panel CEO</Link></li>
             )}
-            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos') && (
+            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos' || location.pathname === '/finanzas') && (
               <li className="nav-item"><Link className="nav-link" to="/graficos">Gráficos</Link></li>
+            )}
+            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos' || location.pathname === '/finanzas') && (
+              <li className="nav-item"><Link className="nav-link" to="/finanzas">Finanzas</Link></li>
             )}
             {user?.rol === 'ceo' && location.pathname === '/administracion' && (
               <li className="nav-item"><Link className="nav-link" to="/administracion">Administración</Link></li>
             )}
             {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion">Panel Administración</Link></li>}
-            {user?.rol === 'administracion' && (location.pathname === '/administracion' || location.pathname === '/administracion/graficos') && (
+            {user?.rol === 'administracion' && (location.pathname === '/administracion' || location.pathname === '/administracion/graficos' || location.pathname === '/finanzas') && (
               <li className="nav-item"><Link className="nav-link" to="/administracion/graficos">Gráficos</Link></li>
+            )}
+            {user?.rol === 'administracion' && (location.pathname === '/administracion' || location.pathname === '/administracion/graficos' || location.pathname === '/finanzas') && (
+              <li className="nav-item"><Link className="nav-link" to="/finanzas">Finanzas</Link></li>
             )}
             {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero">Mis Viajes</Link></li>}
           </ul>
@@ -137,6 +144,7 @@ export default function App() {
       '/login': 'Login',
       '/ceo': 'CEO',
       '/graficos': 'Gráficos',
+      '/finanzas': 'Finanzas',
       '/camionero': 'Camionero',
       '/administracion': 'Administración',
       '/administracion/graficos': 'Gráficos Administración'
@@ -200,6 +208,13 @@ export default function App() {
               <ProtectedRoute roles={["camionero"]}>
                 <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Mis Viajes.</div>}>
                   <Camionero />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/finanzas" element={
+              <ProtectedRoute roles={["ceo", "administracion"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Finanzas.</div>}>
+                  <Finanzas />
                 </ErrorBoundary>
               </ProtectedRoute>
             } />
