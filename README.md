@@ -8,7 +8,6 @@ Plataforma web para la gestión operativa y financiera de una empresa de transpo
 - Backend (API): https://tu-backend.onrender.com
 - Swagger: https://tu-backend.onrender.com/api-docs
 
-Actualiza estas URLs con tus dominios reales.
 
 ## Vista General
 
