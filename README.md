@@ -203,18 +203,6 @@ Swagger:
 - Configurar variables de entorno
 - Verificar conectividad a MySQL
 
-## Capturas
-
-Agrega imágenes para mostrar la app en GitHub:
-
-```md
-![Panel CEO](docs/screenshots/ceo.png)
-![Finanzas](docs/screenshots/finanzas.png)
-![Administración](docs/screenshots/admin.png)
-```
-
-Sugerencia: crea carpeta `docs/screenshots/` y sube capturas reales del sistema.
-
 ## Roadmap
 
 - Exportación avanzada de reportes financieros
