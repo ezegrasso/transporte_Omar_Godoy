@@ -114,6 +114,18 @@
     text-align: center;
 }
 
+.finanzas-trend-pills {
+    display: none;
+    gap: 6px;
+    margin-top: 10px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.finanzas-trend-pills .btn {
+    white-space: nowrap;
+}
+
 .finanzas-trend-tooltip {
     position: absolute;
     min-width: 210px;
@@ -142,6 +154,90 @@
 
 .finanzas-row-neutral td {
     background-color: rgba(100, 116, 139, 0.06) !important;
+}
+
+@media (max-width: 992px) {
+    .finanzas-actions {
+        width: 100%;
+    }
+
+    .finanzas-actions .form-control,
+    .finanzas-actions .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .finanzas-mobile-card-table thead {
+        display: none;
+    }
+
+    .finanzas-mobile-card-table tbody,
+    .finanzas-mobile-card-table tr,
+    .finanzas-mobile-card-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .finanzas-mobile-card-table tr {
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 12px;
+        margin: 10px 8px;
+        padding: 6px 10px;
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    .finanzas-mobile-card-table td {
+        border: 0 !important;
+        padding: 7px 0 !important;
+        text-align: right !important;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .finanzas-mobile-card-table td::before {
+        content: attr(data-label);
+        color: #64748b;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .finanzas-mobile-card-table td[colspan] {
+        justify-content: center;
+        text-align: center !important;
+    }
+
+    .finanzas-mobile-card-table td[colspan]::before {
+        content: '';
+        display: none;
+    }
+
+    .finanzas-mobile-card-table-sm tr {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .finanzas-trend-svg {
+        height: 165px;
+    }
+
+    .finanzas-trend-labels {
+        display: none;
+    }
+
+    .finanzas-trend-pills {
+        display: flex;
+    }
+
+    .finanzas-trend-tooltip {
+        left: 8px !important;
+        right: 8px;
+        top: auto !important;
+        bottom: 8px;
+        max-width: none;
+    }
 }
 
 @media (max-width: 576px) {

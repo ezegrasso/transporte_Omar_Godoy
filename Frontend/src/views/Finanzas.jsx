@@ -280,7 +280,7 @@ export default function Finanzas() {
                 title="Finanzas"
                 subtitle="Control mensual profesional de ingresos, gastos y rentabilidad"
                 actions={(
-                    <div className="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                    <div className="d-flex align-items-center gap-2 flex-wrap justify-content-end finanzas-actions">
                         <input
                             type="month"
                             className="form-control"
@@ -409,6 +409,8 @@ export default function Finanzas() {
                                             height={TREND_HEIGHT - (TREND_PADDING * 2)}
                                             className="trend-hover-zone"
                                             onMouseEnter={() => setHoveredTrendIndex(idx)}
+                                            onTouchStart={() => setHoveredTrendIndex(idx)}
+                                            onClick={() => setHoveredTrendIndex(idx)}
                                         />
                                     );
                                 })}
@@ -442,6 +444,18 @@ export default function Finanzas() {
                             <div className="finanzas-trend-labels">
                                 {tendencia.data.map((item) => (
                                     <span key={item.mes} className="small text-body-secondary">{item.label}</span>
+                                ))}
+                            </div>
+                            <div className="finanzas-trend-pills">
+                                {tendencia.data.map((item, idx) => (
+                                    <button
+                                        key={`pill-${item.mes}`}
+                                        type="button"
+                                        className={`btn btn-sm ${hoveredTrendIndex === idx ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                        onClick={() => setHoveredTrendIndex(idx)}
+                                    >
+                                        {item.label}
+                                    </button>
                                 ))}
                             </div>
                         </div>
@@ -509,7 +523,7 @@ export default function Finanzas() {
                             </form>
 
                             <div className="table-responsive" style={{ maxHeight: 220 }}>
-                                <table className="table table-sm align-middle mb-0">
+                                <table className="table table-sm align-middle mb-0 finanzas-mobile-card-table finanzas-mobile-card-table-sm">
                                     <thead>
                                         <tr>
                                             <th>Concepto</th>
@@ -525,9 +539,9 @@ export default function Finanzas() {
                                         )}
                                         {gastosFijosMes.map((item) => (
                                             <tr key={item.id}>
-                                                <td>{item.nombre}</td>
-                                                <td className="text-end">{formatearMoneda(item.monto)}</td>
-                                                <td className="text-end">
+                                                <td data-label="Concepto">{item.nombre}</td>
+                                                <td className="text-end" data-label="Monto">{formatearMoneda(item.monto)}</td>
+                                                <td className="text-end" data-label="Acción">
                                                     <button
                                                         className="btn btn-sm btn-outline-danger"
                                                         onClick={() => eliminarGastoFijo(item.id)}
@@ -558,7 +572,7 @@ export default function Finanzas() {
                 </div>
                 <div className="card-body p-0">
                     <div className="table-responsive">
-                        <table className="table table-hover table-striped align-middle mb-0">
+                        <table className="table table-hover table-striped align-middle mb-0 finanzas-mobile-card-table">
                             <thead>
                                 <tr>
                                     <th>Camionero</th>
@@ -582,15 +596,15 @@ export default function Finanzas() {
                                     const rentabilidad = getRentabilidadMeta(row);
                                     return (
                                         <tr key={`${row.camioneroId || 'none'}-${row.camioneroNombre}`} className={rentabilidad.rowClass}>
-                                            <td>{row.camioneroNombre}</td>
-                                            <td className="text-end">{row.viajes}</td>
-                                            <td className="text-end">{formatearMoneda(row.bruto)}</td>
-                                            <td className="text-end">{formatearMoneda(row.sueldo)}</td>
-                                            <td className="text-end text-danger">-{formatearMoneda(row.adelantos)}</td>
-                                            <td className="text-end text-success">+{formatearMoneda(row.estadias)}</td>
-                                            <td className="text-end">{formatearMoneda(row.combustibleImporte)}</td>
-                                            <td className="text-end fw-semibold">{formatearMoneda(row.neto)}</td>
-                                            <td className="text-end">
+                                            <td data-label="Camionero">{row.camioneroNombre}</td>
+                                            <td className="text-end" data-label="Viajes">{row.viajes}</td>
+                                            <td className="text-end" data-label="Bruto">{formatearMoneda(row.bruto)}</td>
+                                            <td className="text-end" data-label="Sueldo">{formatearMoneda(row.sueldo)}</td>
+                                            <td className="text-end text-danger" data-label="Adelantos">-{formatearMoneda(row.adelantos)}</td>
+                                            <td className="text-end text-success" data-label="Estadías">+{formatearMoneda(row.estadias)}</td>
+                                            <td className="text-end" data-label="Combustible">{formatearMoneda(row.combustibleImporte)}</td>
+                                            <td className="text-end fw-semibold" data-label="Neto">{formatearMoneda(row.neto)}</td>
+                                            <td className="text-end" data-label="Rentabilidad">
                                                 <span className={`badge ${rentabilidad.badgeClass} me-1`}>{rentabilidad.label}</span>
                                                 <span className="small text-body-secondary">{formatearNumero(rentabilidad.ratio)}%</span>
                                             </td>
@@ -610,7 +624,7 @@ export default function Finanzas() {
                 </div>
                 <div className="card-body p-0">
                     <div className="table-responsive">
-                        <table className="table table-hover table-striped align-middle mb-0">
+                        <table className="table table-hover table-striped align-middle mb-0 finanzas-mobile-card-table">
                             <thead>
                                 <tr>
                                     <th>Cliente</th>
@@ -628,11 +642,11 @@ export default function Finanzas() {
                                 )}
                                 {facturacionPorCliente.map((row) => (
                                     <tr key={row.cliente}>
-                                        <td>{row.cliente}</td>
-                                        <td className="text-end">{row.viajes}</td>
-                                        <td className="text-end fw-semibold">{formatearMoneda(row.total)}</td>
-                                        <td className="text-end text-success">{formatearMoneda(row.cobradas)}</td>
-                                        <td className="text-end text-warning">{formatearMoneda(row.pendientes)}</td>
+                                        <td data-label="Cliente">{row.cliente}</td>
+                                        <td className="text-end" data-label="Viajes">{row.viajes}</td>
+                                        <td className="text-end fw-semibold" data-label="Total">{formatearMoneda(row.total)}</td>
+                                        <td className="text-end text-success" data-label="Cobradas">{formatearMoneda(row.cobradas)}</td>
+                                        <td className="text-end text-warning" data-label="Pendientes">{formatearMoneda(row.pendientes)}</td>
                                     </tr>
                                 ))}
                             </tbody>
