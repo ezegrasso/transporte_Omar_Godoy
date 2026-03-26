@@ -18,6 +18,10 @@ function NavBar() {
   const location = useLocation()
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
   const [navOpen, setNavOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.matchMedia('(min-width: 992px)').matches
+  })
   useEffect(() => {
     localStorage.setItem('theme', theme)
     const root = document.documentElement
@@ -28,6 +32,41 @@ function NavBar() {
     // Cerrar el menú colapsable al cambiar de ruta
     setNavOpen(false)
   }, [location.pathname])
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 992px)')
+    const onChange = (e) => {
+      setIsDesktop(e.matches)
+      if (e.matches) setNavOpen(false)
+    }
+
+    setIsDesktop(mql.matches)
+
+    if (mql.addEventListener) {
+      mql.addEventListener('change', onChange)
+      return () => mql.removeEventListener('change', onChange)
+    }
+
+    mql.addListener(onChange)
+    return () => mql.removeListener(onChange)
+  }, [])
+  useEffect(() => {
+    const nav = document.querySelector('.navbar.fixed-top')
+    if (!nav) return
+    const update = () => {
+      const rawHeight = Math.ceil(nav.offsetHeight || nav.getBoundingClientRect().height || 72)
+      const clampedHeight = Math.min(Math.max(rawHeight, 56), 220)
+      document.documentElement.style.setProperty('--app-navbar-offset', `${clampedHeight}px`)
+    }
+    requestAnimationFrame(update)
+  }, [navOpen, location.pathname, isDesktop])
+
+  const navbarContentClass = isDesktop
+    ? 'navbar-collapse app-navbar-collapse d-flex align-items-lg-center'
+    : `collapse navbar-collapse app-navbar-collapse align-items-lg-center ${navOpen ? 'show' : ''}`
+
+  const closeNavIfMobile = () => {
+    if (!isDesktop) setNavOpen(false)
+  }
   return (
     <nav className="navbar navbar-expand-lg bg-body-tertiary shadow-sm fixed-top">
       <div className="container">
@@ -60,31 +99,31 @@ function NavBar() {
         </div>
         <div
           id="navbarSupportedContent"
-          className={`flex-grow-1 ${navOpen ? 'd-block' : 'd-none'} d-lg-flex align-items-lg-center`}
+          className={navbarContentClass}
         >
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-            <li className="nav-item"><Link className="nav-link" to="/">Inicio</Link></li>
-            {!user && <li className="nav-item"><Link className="nav-link" to="/login">Login</Link></li>}
+            <li className="nav-item"><Link className="nav-link" to="/" onClick={closeNavIfMobile}>Inicio</Link></li>
+            {!user && <li className="nav-item"><Link className="nav-link" to="/login" onClick={closeNavIfMobile}>Login</Link></li>}
             {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/ceo">Panel CEO</Link></li>
+              <li className="nav-item"><Link className="nav-link" to="/ceo" onClick={closeNavIfMobile}>Panel CEO</Link></li>
             )}
             {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/graficos">Gráficos</Link></li>
+              <li className="nav-item"><Link className="nav-link" to="/graficos" onClick={closeNavIfMobile}>Gráficos</Link></li>
             )}
             {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/finanzas">Finanzas</Link></li>
+              <li className="nav-item"><Link className="nav-link" to="/finanzas" onClick={closeNavIfMobile}>Finanzas</Link></li>
             )}
             {user?.rol === 'ceo' && location.pathname === '/administracion' && (
-              <li className="nav-item"><Link className="nav-link" to="/administracion">Administración</Link></li>
+              <li className="nav-item"><Link className="nav-link" to="/administracion" onClick={closeNavIfMobile}>Administración</Link></li>
             )}
-            {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion">Panel Administración</Link></li>}
+            {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion" onClick={closeNavIfMobile}>Panel Administración</Link></li>}
             {user?.rol === 'administracion' && (location.pathname === '/administracion' || location.pathname === '/administracion/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/administracion/graficos">Gráficos</Link></li>
+              <li className="nav-item"><Link className="nav-link" to="/administracion/graficos" onClick={closeNavIfMobile}>Gráficos</Link></li>
             )}
             {user?.rol === 'administracion' && (location.pathname === '/administracion' || location.pathname === '/administracion/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/finanzas">Finanzas</Link></li>
+              <li className="nav-item"><Link className="nav-link" to="/finanzas" onClick={closeNavIfMobile}>Finanzas</Link></li>
             )}
-            {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero">Mis Viajes</Link></li>}
+            {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero" onClick={closeNavIfMobile}>Mis Viajes</Link></li>}
           </ul>
           <div className="d-none d-lg-flex align-items-center gap-2 flex-nowrap ms-lg-auto">
             <button className="btn btn-outline-secondary" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="Tema">
@@ -105,7 +144,8 @@ export default function App() {
     const updateOffset = () => {
       const nav = document.querySelector('.navbar.fixed-top')
       if (nav) {
-        const h = Math.ceil(nav.getBoundingClientRect().height)
+        const rawHeight = Math.ceil(nav.offsetHeight || nav.getBoundingClientRect().height || 72)
+        const h = Math.min(Math.max(rawHeight, 56), 220)
         document.documentElement.style.setProperty(
           '--app-navbar-offset',
           `${h}px`
@@ -154,7 +194,8 @@ export default function App() {
     // Recalcular el offset también al cambiar de ruta (por si varía la altura)
     const nav = document.querySelector('.navbar.fixed-top')
     if (nav) {
-      const h = Math.ceil(nav.getBoundingClientRect().height)
+      const rawHeight = Math.ceil(nav.offsetHeight || nav.getBoundingClientRect().height || 72)
+      const h = Math.min(Math.max(rawHeight, 56), 220)
       document.documentElement.style.setProperty('--app-navbar-offset', `${h}px`)
     }
   }, [location.pathname])

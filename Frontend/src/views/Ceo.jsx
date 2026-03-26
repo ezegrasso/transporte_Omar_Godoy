@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PageHeader from '../components/UI/PageHeader';
 import api from '../services/api';
 import EmptyState from '../components/UI/EmptyState';
@@ -1254,6 +1254,8 @@ export default function Ceo() {
 
     // Notificaciones (campana)
     const [notisOpen, setNotisOpen] = useState(false);
+    const notifPanelRef = useRef(null);
+    const notifButtonRef = useRef(null);
     const [notis, setNotis] = useState([]);
     const [loadingNotis, setLoadingNotis] = useState(false);
     const [bellPulse, setBellPulse] = useState(false);
@@ -1314,6 +1316,33 @@ export default function Ceo() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.rol]);
 
+    // Cerrar el panel al hacer click fuera o con Escape
+    useEffect(() => {
+        if (!notisOpen) return;
+
+        const onPointerDown = (e) => {
+            const panelEl = notifPanelRef.current;
+            const buttonEl = notifButtonRef.current;
+            const target = e.target;
+            if (!target) return;
+
+            if (panelEl && panelEl.contains(target)) return;
+            if (buttonEl && buttonEl.contains(target)) return;
+            setNotisOpen(false);
+        };
+
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') setNotisOpen(false);
+        };
+
+        document.addEventListener('pointerdown', onPointerDown, true);
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('pointerdown', onPointerDown, true);
+            document.removeEventListener('keydown', onKeyDown);
+        };
+    }, [notisOpen]);
+
     return (
         <>
             <ConfirmModal
@@ -1342,17 +1371,20 @@ export default function Ceo() {
                                     Gestionar
                                 </button>
                                 <div className="position-relative">
-                                    <button className={`btn btn-outline-secondary position-relative ${bellPulse ? 'notif-pulse' : ''}`} onClick={() => { setNotisOpen(v => !v); if (!notisOpen) fetchNotis(); }}>
+                                    <button ref={notifButtonRef} className={`btn btn-outline-secondary position-relative ${bellPulse ? 'notif-pulse' : ''}`} onClick={() => { setNotisOpen(v => !v); if (!notisOpen) fetchNotis(); }}>
                                         <i className="bi bi-bell"></i>
                                         {unreadCount > 0 && <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{unreadCount}</span>}
                                     </button>
                                     {notisOpen && (
-                                        <div className="card position-absolute end-0 mt-2 shadow" style={{ minWidth: 420, zIndex: 1000 }}>
-                                            <div className="card-header d-flex align-items-center py-2 gap-2">
-                                                <strong>Notificaciones</strong>
-                                                <span className={`badge ${unreadCount > 0 ? 'text-bg-danger' : 'text-bg-secondary'} ms-1`}>{unreadCount} sin leer</span>
+                                        <div ref={notifPanelRef} className="card position-absolute end-0 mt-2 shadow og-notif-panel" style={{ minWidth: 420, zIndex: 1000 }}>
+                                            <div className="card-header d-flex align-items-center py-2 gap-2 og-notif-header">
+                                                <div>
+                                                    <strong className="d-block">Notificaciones</strong>
+                                                    <span className="small text-body-secondary">Actividad reciente del sistema</span>
+                                                </div>
+                                                <span className={`badge rounded-pill ${unreadCount > 0 ? 'text-bg-danger' : 'text-bg-secondary'} ms-1`}>{unreadCount} sin leer</span>
                                                 <div className="ms-auto d-flex gap-1">
-                                                    <button className="btn btn-sm btn-outline-warning" title="Borrar leídas" onClick={async () => {
+                                                    <button className="btn btn-sm btn-soft-warning" title="Borrar leídas" onClick={async () => {
                                                         if (!confirm('¿Borrar todas las notificaciones leídas?')) return;
                                                         try { await api.delete('/notificaciones/leidas/all'); } catch { }
                                                         finally { fetchNotis(); }
@@ -1361,33 +1393,33 @@ export default function Ceo() {
                                                     </button>
                                                 </div>
                                             </div>
-                                            <div className="list-group list-group-flush" style={{ maxHeight: 380, overflowY: 'auto' }}>
+                                            <div className="list-group list-group-flush og-notif-list" style={{ maxHeight: 380, overflowY: 'auto' }}>
                                                 {(notis || []).length === 0 ? (
                                                     <div className="text-center text-body-secondary p-3">Sin notificaciones</div>
                                                 ) : (
                                                     (notis || []).map(n => {
                                                         const cfg = getTipoCfg(n.tipo);
                                                         return (
-                                                            <div key={n.id} className={`list-group-item d-flex align-items-start gap-2`}>
+                                                            <div key={n.id} className={`list-group-item d-flex align-items-start gap-2 og-notif-item ${n.leida ? 'is-read' : 'is-unread'}`}>
                                                                 <div className={`rounded-circle d-flex align-items-center justify-content-center ${cfg.bg}`} style={{ width: 36, height: 36, position: 'relative' }}>
                                                                     <i className={`bi ${cfg.icon}`}></i>
                                                                     {!n.leida && <span className={`position-absolute top-0 end-0 translate-middle p-1 border border-light rounded-circle ${cfg.dot}`}></span>}
                                                                 </div>
-                                                                <div className="flex-grow-1">
-                                                                    <div className="d-flex align-items-center gap-2 mb-1">
-                                                                        <span className="badge text-bg-light text-capitalize border">{n.tipo.replaceAll('_', ' ')}</span>
-                                                                        {!n.leida && <span className="badge text-bg-warning">Nuevo</span>}
-                                                                        <span className="text-body-secondary small ms-auto">{relTime(n.fecha)} · {new Date(n.fecha).toLocaleString()}</span>
+                                                                <div className="flex-grow-1 og-notif-content">
+                                                                    <div className="d-flex align-items-center gap-2 mb-1 og-notif-meta">
+                                                                        <span className="badge og-chip text-capitalize">{n.tipo.replaceAll('_', ' ')}</span>
+                                                                        {!n.leida && <span className="badge og-chip og-chip-new">Nuevo</span>}
                                                                     </div>
-                                                                    <div className="small">{n.mensaje}</div>
+                                                                    <div className="text-body-secondary small og-notif-time">{relTime(n.fecha)} · {new Date(n.fecha).toLocaleString()}</div>
+                                                                    <div className="small og-notif-message">{n.mensaje}</div>
                                                                 </div>
-                                                                <div className="d-flex flex-column gap-1 align-items-end">
+                                                                <div className="d-flex flex-column gap-1 align-items-end og-notif-actions" aria-label="Acciones">
                                                                     {!n.leida && (
-                                                                        <button className="btn btn-sm btn-outline-primary" onClick={async () => { await api.patch(`/notificaciones/${n.id}/leida`); setNotis(prev => prev.map(x => x.id === n.id ? { ...x, leida: true } : x)); }}>
-                                                                            <i className="bi bi-check2 me-1"></i> Leída
+                                                                        <button className="btn btn-sm og-action-btn og-action-read" title="Marcar como leída" onClick={async () => { await api.patch(`/notificaciones/${n.id}/leida`); setNotis(prev => prev.map(x => x.id === n.id ? { ...x, leida: true } : x)); }}>
+                                                                            <i className="bi bi-check2"></i>
                                                                         </button>
                                                                     )}
-                                                                    <button className="btn btn-sm btn-outline-danger" title="Eliminar" onClick={async () => {
+                                                                    <button className="btn btn-sm og-action-btn og-action-delete" title="Eliminar esta notificación" onClick={async () => {
                                                                         if (!confirm('¿Eliminar esta notificación?')) return;
                                                                         try { await api.delete(`/notificaciones/${n.id}`); setNotis(prev => prev.filter(x => x.id !== n.id)); } catch { }
                                                                     }}>
