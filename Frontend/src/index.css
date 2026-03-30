@@ -634,11 +634,29 @@ body {
     max-height: calc(100vh - var(--app-navbar-offset, 64px) - 6.8rem) !important;
   }
 
+  .og-notif-item {
+    flex-direction: column;
+  }
+
+  .og-notif-item > .og-notif-content {
+    width: 100%;
+  }
+
+  .og-notif-meta {
+    flex-wrap: wrap;
+  }
+
+  .og-notif-message {
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
   .og-notif-actions {
     width: 100%;
     margin-top: 0.35rem;
     flex-direction: row !important;
     justify-content: flex-start;
+    align-items: center;
   }
 
   .og-notif-actions .btn {
@@ -653,6 +671,7 @@ body {
   .og-notif-time {
     width: 100%;
     margin-left: 0 !important;
+    white-space: normal;
   }
 }
 
