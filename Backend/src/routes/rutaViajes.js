@@ -1098,9 +1098,39 @@ router.patch('/:id',
             if (viaje.estado === 'en curso') {
                 return res.status(400).json({ error: 'Solo se puede editar viajes pendientes o finalizados' });
             }
+
+            const prevCamionId = viaje.camionId;
+            const prevCamioneroId = viaje.camioneroId;
+            const camionIdInBody = Object.prototype.hasOwnProperty.call(req.body, 'camionId');
+            const camionIdChanged = camionIdInBody && Number(req.body.camionId) !== Number(prevCamionId);
+
             const fields = ['origen', 'destino', 'fecha', 'camionId', 'acopladoId', 'tipoMercaderia', 'cliente'];
             for (const f of fields) {
                 if (req.body.hasOwnProperty(f)) viaje[f] = req.body[f] ?? null;
+            }
+
+            // Si se cambió el camión en un viaje PENDIENTE, sincronizar el camionero asignado al camión.
+            // El panel de camionero lista viajes por `camioneroId`, por eso esto es crítico.
+            if (viaje.estado === 'pendiente' && Object.prototype.hasOwnProperty.call(req.body, 'camionId')) {
+                const camion = await Camion.findByPk(viaje.camionId);
+                if (!camion) return res.status(404).json({ error: 'Camión no encontrado' });
+
+                if (camion.camioneroId) {
+                    const camionero = await Usuario.findOne({ where: { rol: 'camionero', id: camion.camioneroId } });
+                    if (camionero) {
+                        viaje.camioneroId = camionero.id;
+                        viaje.camioneroNombre = camionero.nombre || null;
+                        viaje.camioneroEmail = camionero.email || null;
+                    } else {
+                        viaje.camioneroId = null;
+                        viaje.camioneroNombre = null;
+                        viaje.camioneroEmail = null;
+                    }
+                } else {
+                    viaje.camioneroId = null;
+                    viaje.camioneroNombre = null;
+                    viaje.camioneroEmail = null;
+                }
             }
 
             const requestedIntermediarioId = getIntermediarioIdFromBody(req.body);
@@ -1118,6 +1148,35 @@ router.patch('/:id',
             }
 
             await viaje.save();
+
+            // Aviso por email al camionero cuando el CEO reasigna el camión de un viaje pendiente.
+            // Enviar solo si el camión cambió y el camionero resultante cambió (o antes estaba vacío).
+            if (viaje.estado === 'pendiente' && camionIdChanged && viaje.camioneroId && viaje.camioneroId !== prevCamioneroId) {
+                try {
+                    if (viaje.camioneroEmail) {
+                        let camPatente = '';
+                        try {
+                            const cam = await Camion.findByPk(viaje.camionId);
+                            camPatente = cam?.patente || '';
+                        } catch { }
+
+                        const subject = `Viaje #${viaje.id} asignado a tu camión`;
+                        const partes = [
+                            `Hola ${viaje.camioneroNombre || 'Camionero'}, se te asignó un viaje (re-asignado por administración).`,
+                            `Ruta: ${viaje.origen} -> ${viaje.destino}`,
+                            `Fecha: ${new Date(viaje.fecha).toLocaleDateString()}`,
+                        ];
+                        if (camPatente) partes.push(`Camión: ${camPatente}`);
+                        if (viaje.cliente) partes.push(`Cliente: ${viaje.cliente}`);
+                        if (viaje.tipoMercaderia) partes.push(`Tipo: ${viaje.tipoMercaderia}`);
+                        partes.push('Ingresá al panel para tomarlo.');
+                        const text = partes.join('\n');
+
+                        await sendEmail({ to: viaje.camioneroEmail, subject, text });
+                    }
+                } catch { /* silencioso */ }
+            }
+
             res.json(withIntermediarioAlias(viaje));
         } catch (e) {
             res.status(500).json({ error: 'Error al editar viaje' });
