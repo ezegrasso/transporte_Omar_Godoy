@@ -217,6 +217,7 @@ router.get('/resumen-mensual',
 
             let sueldosCamioneros = 0;
             const facturacionPorCamionero = Array.from(facturacionPorCamioneroMap.values())
+                .filter((item) => item.camioneroId !== null && item.camioneroId !== undefined)
                 .map((item) => {
                     const sueldo = Number((toNum(item.brutoLiquidacion) * 0.16).toFixed(2));
                     const adelantosTotal = Number((adelantosPorCamionero.get(item.camioneroId) || 0).toFixed(2));

@@ -193,6 +193,48 @@ export default function Finanzas() {
     const facturacionPorCamionero = resumen?.facturacionPorCamionero || [];
     const facturacionPorCliente = resumen?.facturacionPorCliente || [];
 
+    const totalesCamioneros = useMemo(() => {
+        return facturacionPorCamionero.reduce((acc, row) => {
+            const brutoLiquidacion = toNum(row?.brutoLiquidacion ?? row?.bruto);
+            acc.viajes += toNum(row?.viajes);
+            acc.brutoLiquidacion += brutoLiquidacion;
+            acc.sueldo += toNum(row?.sueldo);
+            acc.adelantos += toNum(row?.adelantos);
+            acc.estadias += toNum(row?.estadias);
+            acc.combustible += toNum(row?.combustibleImporte);
+            acc.neto += toNum(row?.neto);
+            return acc;
+        }, {
+            viajes: 0,
+            brutoLiquidacion: 0,
+            sueldo: 0,
+            adelantos: 0,
+            estadias: 0,
+            combustible: 0,
+            neto: 0
+        });
+    }, [facturacionPorCamionero]);
+
+    const rentabilidadTotalCamioneros = useMemo(() => {
+        if (totalesCamioneros.brutoLiquidacion <= 0) return 0;
+        return (totalesCamioneros.neto / totalesCamioneros.brutoLiquidacion) * 100;
+    }, [totalesCamioneros]);
+
+    const totalesClientes = useMemo(() => {
+        return facturacionPorCliente.reduce((acc, row) => {
+            acc.viajes += toNum(row?.viajes);
+            acc.total += toNum(row?.total);
+            acc.cobradas += toNum(row?.cobradas);
+            acc.pendientes += toNum(row?.pendientes);
+            return acc;
+        }, {
+            viajes: 0,
+            total: 0,
+            cobradas: 0,
+            pendientes: 0
+        });
+    }, [facturacionPorCliente]);
+
     const tendenciaMax = useMemo(() => {
         const values = (tendencia.data || []).flatMap((d) => [toNum(d.ingresos), toNum(d.gastos), Math.abs(toNum(d.utilidad))]);
         const max = Math.max(...values, 1);
@@ -612,6 +654,21 @@ export default function Finanzas() {
                                     )
                                 })}
                             </tbody>
+                            {facturacionPorCamionero.length > 0 && (
+                                <tfoot>
+                                    <tr className="fw-semibold">
+                                        <td>Total</td>
+                                        <td className="text-end">{formatearNumero(totalesCamioneros.viajes)}</td>
+                                        <td className="text-end">{formatearMoneda(totalesCamioneros.brutoLiquidacion)}</td>
+                                        <td className="text-end">{formatearMoneda(totalesCamioneros.sueldo)}</td>
+                                        <td className="text-end text-danger">-{formatearMoneda(totalesCamioneros.adelantos)}</td>
+                                        <td className="text-end text-success">+{formatearMoneda(totalesCamioneros.estadias)}</td>
+                                        <td className="text-end">{formatearMoneda(totalesCamioneros.combustible)}</td>
+                                        <td className="text-end">{formatearMoneda(totalesCamioneros.neto)}</td>
+                                        <td className="text-end">{formatearNumero(rentabilidadTotalCamioneros)}%</td>
+                                    </tr>
+                                </tfoot>
+                            )}
                         </table>
                     </div>
                 </div>
@@ -650,6 +707,17 @@ export default function Finanzas() {
                                     </tr>
                                 ))}
                             </tbody>
+                            {facturacionPorCliente.length > 0 && (
+                                <tfoot>
+                                    <tr className="fw-semibold">
+                                        <td>Total</td>
+                                        <td className="text-end">{formatearNumero(totalesClientes.viajes)}</td>
+                                        <td className="text-end">{formatearMoneda(totalesClientes.total)}</td>
+                                        <td className="text-end text-success">{formatearMoneda(totalesClientes.cobradas)}</td>
+                                        <td className="text-end text-warning">{formatearMoneda(totalesClientes.pendientes)}</td>
+                                    </tr>
+                                </tfoot>
+                            )}
                         </table>
                     </div>
                 </div>
