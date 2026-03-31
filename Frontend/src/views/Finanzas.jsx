@@ -44,6 +44,11 @@ const toNum = (value) => {
     return Number.isFinite(n) ? n : 0;
 };
 
+const isValidCamioneroId = (value) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0;
+};
+
 const formatearMoneda = (value) => {
     const n = toNum(value);
     return `$ ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -190,7 +195,11 @@ export default function Finanzas() {
     };
 
     const gastosSistema = resumen?.gastosSistema || {};
-    const facturacionPorCamionero = resumen?.facturacionPorCamionero || [];
+    const facturacionPorCamionero = (resumen?.facturacionPorCamionero || []).filter((row) => {
+        if (!isValidCamioneroId(row?.camioneroId)) return false;
+        const nombre = String(row?.camioneroNombre || '').trim().toLowerCase();
+        return nombre !== 'sin camionero';
+    });
     const facturacionPorCliente = resumen?.facturacionPorCliente || [];
 
     const totalesCamioneros = useMemo(() => {

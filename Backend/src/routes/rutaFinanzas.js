@@ -16,6 +16,11 @@ const toNum = (value) => {
     return Number.isFinite(n) ? n : 0;
 };
 
+const isValidCamioneroId = (value) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0;
+};
+
 const toDateOnlyRange = (mesYYYYMM) => {
     const [yearStr, monthStr] = String(mesYYYYMM || '').split('-');
     const year = Number(yearStr);
@@ -117,6 +122,9 @@ router.get('/resumen-mensual',
                 const totalComisionViaje = ingreso * (porcentajeComision / 100);
                 comisionesIntermediarios += totalComisionViaje;
 
+                // Solo consolidar por camionero cuando hay un ID válido.
+                if (!isValidCamioneroId(camioneroId)) continue;
+
                 const acc = facturacionPorCamioneroMap.get(camioneroId) || {
                     camioneroId,
                     camioneroNombre: nombreCamionero,
@@ -143,6 +151,7 @@ router.get('/resumen-mensual',
 
             for (const adelanto of adelantos) {
                 const camioneroId = adelanto.camioneroId || null;
+                if (!isValidCamioneroId(camioneroId)) continue;
                 const actual = adelantosPorCamionero.get(camioneroId) || 0;
                 adelantosPorCamionero.set(camioneroId, actual + toNum(adelanto.monto));
 
@@ -167,6 +176,7 @@ router.get('/resumen-mensual',
 
             for (const estadia of estadias) {
                 const camioneroId = estadia.camioneroId || null;
+                if (!isValidCamioneroId(camioneroId)) continue;
                 const actual = estadiasPorCamionero.get(camioneroId) || 0;
                 estadiasPorCamionero.set(camioneroId, actual + toNum(estadia.monto));
 
@@ -191,6 +201,7 @@ router.get('/resumen-mensual',
 
             for (const movimiento of movimientosCombustible) {
                 const camioneroId = movimiento.camioneroId || null;
+                if (!isValidCamioneroId(camioneroId)) continue;
                 const actual = combustiblePorCamionero.get(camioneroId) || { litros: 0, importe: 0 };
                 actual.litros += toNum(movimiento.litros);
                 actual.importe += toNum(movimiento.importeTotal);
@@ -217,7 +228,7 @@ router.get('/resumen-mensual',
 
             let sueldosCamioneros = 0;
             const facturacionPorCamionero = Array.from(facturacionPorCamioneroMap.values())
-                .filter((item) => item.camioneroId !== null && item.camioneroId !== undefined)
+                .filter((item) => isValidCamioneroId(item.camioneroId))
                 .map((item) => {
                     const sueldo = Number((toNum(item.brutoLiquidacion) * 0.16).toFixed(2));
                     const adelantosTotal = Number((adelantosPorCamionero.get(item.camioneroId) || 0).toFixed(2));
