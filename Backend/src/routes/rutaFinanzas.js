@@ -76,10 +76,8 @@ router.get('/resumen-mensual',
                     where: {
                         mes: month,
                         anio: year,
-                        [Op.or]: [
-                            { tipoRegistro: 'carga', origen: 'externo' },
-                            { tipoRegistro: 'ajuste', lugar: { [Op.like]: 'Ingreso%' } }
-                        ]
+                        tipoRegistro: 'carga',
+                        origen: { [Op.in]: ['predio', 'externo'] }
                     },
                     attributes: ['id', 'camioneroId', 'litros', 'importeTotal'],
                     include: [{ model: Usuario, as: 'camionero', attributes: ['id', 'nombre'], required: false }]
@@ -124,6 +122,7 @@ router.get('/resumen-mensual',
                     camioneroNombre: nombreCamionero,
                     viajes: 0,
                     bruto: 0,
+                    brutoLiquidacion: 0,
                     sueldo: 0,
                     adelantos: 0,
                     estadias: 0,
@@ -135,6 +134,8 @@ router.get('/resumen-mensual',
                 };
                 acc.viajes += 1;
                 acc.bruto += ingreso;
+                // La liquidación del camionero se basa en `importe` del viaje (misma regla que /viajes/liquidacion).
+                acc.brutoLiquidacion += toNum(viaje?.importe);
                 if (estadoFactura === 'cobrada') acc.cobrado += ingreso;
                 else acc.pendiente += ingreso;
                 facturacionPorCamioneroMap.set(camioneroId, acc);
@@ -151,6 +152,7 @@ router.get('/resumen-mensual',
                         camioneroNombre: 'Sin camionero',
                         viajes: 0,
                         bruto: 0,
+                        brutoLiquidacion: 0,
                         sueldo: 0,
                         adelantos: 0,
                         estadias: 0,
@@ -174,6 +176,7 @@ router.get('/resumen-mensual',
                         camioneroNombre: 'Sin camionero',
                         viajes: 0,
                         bruto: 0,
+                        brutoLiquidacion: 0,
                         sueldo: 0,
                         adelantos: 0,
                         estadias: 0,
@@ -199,6 +202,7 @@ router.get('/resumen-mensual',
                         camioneroNombre: movimiento?.camionero?.nombre || 'Sin camionero',
                         viajes: 0,
                         bruto: 0,
+                        brutoLiquidacion: 0,
                         sueldo: 0,
                         adelantos: 0,
                         estadias: 0,
@@ -214,7 +218,7 @@ router.get('/resumen-mensual',
             let sueldosCamioneros = 0;
             const facturacionPorCamionero = Array.from(facturacionPorCamioneroMap.values())
                 .map((item) => {
-                    const sueldo = Number((item.bruto * 0.16).toFixed(2));
+                    const sueldo = Number((toNum(item.brutoLiquidacion) * 0.16).toFixed(2));
                     const adelantosTotal = Number((adelantosPorCamionero.get(item.camioneroId) || 0).toFixed(2));
                     const estadiasTotal = Number((estadiasPorCamionero.get(item.camioneroId) || 0).toFixed(2));
                     const combustible = combustiblePorCamionero.get(item.camioneroId) || { litros: 0, importe: 0 };
@@ -225,6 +229,7 @@ router.get('/resumen-mensual',
                     return {
                         ...item,
                         bruto: Number(item.bruto.toFixed(2)),
+                        brutoLiquidacion: Number(toNum(item.brutoLiquidacion).toFixed(2)),
                         sueldo,
                         adelantos: adelantosTotal,
                         estadias: estadiasTotal,

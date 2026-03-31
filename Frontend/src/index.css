@@ -487,7 +487,7 @@ body {
   align-items: flex-start;
 }
 
-.og-notif-item > .og-notif-content {
+.og-notif-item>.og-notif-content {
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -638,7 +638,7 @@ body {
     flex-direction: column;
   }
 
-  .og-notif-item > .og-notif-content {
+  .og-notif-item>.og-notif-content {
     width: 100%;
   }
 
