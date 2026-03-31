@@ -225,10 +225,11 @@ router.get('/resumen-mensual',
 
                 const cliente = String(viaje?.cliente || 'Sin cliente');
                 const clienteAcc = facturacionPorClienteMap.get(cliente) || { cliente, total: 0, cobradas: 0, pendientes: 0, viajes: 0 };
-                clienteAcc.total += ingreso;
+                // Mantener consistencia con los KPIs: facturación por cliente en base al importe del viaje.
+                clienteAcc.total += importeViaje;
                 clienteAcc.viajes += 1;
-                if (estadoFactura === 'cobrada') clienteAcc.cobradas += ingreso;
-                else clienteAcc.pendientes += ingreso;
+                if (estadoFactura === 'cobrada') clienteAcc.cobradas += importeViaje;
+                else clienteAcc.pendientes += importeViaje;
                 facturacionPorClienteMap.set(cliente, clienteAcc);
 
                 // Solo consolidar por camionero cuando hay un ID válido.
@@ -253,8 +254,8 @@ router.get('/resumen-mensual',
                 acc.bruto += ingreso;
                 // La liquidación del camionero se basa en `importe` del viaje (misma regla que /viajes/liquidacion).
                 acc.brutoLiquidacion += toNum(viaje?.importe);
-                if (estadoFactura === 'cobrada') acc.cobrado += ingreso;
-                else acc.pendiente += ingreso;
+                if (estadoFactura === 'cobrada') acc.cobrado += importeViaje;
+                else acc.pendiente += importeViaje;
                 facturacionPorCamioneroMap.set(camioneroId, acc);
             }
 
