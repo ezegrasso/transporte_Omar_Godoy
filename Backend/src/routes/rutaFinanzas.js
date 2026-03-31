@@ -215,11 +215,13 @@ router.get('/resumen-mensual',
                 const camioneroId = viaje.camioneroId || null;
                 const nombreCamionero = viaje?.camionero?.nombre || viaje?.camioneroNombre || 'Sin camionero';
                 const ingreso = calcularIngresoViaje(viaje);
+                const importeViaje = toNum(viaje?.importe);
                 const estadoFactura = String(viaje?.facturaEstado || 'pendiente').toLowerCase();
 
-                ingresosTotales += ingreso;
-                if (estadoFactura === 'cobrada') ingresosCobrados += ingreso;
-                else ingresosPendientes += ingreso;
+                // KPIs de ingresos basados en importes de viajes del mes (no en facturación recalculada).
+                ingresosTotales += importeViaje;
+                if (estadoFactura === 'cobrada') ingresosCobrados += importeViaje;
+                else ingresosPendientes += importeViaje;
 
                 const cliente = String(viaje?.cliente || 'Sin cliente');
                 const clienteAcc = facturacionPorClienteMap.get(cliente) || { cliente, total: 0, cobradas: 0, pendientes: 0, viajes: 0 };

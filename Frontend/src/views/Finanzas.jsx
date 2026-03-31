@@ -435,7 +435,7 @@ export default function Finanzas() {
 
             <div className="row g-3 mb-4">
                 <div className="col-12 col-md-6 col-xl-3">
-                    <StatCard icon={<i className="bi bi-cash-coin" />} label="Ingresos Totales" value={formatearMoneda(totalIngresos)} hint="Facturación consolidada" />
+                    <StatCard icon={<i className="bi bi-cash-coin" />} label="Ingresos Totales" value={formatearMoneda(totalIngresos)} hint="Suma de importes del mes" />
                 </div>
                 <div className="col-12 col-md-6 col-xl-3">
                     <StatCard icon={<i className="bi bi-wallet2" />} label="Ingresos Cobrados" value={formatearMoneda(toNum(resumen?.resumen?.ingresosCobrados))} hint="Facturas cobradas" />
