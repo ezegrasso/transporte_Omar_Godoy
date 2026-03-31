@@ -54,7 +54,7 @@ router.get('/resumen-mensual',
             const mes = String(req.query.mes);
             const { from, to, year, month } = toDateOnlyRange(mes);
 
-            const [viajes, adelantos, estadias, movimientosCombustible] = await Promise.all([
+            const [viajes, viajesComisiones, adelantos, estadias, movimientosCombustible] = await Promise.all([
                 Viaje.findAll({
                     where: {
                         estado: 'finalizado',
@@ -68,6 +68,16 @@ router.get('/resumen-mensual',
                         'id', 'fecha', 'cliente', 'facturaEstado', 'importe', 'precioUnitarioFactura', 'precioUnitarioNegro',
                         'ivaPercentaje', 'camioneroId', 'camioneroNombre', 'comisionPorcentaje'
                     ]
+                }),
+                Viaje.findAll({
+                    where: {
+                        comisionistaId: { [Op.ne]: null },
+                        fecha: { [Op.between]: [from, to] }
+                    },
+                    include: [
+                        { model: Comisionista, as: 'comisionista', attributes: ['id', 'porcentaje'] }
+                    ],
+                    attributes: ['id', 'importe', 'comisionPorcentaje', 'comisionistaId']
                 }),
                 Adelanto.findAll({
                     where: { mes: month, anio: year },
@@ -118,10 +128,6 @@ router.get('/resumen-mensual',
                 else clienteAcc.pendientes += ingreso;
                 facturacionPorClienteMap.set(cliente, clienteAcc);
 
-                const porcentajeComision = toNum(viaje?.comisionPorcentaje) || toNum(viaje?.comisionista?.porcentaje);
-                const totalComisionViaje = ingreso * (porcentajeComision / 100);
-                comisionesIntermediarios += totalComisionViaje;
-
                 // Solo consolidar por camionero cuando hay un ID válido.
                 if (!isValidCamioneroId(camioneroId)) continue;
 
@@ -147,6 +153,13 @@ router.get('/resumen-mensual',
                 if (estadoFactura === 'cobrada') acc.cobrado += ingreso;
                 else acc.pendiente += ingreso;
                 facturacionPorCamioneroMap.set(camioneroId, acc);
+            }
+
+            // Alinear comisiones con el panel de intermediarios (CEO): base `importe` del viaje.
+            for (const viaje of viajesComisiones) {
+                const importe = toNum(viaje?.importe);
+                const porcentajeComision = toNum(viaje?.comisionPorcentaje) || toNum(viaje?.comisionista?.porcentaje);
+                comisionesIntermediarios += (importe * (porcentajeComision / 100));
             }
 
             for (const adelanto of adelantos) {
