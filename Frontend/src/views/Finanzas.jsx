@@ -254,7 +254,7 @@ export default function Finanzas() {
     }, [hoveredTrendIndex, tendencia.data, trendPoints.ingresos]);
 
     const getRentabilidadMeta = (row) => {
-        const bruto = toNum(row?.bruto);
+        const bruto = toNum(row?.brutoLiquidacion ?? row?.bruto);
         const neto = toNum(row?.neto);
         if (bruto <= 0) {
             return { ratio: 0, label: 'Sin base', rowClass: 'finanzas-row-neutral', badgeClass: 'text-bg-secondary' };
@@ -568,7 +568,7 @@ export default function Finanzas() {
             <div className="card shadow-sm mb-4 finanzas-section-card">
                 <div className="card-header bg-transparent border-0 pt-3">
                     <h5 className="mb-0 d-flex align-items-center gap-2"><i className="bi bi-truck" /> Facturación Y Liquidación Por Camionero</h5>
-                    <div className="small text-body-secondary">Viajes, bruto, sueldo, adelantos, estadías, combustible y neto mensual</div>
+                    <div className="small text-body-secondary">Viajes, bruto de liquidación, sueldo, adelantos, estadías, combustible y neto mensual</div>
                 </div>
                 <div className="card-body p-0">
                     <div className="table-responsive">
@@ -577,7 +577,7 @@ export default function Finanzas() {
                                 <tr>
                                     <th>Camionero</th>
                                     <th className="text-end">Viajes</th>
-                                    <th className="text-end">Bruto</th>
+                                    <th className="text-end">Bruto (liq.)</th>
                                     <th className="text-end">Sueldo</th>
                                     <th className="text-end">Adelantos</th>
                                     <th className="text-end">Estadías</th>
@@ -598,7 +598,7 @@ export default function Finanzas() {
                                         <tr key={`${row.camioneroId || 'none'}-${row.camioneroNombre}`} className={rentabilidad.rowClass}>
                                             <td data-label="Camionero">{row.camioneroNombre}</td>
                                             <td className="text-end" data-label="Viajes">{row.viajes}</td>
-                                            <td className="text-end" data-label="Bruto">{formatearMoneda(row.bruto)}</td>
+                                            <td className="text-end" data-label="Bruto (liq.)">{formatearMoneda(row.brutoLiquidacion ?? row.bruto)}</td>
                                             <td className="text-end" data-label="Sueldo">{formatearMoneda(row.sueldo)}</td>
                                             <td className="text-end text-danger" data-label="Adelantos">-{formatearMoneda(row.adelantos)}</td>
                                             <td className="text-end text-success" data-label="Estadías">+{formatearMoneda(row.estadias)}</td>

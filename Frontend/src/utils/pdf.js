@@ -469,12 +469,12 @@ export function generarReporteFinanzasPDF({ mes, resumen, gastosFijos = [] }) {
     const startCamionero = Math.max(doc.lastAutoTable?.finalY || startGastosFijos + 20, startGastosFijos) + 6;
     autoTable(doc, {
         startY: startCamionero,
-        head: [['Camionero', 'Viajes', 'Bruto', 'Sueldo', 'Adelantos', 'Estadias', 'Combustible', 'Neto']],
+        head: [['Camionero', 'Viajes', 'Bruto (liq.)', 'Sueldo', 'Adelantos', 'Estadias', 'Combustible', 'Neto']],
         body: (resumen?.facturacionPorCamionero || []).length > 0
             ? resumen.facturacionPorCamionero.map((row) => [
                 row.camioneroNombre,
                 String(toNum(row.viajes)),
-                `$ ${money(row.bruto)}`,
+                `$ ${money(row.brutoLiquidacion ?? row.bruto)}`,
                 `$ ${money(row.sueldo)}`,
                 `$ ${money(row.adelantos)}`,
                 `$ ${money(row.estadias)}`,
