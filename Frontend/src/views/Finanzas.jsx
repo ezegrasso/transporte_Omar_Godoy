@@ -59,7 +59,7 @@ const formatearNumero = (value) => {
     return n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 };
 
-const getGastosFijosFromStorage = () => {
+const getLocalGastosMap = () => {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : {};
@@ -69,19 +69,29 @@ const getGastosFijosFromStorage = () => {
     }
 };
 
+const clearLocalMes = (mes) => {
+    try {
+        const map = getLocalGastosMap();
+        if (!Object.prototype.hasOwnProperty.call(map, mes)) return;
+        delete map[mes];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+    } catch {
+        // noop
+    }
+};
+
 export default function Finanzas() {
     const { user } = useAuth();
     const [mes, setMes] = useState(getMesActual);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [resumen, setResumen] = useState(null);
+    const [gastosFijosMes, setGastosFijosMes] = useState([]);
+    const [gastosFijosLoading, setGastosFijosLoading] = useState(false);
     const [tendencia, setTendencia] = useState({ loading: false, error: '', data: [] });
     const [hoveredTrendIndex, setHoveredTrendIndex] = useState(null);
 
-    const [gastosFijosByMes, setGastosFijosByMes] = useState(() => getGastosFijosFromStorage());
     const [nuevoGasto, setNuevoGasto] = useState({ nombre: '', monto: '' });
-
-    const gastosFijosMes = useMemo(() => gastosFijosByMes[mes] || [], [gastosFijosByMes, mes]);
 
     const totalGastosFijos = useMemo(
         () => gastosFijosMes.reduce((sum, item) => sum + toNum(item?.monto), 0),
@@ -115,26 +125,60 @@ export default function Finanzas() {
         return { label: 'En riesgo', className: 'text-bg-danger' };
     }, [margenNeto]);
 
-    useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(gastosFijosByMes));
-    }, [gastosFijosByMes]);
+    const fetchResumen = async () => {
+        const { data } = await api.get('/finanzas/resumen-mensual', { params: { mes } });
+        setResumen(data);
+    };
+
+    const fetchGastosFijos = async () => {
+        setGastosFijosLoading(true);
+        try {
+            const { data } = await api.get('/finanzas/gastos-fijos', { params: { mes } });
+            const serverData = Array.isArray(data?.data) ? data.data : [];
+            if (serverData.length > 0) {
+                setGastosFijosMes(serverData);
+                return;
+            }
+
+            // Migración one-shot desde localStorage al backend para no perder cargas anteriores.
+            const localMap = getLocalGastosMap();
+            const localItems = Array.isArray(localMap?.[mes]) ? localMap[mes] : [];
+            if (localItems.length === 0) {
+                setGastosFijosMes([]);
+                return;
+            }
+
+            for (const localItem of localItems) {
+                const concepto = String(localItem?.concepto || localItem?.nombre || '').trim();
+                const monto = toNum(localItem?.monto);
+                if (!concepto || monto <= 0) continue;
+                await api.post('/finanzas/gastos-fijos', { mes, concepto, monto: Number(monto.toFixed(2)) });
+            }
+
+            clearLocalMes(mes);
+            const { data: migrated } = await api.get('/finanzas/gastos-fijos', { params: { mes } });
+            setGastosFijosMes(Array.isArray(migrated?.data) ? migrated.data : []);
+        } finally {
+            setGastosFijosLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchResumen = async () => {
+        const load = async () => {
             setLoading(true);
             setError('');
             try {
-                const { data } = await api.get('/finanzas/resumen-mensual', { params: { mes } });
-                setResumen(data);
+                await Promise.all([fetchResumen(), fetchGastosFijos()]);
             } catch (e) {
                 setResumen(null);
+                setGastosFijosMes([]);
                 setError(e?.response?.data?.error || 'No se pudo cargar el resumen financiero.');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchResumen();
+        load();
     }, [mes]);
 
     useEffect(() => {
@@ -147,9 +191,7 @@ export default function Finanzas() {
                     mesesTendencia.map(async (itemMes) => {
                         const { data } = await api.get('/finanzas/resumen-mensual', { params: { mes: itemMes } });
                         const ingresos = toNum(data?.resumen?.ingresosTotales);
-                        const gastosSistemaMes = toNum(data?.resumen?.totalGastosSistema);
-                        const gastosFijosMesLocal = (gastosFijosByMes[itemMes] || []).reduce((sum, g) => sum + toNum(g?.monto), 0);
-                        const gastosEmpresaMes = gastosSistemaMes + gastosFijosMesLocal;
+                        const gastosEmpresaMes = toNum(data?.resumen?.totalGastosEmpresa);
                         return {
                             mes: itemMes,
                             label: mesLabelCorto(itemMes),
@@ -171,27 +213,34 @@ export default function Finanzas() {
         return () => {
             active = false;
         };
-    }, [mesesTendencia, gastosFijosByMes]);
+    }, [mesesTendencia]);
 
-    const agregarGastoFijo = (e) => {
+    const agregarGastoFijo = async (e) => {
         e.preventDefault();
         const nombre = String(nuevoGasto.nombre || '').trim();
         const monto = toNum(String(nuevoGasto.monto || '').replace(',', '.'));
         if (!nombre || monto <= 0) return;
 
-        setGastosFijosByMes((prev) => {
-            const actual = prev[mes] || [];
-            const nextItem = { id: Date.now(), nombre, monto: Number(monto.toFixed(2)) };
-            return { ...prev, [mes]: [...actual, nextItem] };
-        });
-        setNuevoGasto({ nombre: '', monto: '' });
+        try {
+            await api.post('/finanzas/gastos-fijos', {
+                mes,
+                concepto: nombre,
+                monto: Number(monto.toFixed(2))
+            });
+            setNuevoGasto({ nombre: '', monto: '' });
+            await Promise.all([fetchGastosFijos(), fetchResumen()]);
+        } catch (e2) {
+            setError(e2?.response?.data?.error || 'No se pudo crear el gasto fijo.');
+        }
     };
 
-    const eliminarGastoFijo = (id) => {
-        setGastosFijosByMes((prev) => {
-            const actual = prev[mes] || [];
-            return { ...prev, [mes]: actual.filter((item) => item.id !== id) };
-        });
+    const eliminarGastoFijo = async (id) => {
+        try {
+            await api.delete(`/finanzas/gastos-fijos/${id}`);
+            await Promise.all([fetchGastosFijos(), fetchResumen()]);
+        } catch (e2) {
+            setError(e2?.response?.data?.error || 'No se pudo eliminar el gasto fijo.');
+        }
     };
 
     const gastosSistema = resumen?.gastosSistema || {};
@@ -583,14 +632,19 @@ export default function Finanzas() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {gastosFijosMes.length === 0 && (
+                                        {gastosFijosLoading && (
+                                            <tr>
+                                                <td colSpan={3} className="text-body-secondary text-center py-3">Cargando gastos fijos...</td>
+                                            </tr>
+                                        )}
+                                        {!gastosFijosLoading && gastosFijosMes.length === 0 && (
                                             <tr>
                                                 <td colSpan={3} className="text-body-secondary text-center py-3">Sin gastos fijos cargados para este mes.</td>
                                             </tr>
                                         )}
                                         {gastosFijosMes.map((item) => (
                                             <tr key={item.id}>
-                                                <td data-label="Concepto">{item.nombre}</td>
+                                                <td data-label="Concepto">{item.concepto || item.nombre}</td>
                                                 <td className="text-end" data-label="Monto">{formatearMoneda(item.monto)}</td>
                                                 <td className="text-end" data-label="Acción">
                                                     <button

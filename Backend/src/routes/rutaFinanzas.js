@@ -1,5 +1,5 @@
 import express from 'express';
-import { query, validationResult } from 'express-validator';
+import { body, param, query, validationResult } from 'express-validator';
 import { Op } from 'sequelize';
 import Viaje from '../models/Viajes.js';
 import Usuario from '../models/Usuario.js';
@@ -7,6 +7,7 @@ import Comisionista from '../models/Comisionista.js';
 import Adelanto from '../models/Adelanto.js';
 import Estadia from '../models/Estadia.js';
 import CombustibleMovimiento from '../models/CombustibleMovimiento.js';
+import GastoFijo from '../models/GastoFijo.js';
 import { authMiddleware, roleMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -42,6 +43,102 @@ const calcularIngresoViaje = (viaje) => {
     return total > 0 ? total : toNum(viaje?.importe);
 };
 
+const parseMes = (mesYYYYMM) => {
+    const [yearStr, monthStr] = String(mesYYYYMM || '').split('-');
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    return { year, month };
+};
+
+router.get('/gastos-fijos',
+    authMiddleware,
+    roleMiddleware(['ceo', 'administracion']),
+    [query('mes').isString().matches(/^\d{4}-\d{2}$/)],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+        try {
+            const { year, month } = parseMes(req.query.mes);
+            const items = await GastoFijo.findAll({
+                where: { mes: month, anio: year },
+                attributes: ['id', 'concepto', 'monto', 'mes', 'anio', 'createdAt'],
+                order: [['createdAt', 'DESC']]
+            });
+
+            const data = items.map((item) => ({
+                id: item.id,
+                concepto: item.concepto,
+                monto: Number(toNum(item.monto).toFixed(2)),
+                mes: item.mes,
+                anio: item.anio,
+                createdAt: item.createdAt
+            }));
+            const total = Number(data.reduce((sum, item) => sum + toNum(item.monto), 0).toFixed(2));
+            res.json({ mes: req.query.mes, data, total });
+        } catch (e) {
+            console.error('[finanzas/gastos-fijos GET] Error:', e?.message || e);
+            res.status(500).json({ error: 'Error obteniendo gastos fijos' });
+        }
+    }
+);
+
+router.post('/gastos-fijos',
+    authMiddleware,
+    roleMiddleware(['ceo', 'administracion']),
+    [
+        body('mes').isString().matches(/^\d{4}-\d{2}$/),
+        body('concepto').isString().trim().isLength({ min: 1, max: 120 }),
+        body('monto').isFloat({ gt: 0 })
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+        try {
+            const { year, month } = parseMes(req.body.mes);
+            const created = await GastoFijo.create({
+                concepto: String(req.body.concepto || '').trim(),
+                monto: Number(toNum(req.body.monto).toFixed(2)),
+                mes: month,
+                anio: year,
+                creadoPor: req.user?.id || null
+            });
+
+            res.status(201).json({
+                id: created.id,
+                concepto: created.concepto,
+                monto: Number(toNum(created.monto).toFixed(2)),
+                mes: created.mes,
+                anio: created.anio,
+                createdAt: created.createdAt
+            });
+        } catch (e) {
+            console.error('[finanzas/gastos-fijos POST] Error:', e?.message || e);
+            res.status(500).json({ error: 'Error creando gasto fijo' });
+        }
+    }
+);
+
+router.delete('/gastos-fijos/:id',
+    authMiddleware,
+    roleMiddleware(['ceo', 'administracion']),
+    [param('id').isInt({ min: 1 })],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+        try {
+            const deleted = await GastoFijo.destroy({ where: { id: Number(req.params.id) } });
+            if (!deleted) return res.status(404).json({ error: 'Gasto fijo no encontrado' });
+            res.json({ ok: true });
+        } catch (e) {
+            console.error('[finanzas/gastos-fijos DELETE] Error:', e?.message || e);
+            res.status(500).json({ error: 'Error eliminando gasto fijo' });
+        }
+    }
+);
+
 router.get('/resumen-mensual',
     authMiddleware,
     roleMiddleware(['ceo', 'administracion']),
@@ -54,7 +151,7 @@ router.get('/resumen-mensual',
             const mes = String(req.query.mes);
             const { from, to, year, month } = toDateOnlyRange(mes);
 
-            const [viajes, viajesComisiones, adelantos, estadias, movimientosCombustible] = await Promise.all([
+            const [viajes, viajesComisiones, adelantos, estadias, movimientosCombustible, gastosFijos] = await Promise.all([
                 Viaje.findAll({
                     where: {
                         estado: 'finalizado',
@@ -96,6 +193,10 @@ router.get('/resumen-mensual',
                     },
                     attributes: ['id', 'camioneroId', 'litros', 'importeTotal'],
                     include: [{ model: Usuario, as: 'camionero', attributes: ['id', 'nombre'], required: false }]
+                }),
+                GastoFijo.findAll({
+                    where: { mes: month, anio: year },
+                    attributes: ['id', 'monto']
                 })
             ]);
 
@@ -284,8 +385,11 @@ router.get('/resumen-mensual',
                 combustible: Number(combustibleTotal.toFixed(2)),
                 comisionesIntermediarios: Number(comisionesIntermediarios.toFixed(2))
             };
+            const totalGastosFijos = Number(gastosFijos.reduce((sum, item) => sum + toNum(item?.monto), 0).toFixed(2));
             const totalGastosSistema = Number((gastosSistema.sueldosCamioneros + gastosSistema.combustible + gastosSistema.comisionesIntermediarios).toFixed(2));
             const utilidadOperativa = Number((ingresosTotales - totalGastosSistema).toFixed(2));
+            const totalGastosEmpresa = Number((totalGastosSistema + totalGastosFijos).toFixed(2));
+            const utilidadNeta = Number((ingresosTotales - totalGastosEmpresa).toFixed(2));
 
             res.json({
                 mes,
@@ -294,8 +398,11 @@ router.get('/resumen-mensual',
                     ingresosTotales: Number(ingresosTotales.toFixed(2)),
                     ingresosCobrados: Number(ingresosCobrados.toFixed(2)),
                     ingresosPendientes: Number(ingresosPendientes.toFixed(2)),
+                    totalGastosFijos,
                     totalGastosSistema,
-                    utilidadOperativa
+                    totalGastosEmpresa,
+                    utilidadOperativa,
+                    utilidadNeta
                 },
                 gastosSistema,
                 facturacionPorCamionero,

@@ -32,6 +32,7 @@ import Cliente from './models/Cliente.js';
 import './models/Comisionista.js';
 import './models/CombustibleMovimiento.js';
 import './models/CombustibleStock.js';
+import './models/GastoFijo.js';
 import { setupSwagger } from './config/swagger.js';
 
 dotenv.config();
