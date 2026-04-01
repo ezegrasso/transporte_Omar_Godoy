@@ -9,6 +9,34 @@ import { ToastProvider } from './context/ToastContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 
+// Mitigación: algunos navegadores/extensiones inyectan código que llama
+// `mgt.clearMarks(...)` aunque `mgt` no exista o no tenga esa función.
+// No es parte de la app, pero ensucia la consola y puede cortar flujos.
+// Definimos un no-op seguro y además ignoramos SOLO ese error específico.
+try {
+  if (!window.mgt) window.mgt = {}
+  if (typeof window.mgt.clearMarks !== 'function') window.mgt.clearMarks = () => { }
+
+  const isMgtClearMarksError = (message) =>
+    typeof message === 'string' && message.toLowerCase().includes('mgt.clearmarks is not a function')
+
+  window.addEventListener('error', (event) => {
+    if (isMgtClearMarksError(event?.message)) {
+      event.preventDefault()
+    }
+  })
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event?.reason
+    const msg = reason?.message || (typeof reason === 'string' ? reason : '')
+    if (isMgtClearMarksError(msg)) {
+      event.preventDefault()
+    }
+  })
+} catch {
+  // Si algo falla acá, no debe impedir que la app inicie.
+}
+
 window.addEventListener('vite:preloadError', (event) => {
   event.preventDefault()
   const retryKey = 'vite-preload-retried'

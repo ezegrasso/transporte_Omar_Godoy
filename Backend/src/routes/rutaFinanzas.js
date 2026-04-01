@@ -154,7 +154,11 @@ router.get('/resumen-mensual',
             const [viajesMes, viajesFinalizados, viajesComisiones, adelantos, estadias, movimientosCombustible, gastosFijos] = await Promise.all([
                 Viaje.findAll({
                     where: {
-                        fecha: { [Op.between]: [from, to] }
+                        // Para ingresos, tomamos el mismo universo que suele tener `importe` cargado y
+                        // que se usa en la operatoria diaria: viajes finalizados del mes.
+                        estado: 'finalizado',
+                        fecha: { [Op.between]: [from, to] },
+                        importe: { [Op.ne]: null }
                     },
                     attributes: ['id', 'fecha', 'cliente', 'facturaEstado', 'importe']
                 }),

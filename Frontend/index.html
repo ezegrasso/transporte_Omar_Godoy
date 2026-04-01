@@ -12,6 +12,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Omar Godoy Transporte - Sistema de gestión de viajes y logística" />
   <title>Omar Godoy Transporte</title>
+
+  <script>
+    // Mitigación temprana: algunas extensiones/scripts inyectados llaman
+    // `mgt.clearMarks(...)` antes de que cargue la app.
+    // Esto NO es parte de la app; solo evita ruido/errores en consola.
+    window.mgt = window.mgt || {};
+    if (typeof window.mgt.clearMarks !== 'function') window.mgt.clearMarks = function () { };
+  </script>
 </head>
 
 <body translate="no" class="notranslate">
