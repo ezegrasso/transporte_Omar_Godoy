@@ -329,7 +329,17 @@ export default function Administracion() {
     // Estados para adelantos
     const [camioneros, setCamioneros] = useState([]);
     const [adelantoModal, setAdelantoModal] = useState({ open: false, camioneroId: null, camioneroNombre: '', monto: '', descripcion: '', mes: '', anio: '', loading: false, error: '' });
-    const [gestionAdelantosModal, setGestionAdelantosModal] = useState({ open: false, adelantos: [], loading: false, editando: null, montoEdit: '', descripcionEdit: '' });
+    const [gestionAdelantosModal, setGestionAdelantosModal] = useState({
+        open: false,
+        adelantos: [],
+        totalAdelanto: 0,
+        loading: false,
+        editando: null,
+        montoEdit: '',
+        descripcionEdit: '',
+        mes: '',
+        anio: ''
+    });
 
     // Funciones para adelantos
     const fetchCamioneros = async () => {
@@ -391,39 +401,75 @@ export default function Administracion() {
         }
     };
 
-    const openGestionAdelantos = async () => {
-        setGestionAdelantosModal({ open: true, adelantos: [], loading: true, editando: null, montoEdit: '', descripcionEdit: '' });
+    const fetchGestionAdelantos = async (mes, anio) => {
+        setGestionAdelantosModal(m => ({ ...m, loading: true, editando: null, montoEdit: '', descripcionEdit: '' }));
         try {
-            // Si no hay camioneros cargados, cargarlos primero
-            let cams = camioneros;
-            if (!cams || cams.length === 0) {
-                const { data } = await api.get('/usuarios?rol=camionero');
-                cams = Array.isArray(data) ? data : (data.data || []);
-            }
-
-            const hoy = new Date();
-            const mesActual = hoy.getMonth() + 1;
-            const anioActual = hoy.getFullYear();
-
-            const adelantosPromises = cams.map(async (c) => {
-                try {
-                    const { data } = await api.get(`/adelantos/camionero/${c.id}`);
-                    return data.filter(a => a.mes === mesActual && a.anio === anioActual).map(a => ({ ...a, camioneroNombre: c.nombre }));
-                } catch {
-                    return [];
-                }
-            });
-            const resultados = await Promise.all(adelantosPromises);
-            const todosAdelantos = resultados.flat().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-            setGestionAdelantosModal(m => ({ ...m, adelantos: todosAdelantos, loading: false }));
+            const mesNum = parseInt(mes);
+            const anioNum = parseInt(anio);
+            const { data } = await api.get(`/adelantos/historial?mes=${mesNum}&anio=${anioNum}`);
+            setGestionAdelantosModal(m => ({
+                ...m,
+                adelantos: data?.adelantos || [],
+                totalAdelanto: Number(data?.totalAdelanto || 0),
+                loading: false,
+                editando: null,
+                montoEdit: '',
+                descripcionEdit: ''
+            }));
         } catch (e) {
-            setGestionAdelantosModal(m => ({ ...m, loading: false }));
+            setGestionAdelantosModal(m => ({ ...m, adelantos: [], totalAdelanto: 0, loading: false }));
             showToast('Error cargando adelantos', 'error');
         }
     };
 
-    const closeGestionAdelantos = () => setGestionAdelantosModal({ open: false, adelantos: [], loading: false, editando: null, montoEdit: '', descripcionEdit: '' });
+    const openGestionAdelantos = async () => {
+        const hoy = new Date();
+        const mesActual = String(hoy.getMonth() + 1);
+        const anioActual = String(hoy.getFullYear());
+
+        setGestionAdelantosModal({
+            open: true,
+            adelantos: [],
+            totalAdelanto: 0,
+            loading: true,
+            editando: null,
+            montoEdit: '',
+            descripcionEdit: '',
+            mes: mesActual,
+            anio: anioActual
+        });
+
+        await fetchGestionAdelantos(mesActual, anioActual);
+    };
+
+    const closeGestionAdelantos = () => setGestionAdelantosModal({ open: false, adelantos: [], totalAdelanto: 0, loading: false, editando: null, montoEdit: '', descripcionEdit: '', mes: '', anio: '' });
+
+    const formatMesAnioLabel = (mes, anio) => {
+        try {
+            const m = parseInt(mes);
+            const a = parseInt(anio);
+            if (!m || !a) return '';
+            return new Date(a, m - 1, 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
+        } catch {
+            return '';
+        }
+    };
+
+    const formatFechaHora = (d) => {
+        try {
+            const dt = new Date(d);
+            if (Number.isNaN(dt.getTime())) return '';
+            return dt.toLocaleString('es-AR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return '';
+        }
+    };
 
     const startEditAdelanto = (adelanto) => {
         setGestionAdelantosModal(m => ({
@@ -446,7 +492,7 @@ export default function Administracion() {
             });
             showToast('Adelanto actualizado', 'success');
             cancelEditAdelanto();
-            openGestionAdelantos();
+            await fetchGestionAdelantos(gestionAdelantosModal.mes, gestionAdelantosModal.anio);
         } catch (e) {
             showToast('Error actualizando adelanto', 'error');
         }
@@ -457,7 +503,7 @@ export default function Administracion() {
         try {
             await api.delete(`/adelantos/${id}`);
             showToast('Adelanto eliminado', 'success');
-            openGestionAdelantos();
+            fetchGestionAdelantos(gestionAdelantosModal.mes, gestionAdelantosModal.anio);
         } catch (e) {
             showToast('Error eliminando adelanto', 'error');
         }
@@ -1257,9 +1303,9 @@ export default function Administracion() {
                             <i className="bi bi-cash-coin me-1"></i>
                             Adelanto
                         </button>
-                        <button className="btn btn-outline-success btn-action" onClick={openGestionAdelantos} title="Gestionar adelantos del mes">
-                            <i className="bi bi-pencil-square me-1"></i>
-                            Gestionar
+                        <button className="btn btn-outline-success btn-action" onClick={openGestionAdelantos} title="Ver historial de adelantos por mes">
+                            <i className="bi bi-clock-history me-1"></i>
+                            Historial
                         </button>
                     </div>
                 </div>
@@ -2451,14 +2497,63 @@ export default function Administracion() {
                         <div className="modal-header border-0 py-4" style={{ background: 'linear-gradient(135deg, #20c997 0%, #17a2b8 100%)' }}>
                             <div className="w-100">
                                 <h5 className="text-white mb-1" style={{ fontSize: '1.3rem', fontWeight: '600' }}>
-                                    <i className="bi bi-pencil-square me-2"></i>
-                                    Gestionar Adelantos del Mes
+                                    <i className="bi bi-clock-history me-2"></i>
+                                    Historial de Adelantos
                                 </h5>
-                                <small className="text-white" style={{ opacity: 0.95, fontSize: '0.85rem' }}>Edita o elimina adelantos registrados</small>
+                                <small className="text-white" style={{ opacity: 0.95, fontSize: '0.85rem' }}>Filtrá por mes y consultá fecha, hora y observaciones</small>
                             </div>
                             <button type="button" className="btn-close btn-close-white ms-3" onClick={closeGestionAdelantos}></button>
                         </div>
                         <div className="modal-body p-0">
+                            <div className="p-3 border-bottom bg-white">
+                                <div className="d-flex flex-wrap align-items-end gap-3">
+                                    <div>
+                                        <label className="form-label mb-1 small text-muted">Mes</label>
+                                        <select
+                                            className="form-select form-select-sm"
+                                            value={gestionAdelantosModal.mes}
+                                            onChange={(e) => {
+                                                const newMes = e.target.value;
+                                                setGestionAdelantosModal(m => ({ ...m, mes: newMes, editando: null, montoEdit: '', descripcionEdit: '' }));
+                                                fetchGestionAdelantos(newMes, gestionAdelantosModal.anio);
+                                            }}
+                                            disabled={gestionAdelantosModal.loading}
+                                            style={{ minWidth: 160 }}
+                                        >
+                                            {Array.from({ length: 12 }, (_, i) => {
+                                                const val = String(i + 1);
+                                                const label = new Date(2020, i, 1).toLocaleString('es-AR', { month: 'long' });
+                                                return <option key={val} value={val}>{label}</option>;
+                                            })}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="form-label mb-1 small text-muted">Año</label>
+                                        <input
+                                            type="number"
+                                            className="form-control form-control-sm"
+                                            value={gestionAdelantosModal.anio}
+                                            min={2000}
+                                            max={3000}
+                                            onChange={(e) => {
+                                                const newAnio = e.target.value;
+                                                setGestionAdelantosModal(m => ({ ...m, anio: newAnio, editando: null, montoEdit: '', descripcionEdit: '' }));
+                                                fetchGestionAdelantos(gestionAdelantosModal.mes, newAnio);
+                                            }}
+                                            disabled={gestionAdelantosModal.loading}
+                                            style={{ width: 120 }}
+                                        />
+                                    </div>
+                                    <div className="ms-auto text-end">
+                                        <div className="small text-muted">{formatMesAnioLabel(gestionAdelantosModal.mes, gestionAdelantosModal.anio)}</div>
+                                        <div className="fw-semibold">
+                                            ${Number(gestionAdelantosModal.totalAdelanto || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            <span className="text-muted fw-normal ms-2">({gestionAdelantosModal.adelantos.length} adelantos)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             {gestionAdelantosModal.loading ? (
                                 <div className="text-center py-5">
                                     <div className="spinner-border text-success" role="status">
@@ -2470,10 +2565,10 @@ export default function Administracion() {
                                 <div className="p-5 text-center">
                                     <i className="bi bi-inbox text-muted" style={{ fontSize: '3rem' }}></i>
                                     <h6 className="mt-3 text-muted">Sin adelantos</h6>
-                                    <p className="text-muted small">No hay adelantos registrados en el mes actual</p>
+                                    <p className="text-muted small">No hay adelantos registrados en {formatMesAnioLabel(gestionAdelantosModal.mes, gestionAdelantosModal.anio) || 'este período'}</p>
                                 </div>
                             ) : (
-                                <div style={{ overflow: 'hidden' }}>
+                                <div className="table-responsive" style={{ overflow: 'hidden' }}>
                                     <table className="table table-hover mb-0" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                                         <thead>
                                             <tr className="bg-light border-bottom border-2">
@@ -2487,11 +2582,15 @@ export default function Administracion() {
                                                 </th>
                                                 <th className="py-3">
                                                     <i className="bi bi-calendar-event text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
-                                                    <strong>Fecha</strong>
+                                                    <strong>Fecha y hora</strong>
                                                 </th>
                                                 <th className="py-3">
                                                     <i className="bi bi-chat-left-text text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
-                                                    <strong>Descripción</strong>
+                                                    <strong>Observaciones</strong>
+                                                </th>
+                                                <th className="py-3">
+                                                    <i className="bi bi-person-badge text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
+                                                    <strong>Cargado por</strong>
                                                 </th>
                                                 <th className="pe-4 py-3 text-end">
                                                     <strong>Acciones</strong>
@@ -2506,7 +2605,10 @@ export default function Administracion() {
                                                             <div className="avatar rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
                                                                 <i className="bi bi-person text-success"></i>
                                                             </div>
-                                                            <strong className="mb-0">{a.camioneroNombre}</strong>
+                                                            <div>
+                                                                <strong className="mb-0 d-block">{a.camioneroNombre || `Camionero #${a.camioneroId}`}</strong>
+                                                                {a.camioneroEmail && <small className="text-muted">{a.camioneroEmail}</small>}
+                                                            </div>
                                                         </div>
                                                     </td>
                                                     <td className="py-3 align-middle text-center">
@@ -2520,14 +2622,12 @@ export default function Administracion() {
                                                             />
                                                         ) : (
                                                             <span className="text-success fw-bold" style={{ fontSize: '1.1rem' }}>
-                                                                ${formatearMoneda(parseFloat(a.monto))}
+                                                                ${parseFloat(a.monto).toLocaleString('es-AR')}
                                                             </span>
                                                         )}
                                                     </td>
                                                     <td className="py-3 align-middle">
-                                                        <small className="text-muted">
-                                                            {new Date(a.updatedAt || a.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                                                        </small>
+                                                        <small className="text-muted">{formatFechaHora(a.updatedAt || a.createdAt) || '-'}</small>
                                                     </td>
                                                     <td className="py-3 align-middle">
                                                         {gestionAdelantosModal.editando === a.id ? (
@@ -2536,14 +2636,16 @@ export default function Administracion() {
                                                                 className="form-control form-control-sm"
                                                                 value={gestionAdelantosModal.descripcionEdit}
                                                                 onChange={e => setGestionAdelantosModal(m => ({ ...m, descripcionEdit: e.target.value }))}
-                                                                placeholder="Descripción"
-                                                                style={{ maxWidth: '200px' }}
+                                                                placeholder="Observaciones"
                                                             />
                                                         ) : (
-                                                            <small className="text-dark d-block" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.descripcion}>
+                                                            <small className="text-dark d-block" style={{ maxWidth: '360px', whiteSpace: 'normal' }}>
                                                                 {a.descripcion || <span className="text-secondary">-</span>}
                                                             </small>
                                                         )}
+                                                    </td>
+                                                    <td className="py-3 align-middle">
+                                                        <small className="text-muted">{a.creadoPorNombre || '-'}</small>
                                                     </td>
                                                     <td className="pe-4 py-3 align-middle text-end">
                                                         {gestionAdelantosModal.editando === a.id ? (
@@ -2595,7 +2697,8 @@ export default function Administracion() {
                         </div>
                         <div className="modal-footer bg-light border-top">
                             <small className="text-muted me-auto">
-                                Total de adelantos: <strong>{gestionAdelantosModal.adelantos.length}</strong>
+                                Total: <strong>${Number(gestionAdelantosModal.totalAdelanto || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                                <span className="ms-2">({gestionAdelantosModal.adelantos.length} adelantos)</span>
                             </small>
                             <button type="button" className="btn btn-secondary" onClick={closeGestionAdelantos}>
                                 Cerrar
