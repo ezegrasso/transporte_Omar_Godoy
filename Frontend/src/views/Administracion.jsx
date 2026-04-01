@@ -379,7 +379,7 @@ export default function Administracion() {
         try {
             await api.post('/adelantos', {
                 camioneroId: adelantoModal.camioneroId,
-                monto: safeParseNumber(adelantoModal.monto),
+                monto: adelantoModal.monto,
                 mes: safeParseNumber(adelantoModal.mes),
                 anio: safeParseNumber(adelantoModal.anio),
                 descripcion: adelantoModal.descripcion || undefined
@@ -441,10 +441,11 @@ export default function Administracion() {
     const saveEditAdelanto = async (id) => {
         try {
             await api.patch(`/adelantos/${id}`, {
-                monto: parseFloat(gestionAdelantosModal.montoEdit),
+                monto: gestionAdelantosModal.montoEdit,
                 descripcion: gestionAdelantosModal.descripcionEdit
             });
             showToast('Adelanto actualizado', 'success');
+            cancelEditAdelanto();
             openGestionAdelantos();
         } catch (e) {
             showToast('Error actualizando adelanto', 'error');
@@ -2525,7 +2526,7 @@ export default function Administracion() {
                                                     </td>
                                                     <td className="py-3 align-middle">
                                                         <small className="text-muted">
-                                                            {new Date(a.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                                            {new Date(a.updatedAt || a.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                                         </small>
                                                     </td>
                                                     <td className="py-3 align-middle">

@@ -32,6 +32,70 @@ router.get('/mis-adelantos', authMiddleware, async (req, res) => {
     }
 });
 
+// GET historial de adelantos (CEO/Administración) por mes/año
+router.get('/historial', authMiddleware, async (req, res) => {
+    try {
+        if (!['ceo', 'administracion'].includes(req.user?.rol)) {
+            return res.status(403).json({ error: 'No tienes permiso' });
+        }
+
+        const { mes, anio, camioneroId } = req.query;
+        const hoy = new Date();
+        const mesActual = parseInt(mes) || hoy.getMonth() + 1;
+        const anioActual = parseInt(anio) || hoy.getFullYear();
+
+        if (Number.isNaN(mesActual) || mesActual < 1 || mesActual > 12) {
+            return res.status(400).json({ error: 'Mes inválido' });
+        }
+        if (Number.isNaN(anioActual) || anioActual < 2000 || anioActual > 3000) {
+            return res.status(400).json({ error: 'Año inválido' });
+        }
+
+        const where = { mes: mesActual, anio: anioActual };
+        if (camioneroId !== undefined && camioneroId !== null && String(camioneroId).trim() !== '') {
+            const camioneroIdNum = parseInt(camioneroId);
+            if (Number.isNaN(camioneroIdNum)) {
+                return res.status(400).json({ error: 'camioneroId inválido' });
+            }
+            where.camioneroId = camioneroIdNum;
+        }
+
+        const adelantos = await Adelanto.findAll({
+            where,
+            order: [['createdAt', 'DESC']]
+        });
+
+        const userIds = Array.from(new Set([
+            ...adelantos.map(a => a.camioneroId).filter(Boolean),
+            ...adelantos.map(a => a.creadoPor).filter(Boolean)
+        ]));
+
+        const users = userIds.length > 0
+            ? await Usuario.findAll({ where: { id: userIds }, attributes: ['id', 'nombre', 'email', 'rol'] })
+            : [];
+        const userById = new Map(users.map(u => [u.id, u]));
+
+        const items = adelantos.map(a => {
+            const camionero = userById.get(a.camioneroId);
+            const creador = a.creadoPor ? userById.get(a.creadoPor) : null;
+            return {
+                ...a.toJSON(),
+                camioneroNombre: camionero?.nombre || null,
+                camioneroEmail: camionero?.email || null,
+                creadoPorNombre: creador?.nombre || null,
+                creadoPorEmail: creador?.email || null
+            };
+        });
+
+        const totalAdelanto = items.reduce((sum, a) => sum + parseFloat(a.monto || 0), 0);
+
+        res.json({ adelantos: items, totalAdelanto, mes: mesActual, anio: anioActual });
+    } catch (e) {
+        console.error('[adelantos] Error getting historial:', e?.message || e);
+        res.status(500).json({ error: 'Error obteniendo historial de adelantos' });
+    }
+});
+
 // POST crear adelanto (CEO/Administración)
 router.post('/', authMiddleware, async (req, res) => {
     try {
@@ -53,10 +117,15 @@ router.post('/', authMiddleware, async (req, res) => {
             return res.status(400).json({ error: 'Usuario no es camionero' });
         }
 
+        const montoNum = parseFloat(monto);
+        if (!Number.isFinite(montoNum) || montoNum <= 0) {
+            return res.status(400).json({ error: 'Monto inválido' });
+        }
+
         // Crear adelanto
         const adelanto = await Adelanto.create({
             camioneroId,
-            monto: parseFloat(monto),
+            monto: montoNum,
             mes: parseInt(mes),
             anio: parseInt(anio),
             descripcion,
@@ -90,6 +159,10 @@ Sistema de Transporte Omar Godoy`;
         res.status(201).json({ success: true, adelanto });
     } catch (e) {
         console.error('[adelantos] Error creating adelanto:', e?.message || e);
+        const msg = String(e?.original?.message || e?.message || '');
+        if (/Out of range value|out of range/i.test(msg)) {
+            return res.status(400).json({ error: 'Monto demasiado grande' });
+        }
         res.status(500).json({ error: 'Error creando adelanto' });
     }
 });
@@ -130,7 +203,13 @@ router.patch('/:id', authMiddleware, async (req, res) => {
         }
 
         // Actualizar
-        if (monto !== undefined) adelanto.monto = parseFloat(monto);
+        if (monto !== undefined) {
+            const montoNum = parseFloat(monto);
+            if (!Number.isFinite(montoNum) || montoNum <= 0) {
+                return res.status(400).json({ error: 'Monto inválido' });
+            }
+            adelanto.monto = montoNum;
+        }
         if (descripcion !== undefined) adelanto.descripcion = descripcion;
 
         await adelanto.save();
@@ -138,6 +217,10 @@ router.patch('/:id', authMiddleware, async (req, res) => {
         res.json({ success: true, adelanto });
     } catch (e) {
         console.error('[adelantos] Error updating adelanto:', e?.message || e);
+        const msg = String(e?.original?.message || e?.message || '');
+        if (/Out of range value|out of range/i.test(msg)) {
+            return res.status(400).json({ error: 'Monto demasiado grande' });
+        }
         res.status(500).json({ error: 'Error actualizando adelanto' });
     }
 });
