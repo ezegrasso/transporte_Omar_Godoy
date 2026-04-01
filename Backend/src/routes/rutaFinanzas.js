@@ -154,11 +154,11 @@ router.get('/resumen-mensual',
             const [viajesMes, viajesFinalizados, viajesComisiones, adelantos, estadias, movimientosCombustible, gastosFijos] = await Promise.all([
                 Viaje.findAll({
                     where: {
-                        // Para ingresos, tomamos el mismo universo que suele tener `importe` cargado y
-                        // que se usa en la operatoria diaria: viajes finalizados del mes.
-                        estado: 'finalizado',
-                        fecha: { [Op.between]: [from, to] },
-                        importe: { [Op.ne]: null }
+                        // Para ingresos, alineamos el universo con lo que se ve en la lista del CEO:
+                        // viajes del mes (por `fecha`) en estados operativos (pendiente/en curso/finalizado).
+                        // El `importe` puede estar null en algunos estados; lo tratamos como 0 al sumar.
+                        estado: { [Op.in]: ['pendiente', 'en curso', 'finalizado'] },
+                        fecha: { [Op.between]: [from, to] }
                     },
                     attributes: ['id', 'fecha', 'cliente', 'facturaEstado', 'importe']
                 }),
