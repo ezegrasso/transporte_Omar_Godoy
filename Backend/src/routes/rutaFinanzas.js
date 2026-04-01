@@ -151,17 +151,7 @@ router.get('/resumen-mensual',
             const mes = String(req.query.mes);
             const { from, to, year, month } = toDateOnlyRange(mes);
 
-            const [viajesMes, viajesFinalizados, viajesComisiones, adelantos, estadias, movimientosCombustible, gastosFijos] = await Promise.all([
-                Viaje.findAll({
-                    where: {
-                        // Para ingresos, alineamos el universo con lo que se ve en la lista del CEO:
-                        // viajes del mes (por `fecha`) en estados operativos (pendiente/en curso/finalizado).
-                        // El `importe` puede estar null en algunos estados; lo tratamos como 0 al sumar.
-                        estado: { [Op.in]: ['pendiente', 'en curso', 'finalizado'] },
-                        fecha: { [Op.between]: [from, to] }
-                    },
-                    attributes: ['id', 'fecha', 'cliente', 'facturaEstado', 'importe']
-                }),
+            const [viajesFinalizados, viajesComisiones, adelantos, estadias, movimientosCombustible, gastosFijos] = await Promise.all([
                 Viaje.findAll({
                     where: {
                         estado: 'finalizado',
@@ -221,11 +211,11 @@ router.get('/resumen-mensual',
             let ingresosPendientes = 0;
             let comisionesIntermediarios = 0;
 
-            for (const viaje of viajesMes) {
+            // Ingresos Totales: suma de `importe` cargado al finalizar (viajes finalizados del mes).
+            for (const viaje of viajesFinalizados) {
                 const importeViaje = toNum(viaje?.importe);
                 const estadoFactura = String(viaje?.facturaEstado || 'pendiente').toLowerCase();
 
-                // KPIs de ingresos basados en importes de viajes del mes (no en facturación recalculada).
                 ingresosTotales += importeViaje;
                 if (estadoFactura === 'cobrada') ingresosCobrados += importeViaje;
                 else ingresosPendientes += importeViaje;
