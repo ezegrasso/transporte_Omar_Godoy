@@ -151,7 +151,13 @@ router.get('/resumen-mensual',
             const mes = String(req.query.mes);
             const { from, to, year, month } = toDateOnlyRange(mes);
 
-            const [viajes, viajesComisiones, adelantos, estadias, movimientosCombustible, gastosFijos] = await Promise.all([
+            const [viajesMes, viajesFinalizados, viajesComisiones, adelantos, estadias, movimientosCombustible, gastosFijos] = await Promise.all([
+                Viaje.findAll({
+                    where: {
+                        fecha: { [Op.between]: [from, to] }
+                    },
+                    attributes: ['id', 'fecha', 'cliente', 'facturaEstado', 'importe']
+                }),
                 Viaje.findAll({
                     where: {
                         estado: 'finalizado',
@@ -211,10 +217,7 @@ router.get('/resumen-mensual',
             let ingresosPendientes = 0;
             let comisionesIntermediarios = 0;
 
-            for (const viaje of viajes) {
-                const camioneroId = viaje.camioneroId || null;
-                const nombreCamionero = viaje?.camionero?.nombre || viaje?.camioneroNombre || 'Sin camionero';
-                const ingreso = calcularIngresoViaje(viaje);
+            for (const viaje of viajesMes) {
                 const importeViaje = toNum(viaje?.importe);
                 const estadoFactura = String(viaje?.facturaEstado || 'pendiente').toLowerCase();
 
@@ -231,6 +234,14 @@ router.get('/resumen-mensual',
                 if (estadoFactura === 'cobrada') clienteAcc.cobradas += importeViaje;
                 else clienteAcc.pendientes += importeViaje;
                 facturacionPorClienteMap.set(cliente, clienteAcc);
+            }
+
+            for (const viaje of viajesFinalizados) {
+                const camioneroId = viaje.camioneroId || null;
+                const nombreCamionero = viaje?.camionero?.nombre || viaje?.camioneroNombre || 'Sin camionero';
+                const ingreso = calcularIngresoViaje(viaje);
+                const importeViaje = toNum(viaje?.importe);
+                const estadoFactura = String(viaje?.facturaEstado || 'pendiente').toLowerCase();
 
                 // Solo consolidar por camionero cuando hay un ID válido.
                 if (!isValidCamioneroId(camioneroId)) continue;
@@ -411,7 +422,7 @@ router.get('/resumen-mensual',
                 facturacionPorCamionero,
                 facturacionPorCliente,
                 indicadores: {
-                    cantidadViajesFinalizados: viajes.length,
+                    cantidadViajesFinalizados: viajesFinalizados.length,
                     cantidadCamionerosConMovimiento: facturacionPorCamionero.length,
                     cantidadClientesFacturados: facturacionPorCliente.length
                 }
