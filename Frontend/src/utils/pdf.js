@@ -477,7 +477,7 @@ export function generarReporteFinanzasPDF({ mes, resumen, gastosFijos = [] }) {
                 `$ ${money(row.brutoLiquidacion ?? row.bruto)}`,
                 `$ ${money(row.sueldo)}`,
                 `$ ${money(row.adelantos)}`,
-                `$ ${money(row.estadias)}`,
+                `- $ ${money(row.estadias)}`,
                 `$ ${money(row.combustibleImporte)}`,
                 `$ ${money(row.neto)}`
             ])

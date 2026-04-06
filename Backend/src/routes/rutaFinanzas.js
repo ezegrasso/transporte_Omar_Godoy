@@ -352,18 +352,23 @@ router.get('/resumen-mensual',
             const facturacionPorCamionero = Array.from(facturacionPorCamioneroMap.values())
                 .filter((item) => isValidCamioneroId(item.camioneroId))
                 .map((item) => {
-                    const sueldo = Number((toNum(item.brutoLiquidacion) * 0.16).toFixed(2));
+                    const brutoLiquidacion = toNum(item.brutoLiquidacion);
+                    const sueldo = Number((brutoLiquidacion * 0.2).toFixed(2));
                     const adelantosTotal = Number((adelantosPorCamionero.get(item.camioneroId) || 0).toFixed(2));
                     const estadiasTotal = Number((estadiasPorCamionero.get(item.camioneroId) || 0).toFixed(2));
                     const combustible = combustiblePorCamionero.get(item.camioneroId) || { litros: 0, importe: 0 };
-                    const neto = Number((sueldo - adelantosTotal + estadiasTotal).toFixed(2));
+                    const combustibleImporte = toNum(combustible.importe);
+                    const neto = Number((brutoLiquidacion - sueldo - estadiasTotal - combustibleImporte).toFixed(2));
 
-                    sueldosCamioneros += neto;
+                    // Los adelantos son un anticipo (forma de pago), no cambian el costo.
+                    // Mantener el gasto de sueldos sin descontar combustible para que el combustible
+                    // siga computando como gasto separado.
+                    sueldosCamioneros += Number((sueldo + estadiasTotal).toFixed(2));
 
                     return {
                         ...item,
                         bruto: Number(item.bruto.toFixed(2)),
-                        brutoLiquidacion: Number(toNum(item.brutoLiquidacion).toFixed(2)),
+                        brutoLiquidacion: Number(brutoLiquidacion.toFixed(2)),
                         sueldo,
                         adelantos: adelantosTotal,
                         estadias: estadiasTotal,
