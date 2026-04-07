@@ -3264,7 +3264,7 @@ export default function Ceo() {
                                         <p className="text-muted small">No hay adelantos registrados en {formatMesAnioLabel(gestionAdelantosModal.mes, gestionAdelantosModal.anio) || 'este período'}</p>
                                     </div>
                                 ) : (
-                                    <div className="table-responsive" style={{ overflow: 'hidden' }}>
+                                    <div className="table-responsive">
                                         <table className="table table-hover mb-0" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                                             <thead>
                                                 <tr className="bg-light border-bottom border-2">
@@ -3280,11 +3280,11 @@ export default function Ceo() {
                                                         <i className="bi bi-calendar-event text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
                                                         <strong>Fecha y hora</strong>
                                                     </th>
-                                                    <th className="py-3">
+                                                    <th className="py-3 d-none d-md-table-cell">
                                                         <i className="bi bi-chat-left-text text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
                                                         <strong>Observaciones</strong>
                                                     </th>
-                                                    <th className="py-3">
+                                                    <th className="py-3 d-none d-md-table-cell">
                                                         <i className="bi bi-person-badge text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
                                                         <strong>Cargado por</strong>
                                                     </th>
@@ -3325,7 +3325,7 @@ export default function Ceo() {
                                                         <td className="py-3 align-middle">
                                                             <small className="text-muted">{formatFechaHora(a.updatedAt || a.createdAt) || '-'}</small>
                                                         </td>
-                                                        <td className="py-3 align-middle">
+                                                        <td className="py-3 align-middle d-none d-md-table-cell">
                                                             {gestionAdelantosModal.editando === a.id ? (
                                                                 <input
                                                                     type="text"
@@ -3340,12 +3340,12 @@ export default function Ceo() {
                                                                 </small>
                                                             )}
                                                         </td>
-                                                        <td className="py-3 align-middle">
+                                                        <td className="py-3 align-middle d-none d-md-table-cell">
                                                             <small className="text-muted">{a.creadoPorNombre || '-'}</small>
                                                         </td>
                                                         <td className="pe-4 py-3 align-middle text-end">
                                                             {gestionAdelantosModal.editando === a.id ? (
-                                                                <div className="d-flex gap-2 justify-content-end">
+                                                                <div className="d-flex flex-wrap gap-2 justify-content-end">
                                                                     <button
                                                                         className="btn btn-sm btn-success"
                                                                         onClick={() => saveEditAdelanto(a.id)}
@@ -3364,7 +3364,7 @@ export default function Ceo() {
                                                                     </button>
                                                                 </div>
                                                             ) : (
-                                                                <div className="d-flex gap-2 justify-content-end">
+                                                                <div className="d-flex flex-wrap gap-2 justify-content-end">
                                                                     <button
                                                                         className="btn btn-sm btn-primary"
                                                                         onClick={() => startEditAdelanto(a)}
