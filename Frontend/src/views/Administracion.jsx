@@ -2584,7 +2584,7 @@ export default function Administracion() {
                                                     <i className="bi bi-calendar-event text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
                                                     <strong>Fecha y hora</strong>
                                                 </th>
-                                                <th className={`py-3 ${gestionAdelantosModal.editando ? '' : 'd-none d-md-table-cell'}`}>
+                                                <th className="py-3">
                                                     <i className="bi bi-chat-left-text text-muted me-1" style={{ fontSize: '0.9rem' }}></i>
                                                     <strong>Observaciones</strong>
                                                 </th>
@@ -2629,7 +2629,7 @@ export default function Administracion() {
                                                     <td className="py-3 align-middle">
                                                         <small className="text-muted">{formatFechaHora(a.updatedAt || a.createdAt) || '-'}</small>
                                                     </td>
-                                                    <td className={`py-3 align-middle ${gestionAdelantosModal.editando ? '' : 'd-none d-md-table-cell'}`}>
+                                                    <td className="py-3 align-middle">
                                                         {gestionAdelantosModal.editando === a.id ? (
                                                             <input
                                                                 type="text"
