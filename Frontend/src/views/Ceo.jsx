@@ -202,7 +202,7 @@ export default function Ceo() {
 
     const [nuevoCamion, setNuevoCamion] = useState({ patente: '', marca: '', modelo: '', anio: '' });
     const [camionErrors, setCamionErrors] = useState({});
-    const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', precioTonelada: '', intermediarioId: '' });
+    const [nuevoViaje, setNuevoViaje] = useState({ origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', precioTonelada: '', intermediarioId: '', observacionEmail: '' });
     const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '', rol: 'camionero' });
     const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', cuit: '' });
     const [nuevoIntermediario, setNuevoIntermediario] = useState({ nombre: '', porcentaje: '' });
@@ -768,10 +768,11 @@ export default function Ceo() {
                 intermediarioId: nuevoViaje.intermediarioId ? Number(nuevoViaje.intermediarioId) : null,
                 tipoMercaderia: nuevoViaje.tipoMercaderia?.trim() || null,
                 cliente: nuevoViaje.cliente?.trim() || null,
-                precioTonelada: nuevoViaje.precioTonelada ? Number(nuevoViaje.precioTonelada) : undefined
+                precioTonelada: nuevoViaje.precioTonelada ? Number(nuevoViaje.precioTonelada) : undefined,
+                observacionEmail: nuevoViaje.observacionEmail?.trim() || undefined
             };
             await api.post('/viajes', body);
-            setNuevoViaje({ origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', precioTonelada: '', intermediarioId: '' });
+            setNuevoViaje({ origen: '', destino: '', fecha: '', camionId: '', acopladoId: '', tipoMercaderia: '', cliente: '', precioTonelada: '', intermediarioId: '', observacionEmail: '' });
             await fetchIntermediariosResumen();
             await fetchViajes();
             showToast('Viaje creado', 'success');
@@ -1568,6 +1569,15 @@ export default function Ceo() {
                                             <option value="">Sin acoplado</option>
                                             {acoplados.map(a => <option key={a.id} value={a.id}>{a.patente}</option>)}
                                         </select>
+                                    </div>
+                                    <div className="col-12">
+                                        <textarea
+                                            className="form-control"
+                                            rows={2}
+                                            placeholder="Observación para el mail al camionero (opcional)"
+                                            value={nuevoViaje.observacionEmail || ''}
+                                            onChange={e => setNuevoViaje(v => ({ ...v, observacionEmail: e.target.value }))}
+                                        />
                                     </div>
                                     <div className="col-12"><button className="btn btn-primary" disabled={savingViaje}>{savingViaje ? 'Guardando…' : 'Guardar'}</button></div>
                                 </form>

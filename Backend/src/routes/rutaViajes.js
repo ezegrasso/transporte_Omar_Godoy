@@ -308,13 +308,17 @@ router.post('/',
         body('comisionistaId').optional({ nullable: true }).isInt({ min: 1 }),
         body('tipoMercaderia').optional().isString().isLength({ min: 2, max: 120 }),
         body('cliente').optional().isString().isLength({ min: 2, max: 120 }),
-        body('precioTonelada').optional().isFloat({ min: 0 })
+        body('precioTonelada').optional().isFloat({ min: 0 }),
+        body('importe').optional().isFloat({ min: 0 }),
+        body('observacionEmail').optional({ nullable: true }).isString().isLength({ max: 500 })
     ],
     async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
         try {
-            const payload = { ...req.body, estado: 'pendiente' };
+            const { observacionEmail, ...bodySinObservacionEmail } = req.body;
+            const observacionEmailNormalizada = (typeof observacionEmail === 'string' ? observacionEmail.trim() : '') || '';
+            const payload = { ...bodySinObservacionEmail, estado: 'pendiente' };
 
             // Asignar automáticamente el camionero si el camión tiene uno asignado
             let camPatente = '';
@@ -366,6 +370,11 @@ router.post('/',
             // Aviso por email solo al camionero asignado al camión
             try {
                 if (camioneroEmail) {
+                    const formatMoneyARS = (value) => {
+                        const num = Number(value);
+                        if (!Number.isFinite(num)) return '-';
+                        return `$${num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    };
                     const subject = `Nuevo viaje asignado a tu camión #${nuevoViaje.id} ${nuevoViaje.origen} -> ${nuevoViaje.destino}`;
                     const partes = [
                         `Hola ${camioneroNombre || 'Camionero'}, se publicó un nuevo viaje para tu camión.`,
@@ -375,6 +384,10 @@ router.post('/',
                     if (camPatente) partes.push(`Camión: ${camPatente}`);
                     if (nuevoViaje.cliente) partes.push(`Cliente: ${nuevoViaje.cliente}`);
                     if (nuevoViaje.tipoMercaderia) partes.push(`Tipo: ${nuevoViaje.tipoMercaderia}`);
+                    if (Number.isFinite(Number(nuevoViaje.precioTonelada))) {
+                        partes.push(`Precio por tonelada: ${formatMoneyARS(nuevoViaje.precioTonelada)}`);
+                    }
+                    if (observacionEmailNormalizada) partes.push(`Observación: ${observacionEmailNormalizada}`);
                     partes.push('Ingresá al panel para tomarlo.');
                     const text = partes.join('\n');
                     // Enviar email solo al camionero asignado
@@ -1154,6 +1167,11 @@ router.patch('/:id',
             if (viaje.estado === 'pendiente' && camionIdChanged && viaje.camioneroId && viaje.camioneroId !== prevCamioneroId) {
                 try {
                     if (viaje.camioneroEmail) {
+                        const formatMoneyARS = (value) => {
+                            const num = Number(value);
+                            if (!Number.isFinite(num)) return '-';
+                            return `$${num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                        };
                         let camPatente = '';
                         try {
                             const cam = await Camion.findByPk(viaje.camionId);
@@ -1169,6 +1187,9 @@ router.patch('/:id',
                         if (camPatente) partes.push(`Camión: ${camPatente}`);
                         if (viaje.cliente) partes.push(`Cliente: ${viaje.cliente}`);
                         if (viaje.tipoMercaderia) partes.push(`Tipo: ${viaje.tipoMercaderia}`);
+                        if (Number.isFinite(Number(viaje.precioTonelada))) {
+                            partes.push(`Precio por tonelada: ${formatMoneyARS(viaje.precioTonelada)}`);
+                        }
                         partes.push('Ingresá al panel para tomarlo.');
                         const text = partes.join('\n');
 
