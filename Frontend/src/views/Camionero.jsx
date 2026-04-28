@@ -590,7 +590,7 @@ export default function Camionero() {
 
             const mesNombre = new Date(mesExportacion + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
             const titulo = `Mis Viajes - ${estadoMios.charAt(0).toUpperCase() + estadoMios.slice(1)} (${mesNombre})`;
-            const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión', 'Km', 'Combustible', 'Toneladas', 'Importe'];
+            const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión', 'Km', 'Precio/Tn', 'Toneladas', 'Importe'];
             const rows = viajesMes.map(v => [
                 formatDateOnly(v.fecha),
                 v.estado || '-',
@@ -600,7 +600,7 @@ export default function Camionero() {
                 v.cliente || '-',
                 v.camion?.patente || v.camionId || '-',
                 v.km ?? '-',
-                v.combustible ?? '-',
+                v.precioTonelada ?? '-',
                 v.kilosCargados ?? '-',
                 v.importe ?? '-'
             ]);
@@ -1040,7 +1040,7 @@ export default function Camionero() {
                                             </th>
                                         ))}
                                         <th>Km</th>
-                                        <th>Combustible</th>
+                                        <th>Precio/Tn</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -1062,7 +1062,7 @@ export default function Camionero() {
                                             <td title={v.cliente || ''}>{v.cliente || '-'}</td>
                                             <td title={v.camion?.patente || v.camionId}>{v.camion?.patente || v.camionId}</td>
                                             <td>{v.km ?? '-'}</td>
-                                            <td>{v.combustible ?? '-'}</td>
+                                            <td>{v.precioTonelada ?? '-'}</td>
                                             <td className="text-end">
                                                 {v.estado === 'en curso' && (
                                                     <div className="btn-group btn-group-sm">
