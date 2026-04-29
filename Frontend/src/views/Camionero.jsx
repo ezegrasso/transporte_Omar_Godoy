@@ -86,9 +86,12 @@ export default function Camionero() {
     const [liqAdelanto, setLiqAdelanto] = useState('');
     const [liqRes, setLiqRes] = useState(null);
 
-    // Adelantos del mes
+    // Historial de adelantos (mes/año seleccionado)
     const [adelantos, setAdelantos] = useState([]);
     const [adelantosLoading, setAdelantosLoading] = useState(false);
+    const [adelantosMes, setAdelantosMes] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
+    const [adelantosAnio, setAdelantosAnio] = useState(() => String(new Date().getFullYear()));
+    const [adelantosTotal, setAdelantosTotal] = useState(0);
 
     // Estadías del mes
     const [estadias, setEstadias] = useState([]);
@@ -128,6 +131,29 @@ export default function Camionero() {
         try { const [y, m, d] = String(s).split('-').map(Number); const dt = new Date(y, (m || 1) - 1, d || 1); return dt.toLocaleDateString(); } catch { return s; }
     };
 
+    const formatMesAnioLabel = (mes, anio) => {
+        try {
+            const m = parseInt(mes);
+            const a = parseInt(anio);
+            if (Number.isNaN(m) || m < 1 || m > 12 || Number.isNaN(a)) return '';
+            const labelMes = new Date(a, m - 1, 1).toLocaleString('es-AR', { month: 'long' });
+            return `${labelMes} ${a}`;
+        } catch {
+            return '';
+        }
+    };
+
+    const formatFechaHora = (dt) => {
+        if (!dt) return '-';
+        try {
+            const d = new Date(dt);
+            if (Number.isNaN(d.getTime())) return '-';
+            return d.toLocaleString('es-AR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return '-';
+        }
+    };
+
     const fetchPendientes = async () => {
         const { data } = await api.get('/viajes?estado=pendiente&limit=100');
         setPendientes(data.items || data.data || []);
@@ -139,17 +165,18 @@ export default function Camionero() {
         setMios(list);
     };
 
-    const fetchAdelantos = async () => {
+    const fetchAdelantos = async (mes = adelantosMes, anio = adelantosAnio) => {
         try {
             setAdelantosLoading(true);
-            const d = new Date();
-            const mesActual = String(d.getMonth() + 1).padStart(2, '0');
-            const anioActual = String(d.getFullYear());
-            const { data } = await api.get(`/adelantos/mis-adelantos?mes=${mesActual}&anio=${anioActual}`);
-            setAdelantos(data.adelantos || []);
+            const mesQ = encodeURIComponent(String(mes || '').trim());
+            const anioQ = encodeURIComponent(String(anio || '').trim());
+            const { data } = await api.get(`/adelantos/mis-adelantos?mes=${mesQ}&anio=${anioQ}`);
+            setAdelantos(data?.adelantos || []);
+            setAdelantosTotal(Number(data?.totalAdelanto || 0));
         } catch (e) {
             console.error('Error cargando adelantos:', e?.message);
             setAdelantos([]);
+            setAdelantosTotal(0);
         } finally {
             setAdelantosLoading(false);
         }
@@ -664,65 +691,103 @@ export default function Camionero() {
                 </div>
             )}
 
-            {/* Tarjeta de Adelantos */}
-            {adelantosLoading ? (
-                <div className="card shadow-sm">
-                    <div className="card-body text-center">
-                        <span className="spinner-border spinner-border-sm text-secondary" role="status" />
-                    </div>
+            {/* Historial de Adelantos */}
+            <div className="card shadow-sm border-success">
+                <div className="card-header bg-success bg-opacity-10 d-flex align-items-center gap-2 py-2">
+                    <i className="bi bi-clock-history text-success" style={{ fontSize: '1.25rem' }}></i>
+                    <h6 className="mb-0 fw-bold">Historial de adelantos</h6>
                 </div>
-            ) : adelantos.length > 0 ? (
-                <div className="card shadow-sm border-success">
-                    <div className="card-header bg-success bg-opacity-10 d-flex align-items-center gap-2 py-2">
-                        <i className="bi bi-cash-coin text-success" style={{ fontSize: '1.25rem' }}></i>
-                        <h6 className="mb-0 fw-bold">Adelantos del Mes - {new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h6>
+                <div className="card-body">
+                    <div className="d-flex flex-wrap align-items-end gap-3 mb-3">
+                        <div>
+                            <label className="form-label mb-1 small text-muted">Mes</label>
+                            <select
+                                className="form-select form-select-sm"
+                                value={adelantosMes}
+                                onChange={(e) => {
+                                    const newMes = e.target.value;
+                                    setAdelantosMes(newMes);
+                                    fetchAdelantos(newMes, adelantosAnio);
+                                }}
+                                disabled={adelantosLoading}
+                                style={{ minWidth: 160 }}
+                            >
+                                {Array.from({ length: 12 }, (_, i) => {
+                                    const val = String(i + 1).padStart(2, '0');
+                                    const label = new Date(2020, i, 1).toLocaleString('es-AR', { month: 'long' });
+                                    return <option key={val} value={val}>{label}</option>;
+                                })}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="form-label mb-1 small text-muted">Año</label>
+                            <input
+                                type="number"
+                                className="form-control form-control-sm"
+                                value={adelantosAnio}
+                                min={2000}
+                                max={3000}
+                                onChange={(e) => {
+                                    const newAnio = e.target.value;
+                                    setAdelantosAnio(newAnio);
+                                    fetchAdelantos(adelantosMes, newAnio);
+                                }}
+                                disabled={adelantosLoading}
+                                style={{ width: 120 }}
+                            />
+                        </div>
+                        <div className="ms-auto text-end">
+                            <div className="small text-muted">{formatMesAnioLabel(adelantosMes, adelantosAnio) || 'Período seleccionado'}</div>
+                            <div className="fw-semibold">
+                                <span className="text-success">
+                                    ${Number(adelantosTotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                <span className="text-muted fw-normal ms-2">({adelantos.length} adelantos)</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="card-body">
+
+                    {adelantosLoading ? (
+                        <div className="text-center py-4">
+                            <span className="spinner-border spinner-border-sm text-secondary" role="status" />
+                            <div className="text-muted small mt-2">Cargando adelantos...</div>
+                        </div>
+                    ) : adelantos.length === 0 ? (
+                        <EmptyState
+                            icon={<i className="bi bi-inbox"></i>}
+                            title="Sin adelantos"
+                            description={`No hay adelantos registrados en ${formatMesAnioLabel(adelantosMes, adelantosAnio) || 'este período'}.`}
+                        />
+                    ) : (
                         <div className="table-responsive">
-                            <table className="table table-sm table-borderless mb-0">
+                            <table className="table table-sm table-hover mb-0">
+                                <thead className="table-light">
+                                    <tr>
+                                        <th style={{ width: '20%' }}>Monto</th>
+                                        <th style={{ width: '25%' }}>Fecha y hora</th>
+                                        <th>Observaciones</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
-                                    {adelantos.map(adelanto => (
-                                        <tr key={adelanto.id} className="border-bottom">
-                                            <td className="py-3" style={{ width: '40%' }}>
-                                                <div className="d-flex align-items-center gap-2">
-                                                    <div className="bg-success bg-opacity-10 rounded p-2">
-                                                        <i className="bi bi-currency-dollar text-success"></i>
-                                                    </div>
-                                                    <div>
-                                                        <div className="fw-bold text-success" style={{ fontSize: '1.1rem' }}>
-                                                            ${safeParseNumber(adelanto.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </div>
-                                                        <small className="text-muted">
-                                                            {new Date(adelanto.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
-                                                        </small>
-                                                    </div>
-                                                </div>
+                                    {adelantos.map((adelanto) => (
+                                        <tr key={adelanto.id}>
+                                            <td className="fw-semibold text-success">
+                                                ${safeParseNumber(adelanto.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </td>
-                                            <td className="py-3 text-muted">
-                                                {adelanto.descripcion || 'Adelanto registrado por administración'}
+                                            <td className="text-muted">
+                                                {formatFechaHora(adelanto.updatedAt || adelanto.createdAt)}
+                                            </td>
+                                            <td className="text-muted">
+                                                {adelanto.descripcion || '—'}
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                        <div className="mt-3 p-3 bg-light rounded d-flex justify-content-between align-items-center">
-                            <div>
-                                <small className="text-muted d-block mb-1">Total adelantado en {new Date().toLocaleString('es-AR', { month: 'long' })}</small>
-                                <h4 className="mb-0 text-success fw-bold">
-                                    ${adelantos.reduce((sum, a) => sum + parseFloat(a.monto || 0), 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </h4>
-                            </div>
-                            <div className="text-end">
-                                <small className="text-muted">
-                                    <i className="bi bi-info-circle me-1"></i>
-                                    Se reinicia cada mes
-                                </small>
-                            </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
-            ) : null}
+            </div>
 
             {/* Tarjeta de Estadías */}
             <div className="card shadow-sm border-info">
