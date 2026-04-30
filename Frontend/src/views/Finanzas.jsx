@@ -44,6 +44,8 @@ const toNum = (value) => {
     return Number.isFinite(n) ? n : 0;
 };
 
+const isValidMesYYYYMM = (value) => /^\d{4}-\d{2}$/.test(String(value || '').trim());
+
 const isValidCamioneroId = (value) => {
     const n = Number(value);
     return Number.isInteger(n) && n > 0;
@@ -149,10 +151,16 @@ export default function Finanzas() {
             }
 
             for (const localItem of localItems) {
-                const concepto = String(localItem?.concepto || localItem?.nombre || '').trim();
+                const conceptoRaw = String(localItem?.concepto || localItem?.nombre || '').trim();
+                const concepto = conceptoRaw.length > 120 ? conceptoRaw.slice(0, 120) : conceptoRaw;
                 const monto = toNum(localItem?.monto);
                 if (!concepto || monto <= 0) continue;
-                await api.post('/finanzas/gastos-fijos', { mes, concepto, monto: Number(monto.toFixed(2)) });
+                try {
+                    await api.post('/finanzas/gastos-fijos', { mes, concepto, monto: Number(monto.toFixed(2)) });
+                } catch (migrateErr) {
+                    // Si un ítem viejo no cumple validaciones del backend, no bloquear la carga completa.
+                    console.warn('[finanzas] No se pudo migrar gasto fijo local:', migrateErr?.response?.data || migrateErr?.message);
+                }
             }
 
             clearLocalMes(mes);
@@ -165,6 +173,14 @@ export default function Finanzas() {
 
     useEffect(() => {
         const load = async () => {
+            if (!isValidMesYYYYMM(mes)) {
+                setResumen(null);
+                setGastosFijosMes([]);
+                setError(mes ? 'Seleccioná un mes válido (formato AAAA-MM).' : 'Seleccioná un mes para ver el resumen financiero.');
+                setLoading(false);
+                return;
+            }
+
             setLoading(true);
             setError('');
             try {
@@ -218,6 +234,10 @@ export default function Finanzas() {
     const agregarGastoFijo = async (e) => {
         e.preventDefault();
         const nombre = String(nuevoGasto.nombre || '').trim();
+        if (nombre.length > 120) {
+            setError('El concepto no puede superar 120 caracteres.');
+            return;
+        }
         const monto = toNum(String(nuevoGasto.monto || '').replace(',', '.'));
         if (!nombre || monto <= 0) return;
 
