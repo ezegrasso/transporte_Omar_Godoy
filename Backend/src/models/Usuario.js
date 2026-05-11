@@ -30,6 +30,11 @@ const Usuario = sequelize.define('Usuario', {
     avatarUrl: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    activo: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true
     }
 }, {
     tableName: 'usuarios',

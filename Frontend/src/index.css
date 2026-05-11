@@ -197,6 +197,12 @@ body {
   color: #251c45 !important;
 }
 
+.badge-role-mantenimiento {
+  background-color: #f59e0b !important;
+  /* amber-500 */
+  color: #1f2937 !important;
+}
+
 [data-bs-theme="dark"] .badge-role-admin {
   background-color: #38bdf8 !important;
   color: #071c24 !important;
@@ -217,6 +223,12 @@ body {
   background-color: #7c3aed !important;
   /* violet-600 */
   color: #ede9fe !important;
+}
+
+[data-bs-theme="dark"] .badge-role-mantenimiento {
+  background-color: #fbbf24 !important;
+  /* amber-400 */
+  color: #1f2937 !important;
 }
 
 .badge-estado-pendiente {

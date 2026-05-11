@@ -111,10 +111,13 @@ router.post('/', authMiddleware, async (req, res) => {
             return res.status(400).json({ error: 'Faltan datos requeridos' });
         }
 
-        // Verificar que el usuario sea camionero
+        // Verificar que el usuario sea camionero o mantenimiento
         const camionero = await Usuario.findByPk(camioneroId);
-        if (!camionero || camionero.rol !== 'camionero') {
+        if (!camionero || !['camionero', 'mantenimiento'].includes(camionero.rol)) {
             return res.status(400).json({ error: 'Usuario no es camionero' });
+        }
+        if (camionero.activo === false) {
+            return res.status(400).json({ error: 'El camionero está desactivado' });
         }
 
         const montoNum = parseFloat(monto);

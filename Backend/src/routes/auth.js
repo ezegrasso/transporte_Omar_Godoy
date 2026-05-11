@@ -27,6 +27,7 @@ router.post('/login',
             if (!usuario) return res.status(401).json({ error: 'Credenciales inválidas' });
             const valid = await bcrypt.compare(password, usuario.password);
             if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
+            if (usuario.activo === false) return res.status(403).json({ error: 'Usuario desactivado' });
             const expires = process.env.JWT_EXPIRES || '8h';
             const token = jwt.sign({ id: usuario.id, rol: usuario.rol }, process.env.JWT_SECRET, { expiresIn: expires });
             res.json({ token, usuario: { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol } });
@@ -42,8 +43,9 @@ router.get('/refresh', async (req, res, next) => {
     const { authMiddleware } = await import('../middlewares/authMiddleware.js');
     return authMiddleware(req, res, async () => {
         try {
-            const usuario = await Usuario.findByPk(req.user.id, { attributes: ['id', 'nombre', 'rol'] });
+            const usuario = await Usuario.findByPk(req.user.id, { attributes: ['id', 'nombre', 'rol', 'activo'] });
             if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+            if (usuario.activo === false) return res.status(401).json({ error: 'Usuario desactivado' });
             res.json({ usuario });
         } catch (error) {
             res.status(500).json({ error: 'Error en refresh' });

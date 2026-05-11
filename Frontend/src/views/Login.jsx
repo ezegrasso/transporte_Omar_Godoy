@@ -31,6 +31,7 @@ export default function Login() {
             const u = await login(em, pw);
             if (u.rol === 'ceo') navigate('/ceo');
             else if (u.rol === 'administracion') navigate('/administracion');
+            else if (u.rol === 'mantenimiento') navigate('/mantenimiento');
             else navigate('/camionero');
         } catch (err) {
             setError(err?.response?.data?.error || err?.message || 'Error de login');

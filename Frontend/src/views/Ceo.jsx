@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { generarListadoViajesPDF, generarDetalleViajePDF, generarFacturaViajePDF } from '../utils/pdf';
 import { ConfirmModal } from '../components/UI/ConfirmModal';
 import CeoCombustiblePanel from '../components/UI/CeoCombustiblePanel';
+import { capitalize } from '../utils/format';
 import React from 'react';
 
 // Función segura para parsear números sin importar el formato local
@@ -414,8 +415,9 @@ export default function Ceo() {
     const fetchUsuarios = async () => {
         const { data } = await api.get('/usuarios');
         const list = Array.isArray(data) ? data : (data.items || []);
-        setUsuarios(list);
-        return list;
+        const activos = (list || []).filter(u => u?.activo !== false);
+        setUsuarios(activos);
+        return activos;
     };
 
     const fetchClientes = async () => {
@@ -664,8 +666,11 @@ export default function Ceo() {
         return Array.from(set);
     }, [viajes]);
 
-    // Lista de usuarios camioneros para asignar a camiones
-    const camioneros = useMemo(() => (usuarios || []).filter(u => u.rol === 'camionero'), [usuarios]);
+    // Lista de usuarios operativos para asignar a camiones y adelantos
+    const camioneros = useMemo(
+        () => (usuarios || []).filter(u => ['camionero', 'mantenimiento'].includes(String(u?.rol || '').toLowerCase())),
+        [usuarios]
+    );
 
     useEffect(() => {
         setPage(1);
@@ -790,9 +795,18 @@ export default function Ceo() {
         setError('');
         setSavingUsuario(true);
         try {
+            const emailNormalizado = (nuevoUsuario.email || '').trim().toLowerCase();
+            const yaExiste = (usuarios || []).some(u => String(u?.email || '').trim().toLowerCase() === emailNormalizado);
+            if (yaExiste) {
+                const msg = 'El email ya está en uso';
+                setError(msg);
+                showToast(msg, 'error');
+                return;
+            }
+
             const body = {
                 nombre: (nuevoUsuario.nombre || '').trim(),
-                email: (nuevoUsuario.email || '').trim(),
+                email: emailNormalizado,
                 password: nuevoUsuario.password || '',
                 rol: nuevoUsuario.rol
             };
@@ -806,7 +820,11 @@ export default function Ceo() {
             }
             showToast('Usuario creado', 'success');
         } catch (e) {
-            const msg = e?.response?.data?.error || 'Error creando usuario';
+            const backendError = e?.response?.data?.error;
+            const firstValidationError = Array.isArray(e?.response?.data?.errors)
+                ? e.response.data.errors[0]?.msg
+                : null;
+            const msg = backendError || firstValidationError || 'Error creando usuario';
             setError(msg);
             showToast(msg, 'error');
         } finally {
@@ -1298,8 +1316,8 @@ export default function Ceo() {
     const deleteUsuario = async (id) => {
         if (!confirm('¿Eliminar usuario? Esta acción no se puede deshacer.')) return;
         try {
-            await api.delete(`/usuarios/${id}`);
-            showToast('Usuario eliminado', 'success');
+            const { data } = await api.delete(`/usuarios/${id}`);
+            showToast(data?.mensaje || 'Usuario eliminado', 'success');
             await fetchUsuarios();
         } catch (e) {
             const msg = e?.response?.data?.error || 'Error eliminando usuario';
@@ -2179,13 +2197,14 @@ export default function Ceo() {
                             <div className="card-body">
                                 <h3 className="h5">Usuarios</h3>
                                 <form onSubmit={crearUsuario} className="row g-2 mt-2" style={{ opacity: savingUsuario ? 0.85 : 1 }}>
-                                    <div className="col-6"><input className="form-control" placeholder="Nombre" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(v => ({ ...v, nombre: e.target.value }))} /></div>
-                                    <div className="col-6"><input className="form-control" placeholder="Email" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(v => ({ ...v, email: e.target.value }))} /></div>
-                                    <div className="col-6"><input className="form-control" type="password" placeholder="Password" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(v => ({ ...v, password: e.target.value }))} /></div>
+                                    <div className="col-6"><input className="form-control" placeholder="Nombre" required value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(v => ({ ...v, nombre: e.target.value }))} /></div>
+                                    <div className="col-6"><input className="form-control" type="email" placeholder="Email" required value={nuevoUsuario.email} onChange={e => setNuevoUsuario(v => ({ ...v, email: e.target.value }))} /></div>
+                                    <div className="col-6"><input className="form-control" type="password" placeholder="Password" minLength={6} required value={nuevoUsuario.password} onChange={e => setNuevoUsuario(v => ({ ...v, password: e.target.value }))} /></div>
                                     <div className="col-6"></div>
                                     <div className="col-6">
                                         <select className="form-select" value={nuevoUsuario.rol} onChange={e => setNuevoUsuario(v => ({ ...v, rol: e.target.value }))}>
                                             <option value="camionero">Camionero</option>
+                                            <option value="mantenimiento">Mantenimiento</option>
                                             <option value="administracion">Administración</option>
                                             <option value="ceo">CEO</option>
                                         </select>
@@ -2223,16 +2242,17 @@ export default function Ceo() {
                                                         <td style={{ maxWidth: 160 }}>
                                                             {editUsuarioId === u.id ? (
                                                                 u.rol === 'ceo' ? (
-                                                                    <span className={`badge badge-role-ceo`}>ceo</span>
+                                                                    <span className={`badge badge-role-ceo`}>{capitalize('ceo')}</span>
                                                                 ) : (
                                                                     <select className="form-select form-select-sm" value={editUsuarioData.rol} onChange={e => setEditUsuarioData(v => ({ ...v, rol: e.target.value }))}>
                                                                         <option value="camionero">Camionero</option>
+                                                                        <option value="mantenimiento">Mantenimiento</option>
                                                                         <option value="administracion">Administración</option>
                                                                         <option value="ceo">CEO</option>
                                                                     </select>
                                                                 )
                                                             ) : (
-                                                                <span className={`badge ${u.rol === 'ceo' ? 'badge-role-ceo' : u.rol === 'administracion' ? 'badge-role-administracion' : 'badge-role-camionero'}`}>{u.rol}</span>
+                                                                <span className={`badge ${u.rol === 'ceo' ? 'badge-role-ceo' : u.rol === 'administracion' ? 'badge-role-administracion' : u.rol === 'mantenimiento' ? 'badge-role-mantenimiento' : 'badge-role-camionero'}`}>{capitalize(u.rol)}</span>
                                                             )}
                                                         </td>
                                                         <td className="text-end">
@@ -2596,7 +2616,7 @@ export default function Ceo() {
                                                                             <i className="bi bi-person me-1"></i>Camionero
                                                                         </label>
                                                                         {camioneros.length === 0 ? (
-                                                                            <span className="text-body-secondary small d-block">Sin camioneros cargados</span>
+                                                                            <span className="text-body-secondary small d-block">Sin camioneros o mantenimiento cargados</span>
                                                                         ) : (
                                                                             <select
                                                                                 className="form-select form-select-sm"
@@ -3099,7 +3119,7 @@ export default function Ceo() {
                                             }}
                                             disabled={adelantoModal.loading}
                                         >
-                                            <option value="">Seleccionar camionero...</option>
+                                            <option value="">Seleccionar usuario...</option>
                                             {camioneros.map(c => (
                                                 <option key={c.id} value={c.id}>{c.nombre} ({c.email})</option>
                                             ))}

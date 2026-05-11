@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import Usuario from '../models/Usuario.js';
 
 const normalizeRole = (rawRole) => {
     const role = String(rawRole || '')
@@ -16,10 +17,13 @@ const normalizeRole = (rawRole) => {
     if (role === 'ceo') {
         return 'ceo';
     }
+    if (role === 'mantenimiento' || role === 'maintenance') {
+        return 'mantenimiento';
+    }
     return role;
 };
 
-export const authMiddleware = (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return res.status(401).json({ error: 'No token' });
     const token = authHeader.split(' ')[1];
@@ -28,6 +32,17 @@ export const authMiddleware = (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const normalizedUserId = decoded?.id ?? decoded?.userId ?? decoded?.sub ?? null;
         const normalizedRole = normalizeRole(decoded?.rol ?? decoded?.role);
+
+        if (!normalizedUserId) return res.status(401).json({ error: 'Token inválido' });
+
+        // Si el usuario fue desactivado o no existe, bloquear acceso incluso con token válido.
+        try {
+            const u = await Usuario.findByPk(normalizedUserId, { attributes: ['id', 'activo'] });
+            if (!u) return res.status(401).json({ error: 'Usuario no encontrado' });
+            if (u.activo === false) return res.status(401).json({ error: 'Usuario desactivado' });
+        } catch {
+            return res.status(401).json({ error: 'Token inválido' });
+        }
 
         decoded.id = normalizedUserId;
         decoded.rol = normalizedRole;

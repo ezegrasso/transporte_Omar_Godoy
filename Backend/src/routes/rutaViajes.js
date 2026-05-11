@@ -332,7 +332,7 @@ router.post('/',
                     camPatente = cam?.patente || '';
                     // Si el camión tiene un camionero asignado, asignarlo automáticamente al viaje
                     if (cam && cam.camioneroId) {
-                        const camionero = await Usuario.findOne({ where: { rol: 'camionero', id: cam.camioneroId } });
+                        const camionero = await Usuario.findOne({ where: { rol: { [Op.in]: ['camionero', 'mantenimiento'] }, id: cam.camioneroId } });
                         if (camionero) {
                             camioneroId = camionero.id;
                             camioneroEmail = camionero.email || '';
@@ -409,7 +409,7 @@ router.post('/',
 // Tomar viaje (camionero lo asigna y cambia estado a "en curso")
 router.patch('/:id/tomar',
     authMiddleware,
-    roleMiddleware(['camionero']),
+    roleMiddleware(['camionero', 'mantenimiento']),
     [param('id').isInt()],
     async (req, res) => {
         const errors = validationResult(req);
@@ -472,8 +472,8 @@ router.patch('/:id/tomar',
 // Finalizar viaje (camionero actualiza km, combustible y estado)
 router.patch('/:id/finalizar',
     authMiddleware,
-    // Permitir que el camionero finalice su propio viaje y que el CEO/Administración pueda finalizar desde su panel
-    roleMiddleware(['camionero', 'ceo', 'administracion']),
+    // Permitir que el camionero (o mantenimiento) finalice su propio viaje y que el CEO/Administración pueda finalizar desde su panel
+    roleMiddleware(['camionero', 'mantenimiento', 'ceo', 'administracion']),
     [
         param('id').isInt(),
         body('km').isInt({ min: 0 }),
@@ -499,8 +499,8 @@ router.patch('/:id/finalizar',
             if (!viaje || !estadoPermitido.includes(viaje.estado)) {
                 return res.status(400).json({ error: 'Viaje no válido o no está en curso/pendiente' });
             }
-            // Si es camionero, solo puede finalizar su propio viaje
-            if (req.user.rol === 'camionero' && viaje.camioneroId !== req.user.id) {
+            // Si es camionero o mantenimiento, solo puede finalizar su propio viaje
+            if (['camionero', 'mantenimiento'].includes(req.user.rol) && viaje.camioneroId !== req.user.id) {
                 return res.status(400).json({ error: 'No autorizado' });
             }
 
@@ -583,7 +583,7 @@ router.get('/liquidacion',
             // Si es CEO/Administración y pasa camioneroId, permitir ver ese
             if ((req.user.rol === 'ceo' || req.user.rol === 'administracion') && camioneroId) {
                 targetCamioneroId = parseInt(camioneroId, 10);
-            } else if (req.user.rol !== 'camionero' && req.user.rol !== 'ceo' && req.user.rol !== 'administracion') {
+            } else if (req.user.rol !== 'camionero' && req.user.rol !== 'mantenimiento' && req.user.rol !== 'ceo' && req.user.rol !== 'administracion') {
                 return res.status(403).json({ error: 'No autorizado' });
             }
 
@@ -627,7 +627,7 @@ router.get('/liquidacion',
 // Cancelar viaje tomado (camionero devuelve a pendiente)
 router.patch('/:id/cancelar',
     authMiddleware,
-    roleMiddleware(['camionero']),
+    roleMiddleware(['camionero', 'mantenimiento']),
     [param('id').isInt()],
     async (req, res) => {
         const errors = validationResult(req);
@@ -1129,7 +1129,7 @@ router.patch('/:id',
                 if (!camion) return res.status(404).json({ error: 'Camión no encontrado' });
 
                 if (camion.camioneroId) {
-                    const camionero = await Usuario.findOne({ where: { rol: 'camionero', id: camion.camioneroId } });
+                    const camionero = await Usuario.findOne({ where: { rol: { [Op.in]: ['camionero', 'mantenimiento'] }, id: camion.camioneroId } });
                     if (camionero) {
                         viaje.camioneroId = camionero.id;
                         viaje.camioneroNombre = camionero.nombre || null;

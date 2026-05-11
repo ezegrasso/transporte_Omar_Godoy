@@ -11,6 +11,10 @@ export const ensureSchema = async () => {
             await qi.addColumn('usuarios', 'avatarUrl', { type: DataTypes.STRING, allowNull: true });
             console.log("Columna 'avatarUrl' añadida a 'usuarios'.");
         }
+        if (!('activo' in desc)) {
+            await qi.addColumn('usuarios', 'activo', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true });
+            console.log("Columna 'activo' añadida a 'usuarios'.");
+        }
         // (Eliminado: columnas telefono / ultimoWhatsappAt ya no se aseguran)
     } catch (e) {
         console.error('No se pudo asegurar esquema de usuarios:', e);

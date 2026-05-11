@@ -14,7 +14,7 @@ const help = () => {
         const password = String(args.password || '').trim();
         const rol = String(args.rol || '').trim().toLowerCase();
         const nombre = String(args.nombre || 'Usuario').trim();
-        const allowed = ['ceo', 'camionero', 'administracion'];
+        const allowed = ['ceo', 'camionero', 'administracion', 'mantenimiento'];
         if (!email || !password || !rol) {
             print('Faltan argumentos: --email --password --rol [--nombre]');
             help();

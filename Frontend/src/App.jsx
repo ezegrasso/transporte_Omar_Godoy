@@ -124,6 +124,7 @@ function NavBar() {
               <li className="nav-item"><Link className="nav-link" to="/finanzas" onClick={closeNavIfMobile}>Finanzas</Link></li>
             )}
             {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero" onClick={closeNavIfMobile}>Mis Viajes</Link></li>}
+            {user?.rol === 'mantenimiento' && <li className="nav-item"><Link className="nav-link" to="/mantenimiento" onClick={closeNavIfMobile}>Mis Viajes</Link></li>}
           </ul>
           <div className="d-none d-lg-flex align-items-center gap-2 flex-nowrap ms-lg-auto">
             <button className="btn btn-outline-secondary" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="Tema">
@@ -186,6 +187,7 @@ export default function App() {
       '/graficos': 'Gráficos',
       '/finanzas': 'Finanzas',
       '/camionero': 'Camionero',
+      '/mantenimiento': 'Mantenimiento',
       '/administracion': 'Administración',
       '/administracion/graficos': 'Gráficos Administración'
     }
@@ -247,6 +249,13 @@ export default function App() {
             } />
             <Route path="/camionero" element={
               <ProtectedRoute roles={["camionero"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Mis Viajes.</div>}>
+                  <Camionero />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/mantenimiento" element={
+              <ProtectedRoute roles={["mantenimiento"]}>
                 <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Mis Viajes.</div>}>
                   <Camionero />
                 </ErrorBoundary>

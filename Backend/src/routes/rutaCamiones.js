@@ -142,9 +142,9 @@ router.post('/:id/asignarCamionero',
                 return res.json({ mensaje: 'Camionero desasignado', camion });
             }
 
-            // Validar que el usuario exista y sea camionero
+            // Validar que el usuario exista y sea camionero o mantenimiento
             const usuario = await Usuario.scope('withPassword').findByPk(camioneroId);
-            if (!usuario || usuario.rol !== 'camionero') {
+            if (!usuario || !['camionero', 'mantenimiento'].includes(usuario.rol)) {
                 return res.status(400).json({ error: 'camioneroId inválido o usuario no es camionero' });
             }
 
