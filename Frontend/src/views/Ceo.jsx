@@ -652,9 +652,14 @@ export default function Ceo() {
     }, [viajes]);
     const camionerosOpciones = useMemo(() => {
         const set = new Set();
-        viajes.forEach(v => { const nom = v.camionero?.nombre; if (nom) set.add(nom); });
-        return Array.from(set);
-    }, [viajes]);
+        (usuarios || []).forEach(u => {
+            if (['camionero', 'mantenimiento'].includes(String(u?.rol || '').toLowerCase())) {
+                const nom = String(u?.nombre || '').trim();
+                if (nom) set.add(nom);
+            }
+        });
+        return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    }, [usuarios]);
     const tiposOpciones = useMemo(() => {
         const set = new Set();
         viajes.forEach(v => { const t = v.tipoMercaderia?.trim(); if (t) set.add(t); });
