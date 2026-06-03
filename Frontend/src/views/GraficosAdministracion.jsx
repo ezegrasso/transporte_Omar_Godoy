@@ -27,7 +27,7 @@ export default function GraficosAdministracion() {
     const choferMenuRef = useRef(null);
 
     const fetchViajes = async () => {
-        const { data } = await api.get('/viajes?limit=100');
+        const { data } = await api.get('/viajes?limit=5000&order=DESC&sortBy=fecha');
         const list = data.items || data.data || [];
         setViajes(list);
         return list;
@@ -97,27 +97,6 @@ export default function GraficosAdministracion() {
     }, [viajes]);
 
     // Filtrar viajes finalizados según los filtros de fecha, tipo y cliente
-    const viajesFinalizados = useMemo(() => {
-        return viajes.filter(v => {
-            if (v.estado !== 'finalizado') return false;
-
-            const okTipo = !chartTipo || (v.tipoMercaderia || '') === chartTipo;
-            const okCliente = !chartCliente || (v.cliente || '') === chartCliente;
-
-            const okFecha = (() => {
-                if (!chartFrom && !chartTo) return true;
-                const ts = parseDateOnlyLocal(v.fecha);
-                const fromTs = chartFrom ? parseDateOnlyLocal(chartFrom) : null;
-                const toTs = chartTo ? parseDateOnlyLocal(chartTo) : null;
-                if (fromTs && ts < fromTs) return false;
-                if (toTs && ts > toTs) return false;
-                return true;
-            })();
-
-            return okTipo && okCliente && okFecha;
-        });
-    }, [viajes, chartFrom, chartTo, chartCliente, chartTipo]);
-
     useEffect(() => {
         if (choferesOpciones.length === 0) {
             if (chartChoferes.length !== 0) setChartChoferes([]);
@@ -267,7 +246,7 @@ export default function GraficosAdministracion() {
                         </div>
                     </div>
                     <DashboardCharts
-                        viajes={viajesFinalizados}
+                        viajes={viajes}
                         filtros={{
                             from: chartFrom,
                             to: chartTo,

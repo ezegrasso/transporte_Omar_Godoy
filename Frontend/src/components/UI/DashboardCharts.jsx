@@ -23,6 +23,13 @@ const currencyFormatter = new Intl.NumberFormat('es-AR', {
 
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 const CHOFER_COLORS = ['#2563eb', '#16a34a', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#db2777', '#0f766e', '#7c3aed', '#4f46e5'];
+const FACTURA_LABELS = ['pendiente', 'emitida', 'cobrada', 'vencida'];
+const FACTURA_COLORS = {
+    pendiente: '#6b7280',
+    emitida: '#f59e0b',
+    cobrada: '#22c55e',
+    vencida: '#ef4444',
+};
 
 const getChoferColor = (index) => {
     if (index < CHOFER_COLORS.length) return CHOFER_COLORS[index];
@@ -32,7 +39,8 @@ const getChoferColor = (index) => {
 
 export default function DashboardCharts({ viajes, filtros = {} }) {
     const { from, to, cliente, tipo, year } = filtros;
-    const finalizadosBase = useMemo(() => (viajes || []).filter(v => (v.estado || '').toLowerCase() === 'finalizado'), [viajes]);
+    const viajesBase = useMemo(() => (viajes || []), [viajes]);
+    const finalizadosBase = useMemo(() => viajesBase.filter(v => (v.estado || '').toLowerCase() === 'finalizado'), [viajesBase]);
 
     const finalizados = useMemo(() => {
         return finalizadosBase.filter(v => {
@@ -63,15 +71,26 @@ export default function DashboardCharts({ viajes, filtros = {} }) {
     }, [finalizados]);
 
     const porEstadoFactura = useMemo(() => {
-        const map = new Map();
-        finalizados.forEach(v => {
-            const est = (v.facturaEstado || 'pendiente').toLowerCase();
+        const map = new Map(FACTURA_LABELS.map(label => [label, 0]));
+        viajesBase.forEach(v => {
+            const rawEstado = String(v.facturaEstado || '').toLowerCase().trim();
+            const tieneFacturaCargada = !!(v.facturaUrl || v.fechaFactura || v.precioUnitarioFactura || v.precioUnitarioNegro);
+
+            let est = 'pendiente';
+            if (rawEstado === 'cobrada' || rawEstado === 'cobrado') {
+                est = 'cobrada';
+            } else if (rawEstado === 'vencida') {
+                est = 'vencida';
+            } else if (rawEstado === 'emitida' || rawEstado === 'no cobrada' || tieneFacturaCargada) {
+                est = 'emitida';
+            }
+
             map.set(est, (map.get(est) || 0) + 1);
         });
-        const labels = Array.from(map.keys());
-        const data = Array.from(map.values());
+        const labels = FACTURA_LABELS.filter(label => (map.get(label) || 0) > 0);
+        const data = labels.map(label => map.get(label) || 0);
         return { labels, data };
-    }, [finalizados]);
+    }, [viajesBase]);
 
     return (
         <div className="row g-3">
@@ -127,7 +146,7 @@ export default function DashboardCharts({ viajes, filtros = {} }) {
                                 labels: porEstadoFactura.labels,
                                 datasets: [{
                                     data: porEstadoFactura.data,
-                                    backgroundColor: ['#6b7280', '#0ea5e9', '#22c55e', '#f59e0b', '#8b5cf6'],
+                                    backgroundColor: porEstadoFactura.labels.map(label => FACTURA_COLORS[label] || '#6b7280'),
                                     borderWidth: 0,
                                     hoverOffset: 6,
                                 }],
