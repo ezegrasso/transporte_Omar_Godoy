@@ -12,10 +12,13 @@ const GraficosAdministracion = lazy(() => import('./views/GraficosAdministracion
 const Administracion = lazy(() => import('./views/Administracion'))
 const Camionero = lazy(() => import('./views/Camionero'))
 const Finanzas = lazy(() => import('./views/Finanzas'))
+const VencimientosAdmin = lazy(() => import('./views/VencimientosAdmin'))
+const VencimientosCamionero = lazy(() => import('./views/VencimientosCamionero'))
 
 function NavBar() {
   const { user } = useAuth()
   const location = useLocation()
+  const isLoginPath = location.pathname === '/login'
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
   const [navOpen, setNavOpen] = useState(false)
   const [isDesktop, setIsDesktop] = useState(() => {
@@ -101,31 +104,33 @@ function NavBar() {
           id="navbarSupportedContent"
           className={navbarContentClass}
         >
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-            <li className="nav-item"><Link className="nav-link" to="/" onClick={closeNavIfMobile}>Inicio</Link></li>
-            {!user && <li className="nav-item"><Link className="nav-link" to="/login" onClick={closeNavIfMobile}>Login</Link></li>}
-            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/ceo" onClick={closeNavIfMobile}>Panel CEO</Link></li>
-            )}
-            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/graficos" onClick={closeNavIfMobile}>Gráficos</Link></li>
-            )}
-            {user?.rol === 'ceo' && (location.pathname === '/ceo' || location.pathname === '/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/finanzas" onClick={closeNavIfMobile}>Finanzas</Link></li>
-            )}
-            {user?.rol === 'ceo' && location.pathname === '/administracion' && (
-              <li className="nav-item"><Link className="nav-link" to="/administracion" onClick={closeNavIfMobile}>Administración</Link></li>
-            )}
-            {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion" onClick={closeNavIfMobile}>Panel Administración</Link></li>}
-            {user?.rol === 'administracion' && (location.pathname === '/administracion' || location.pathname === '/administracion/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/administracion/graficos" onClick={closeNavIfMobile}>Gráficos</Link></li>
-            )}
-            {user?.rol === 'administracion' && (location.pathname === '/administracion' || location.pathname === '/administracion/graficos' || location.pathname === '/finanzas') && (
-              <li className="nav-item"><Link className="nav-link" to="/finanzas" onClick={closeNavIfMobile}>Finanzas</Link></li>
-            )}
-            {user?.rol === 'camionero' && <li className="nav-item"><Link className="nav-link" to="/camionero" onClick={closeNavIfMobile}>Mis Viajes</Link></li>}
-            {user?.rol === 'mantenimiento' && <li className="nav-item"><Link className="nav-link" to="/mantenimiento" onClick={closeNavIfMobile}>Mis Viajes</Link></li>}
-          </ul>
+          {!isLoginPath && (
+            <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+              <li className="nav-item"><Link className="nav-link" to="/" onClick={closeNavIfMobile}>Inicio</Link></li>
+              {!user && <li className="nav-item"><Link className="nav-link" to="/login" onClick={closeNavIfMobile}>Login</Link></li>}
+              {user?.rol === 'ceo' && (
+                <li className="nav-item"><Link className="nav-link" to="/ceo" onClick={closeNavIfMobile}>Panel CEO</Link></li>
+              )}
+              {user?.rol === 'ceo' && (
+                <li className="nav-item"><Link className="nav-link" to="/graficos" onClick={closeNavIfMobile}>Gráficos</Link></li>
+              )}
+              {user?.rol === 'ceo' && (
+                <li className="nav-item"><Link className="nav-link" to="/finanzas" onClick={closeNavIfMobile}>Finanzas</Link></li>
+              )}
+              {user?.rol === 'ceo' && (
+                <li className="nav-item"><Link className="nav-link" to="/ceo/vencimientos" onClick={closeNavIfMobile}>Vencimientos</Link></li>
+              )}
+              {user?.rol === 'administracion' && <li className="nav-item"><Link className="nav-link" to="/administracion" onClick={closeNavIfMobile}>Panel Administración</Link></li>}
+              {user?.rol === 'administracion' && (
+                <li className="nav-item"><Link className="nav-link" to="/administracion/graficos" onClick={closeNavIfMobile}>Gráficos</Link></li>
+              )}
+              {user?.rol === 'administracion' && (
+                <li className="nav-item"><Link className="nav-link" to="/finanzas" onClick={closeNavIfMobile}>Finanzas</Link></li>
+              )}
+              {(user?.rol === 'camionero' || user?.rol === 'mantenimiento') && <li className="nav-item"><Link className="nav-link" to="/camionero" onClick={closeNavIfMobile}>Mis Viajes</Link></li>}
+              {(user?.rol === 'camionero' || user?.rol === 'mantenimiento') && <li className="nav-item"><Link className="nav-link" to="/camionero/vencimientos" onClick={closeNavIfMobile}>Vencimientos</Link></li>}
+            </ul>
+          )}
           <div className="d-none d-lg-flex align-items-center gap-2 flex-nowrap ms-lg-auto">
             <button className="btn btn-outline-secondary" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} title="Tema">
               <i className={`bi ${theme === 'dark' ? 'bi-moon-stars' : 'bi-sun'}`}></i>
@@ -140,6 +145,7 @@ function NavBar() {
 export default function App() {
   const location = useLocation()
   const { initializing } = useAuth()
+  const isLoginPath = location.pathname === '/login'
   // Ajusta dinámicamente el offset del contenido según la altura real del navbar fijo
   useEffect(() => {
     const updateOffset = () => {
@@ -226,6 +232,13 @@ export default function App() {
                 </ErrorBoundary>
               </ProtectedRoute>
             } />
+            <Route path="/ceo/vencimientos" element={
+              <ProtectedRoute roles={["ceo"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Vencimientos.</div>}>
+                  <VencimientosAdmin />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
             <Route path="/graficos" element={
               <ProtectedRoute roles={["ceo"]}>
                 <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Gráficos.</div>}>
@@ -233,22 +246,8 @@ export default function App() {
                 </ErrorBoundary>
               </ProtectedRoute>
             } />
-            <Route path="/administracion/graficos" element={
-              <ProtectedRoute roles={["administracion"]}>
-                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Gráficos.</div>}>
-                  <GraficosAdministracion />
-                </ErrorBoundary>
-              </ProtectedRoute>
-            } />
-            <Route path="/administracion" element={
-              <ProtectedRoute roles={["administracion"]}>
-                <ErrorBoundary fallback={<div className="mt-2">Intenta recargar la página o revisar filtros.</div>}>
-                  <Administracion />
-                </ErrorBoundary>
-              </ProtectedRoute>
-            } />
             <Route path="/camionero" element={
-              <ProtectedRoute roles={["camionero"]}>
+              <ProtectedRoute roles={["camionero", "mantenimiento"]}>
                 <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Mis Viajes.</div>}>
                   <Camionero />
                 </ErrorBoundary>
@@ -261,10 +260,31 @@ export default function App() {
                 </ErrorBoundary>
               </ProtectedRoute>
             } />
+            <Route path="/camionero/vencimientos" element={
+              <ProtectedRoute roles={["camionero", "mantenimiento"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Vencimientos.</div>}>
+                  <VencimientosCamionero />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
             <Route path="/finanzas" element={
               <ProtectedRoute roles={["ceo", "administracion"]}>
                 <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Finanzas.</div>}>
                   <Finanzas />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/administracion" element={
+              <ProtectedRoute roles={["administracion"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Administración.</div>}>
+                  <Administracion />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/administracion/graficos" element={
+              <ProtectedRoute roles={["administracion"]}>
+                <ErrorBoundary fallback={<div className="mt-2">Se produjo un error en Gráficos Administración.</div>}>
+                  <GraficosAdministracion />
                 </ErrorBoundary>
               </ProtectedRoute>
             } />

@@ -100,11 +100,31 @@ export default function Finanzas() {
         [gastosFijosMes]
     );
 
-    const totalGastosSistema = toNum(resumen?.resumen?.totalGastosSistema);
     const totalIngresos = toNum(resumen?.resumen?.ingresosTotales);
     const utilidadOperativa = toNum(resumen?.resumen?.utilidadOperativa);
+    const gastosSistema = resumen?.gastosSistema || {};
 
-    const totalGastosEmpresa = totalGastosSistema + totalGastosFijos;
+    const gastosVariables = useMemo(() => ({
+        neumaticos: Number((totalIngresos * 0.04).toFixed(2)),
+        peajesGastosOtros: Number((totalIngresos * 0.02).toFixed(2)),
+        mantenimientoPreventivoCorrectivo: Number((totalIngresos * 0.05).toFixed(2))
+    }), [totalIngresos]);
+    const totalGastosSistema = useMemo(
+        () => Number((gastosVariables.neumaticos + gastosVariables.peajesGastosOtros + gastosVariables.mantenimientoPreventivoCorrectivo).toFixed(2)),
+        [gastosVariables]
+    );
+
+    const prevCosts = useMemo(() => ({
+        sueldosCamioneros: toNum(gastosSistema.sueldosCamioneros),
+        combustible: toNum(gastosSistema.combustible),
+        comisionesIntermediarios: toNum(gastosSistema.comisionesIntermediarios)
+    }), [gastosSistema]);
+
+    const totalPrevCosts = useMemo(() => Number((prevCosts.sueldosCamioneros + prevCosts.combustible + prevCosts.comisionesIntermediarios).toFixed(2)), [prevCosts]);
+
+    const totalGastosSistemaAll = useMemo(() => Number((totalGastosSistema + totalPrevCosts).toFixed(2)), [totalGastosSistema, totalPrevCosts]);
+
+    const totalGastosEmpresa = totalGastosSistemaAll + totalGastosFijos;
     const utilidadNeta = totalIngresos - totalGastosEmpresa;
     const margenNeto = totalIngresos > 0 ? (utilidadNeta / totalIngresos) * 100 : 0;
     const mesesTendencia = useMemo(() => getMesesTendencia(mes, 6), [mes]);
@@ -263,7 +283,6 @@ export default function Finanzas() {
         }
     };
 
-    const gastosSistema = resumen?.gastosSistema || {};
     const facturacionPorCamionero = (resumen?.facturacionPorCamionero || []).filter((row) => {
         if (!isValidCamioneroId(row?.camioneroId)) return false;
         const nombre = String(row?.camioneroNombre || '').trim().toLowerCase();
@@ -394,6 +413,8 @@ export default function Finanzas() {
         });
     };
 
+    const [showGastosSistemaRaw, setShowGastosSistemaRaw] = useState(false);
+
     return (
         <div className="finanzas-page">
             <PageHeader
@@ -438,9 +459,9 @@ export default function Finanzas() {
                     </div>
                     <div className="d-flex gap-2 flex-wrap">
                         <span className="badge text-bg-light border finanzas-chip">Ingresos: {formatearMoneda(totalIngresos)}</span>
-                        <span className="badge text-bg-light border finanzas-chip">Gastos sistema: {formatearMoneda(totalGastosSistema)}</span>
-                        <span className="badge text-bg-light border finanzas-chip">Gastos fijos: {formatearMoneda(totalGastosFijos)}</span>
-                        <span className="badge text-bg-light border finanzas-chip">Gastos empresa: {formatearMoneda(totalGastosEmpresa)}</span>
+                        <span className="badge text-bg-light border finanzas-chip">Costos variables: {formatearMoneda(totalGastosSistemaAll ?? totalGastosSistema)}</span>
+                        <span className="badge text-bg-light border finanzas-chip">Costos fijos: {formatearMoneda(totalGastosFijos)}</span>
+                        <span className="badge text-bg-light border finanzas-chip">Costos Empresa Total: {formatearMoneda(totalGastosEmpresa)}</span>
                     </div>
                 </div>
             </div>
@@ -464,16 +485,19 @@ export default function Finanzas() {
                     <StatCard icon={<i className="bi bi-hourglass-split" />} label="Pendiente De Cobro" value={formatearMoneda(toNum(resumen?.resumen?.ingresosPendientes))} hint="Importes con factura pendientes" />
                 </div>
                 <div className="col-12 col-md-6 col-xl-3">
-                    <StatCard icon={<i className="bi bi-graph-up-arrow" />} label="Utilidad Operativa" value={formatearMoneda(utilidadOperativa)} hint="Sin gastos fijos" />
+                    <StatCard icon={<i className="bi bi-graph-up-arrow" />} label="Utilidad Operativa" value={formatearMoneda(utilidadOperativa)} hint="Sin Costos fijos" />
                 </div>
             </div>
 
             <div className="row g-3 mb-4">
                 <div className="col-12 col-md-6 col-xl-3">
-                    <StatCard icon={<i className="bi bi-building" />} label="Gastos Fijos" value={formatearMoneda(totalGastosFijos)} hint="Configurables por mes" />
+                    <StatCard icon={<i className="bi bi-building" />} label="Costos Fijos" value={formatearMoneda(totalGastosFijos)} hint="Configurables por mes" />
                 </div>
                 <div className="col-12 col-md-6 col-xl-3">
-                    <StatCard icon={<i className="bi bi-calculator" />} label="Gastos Empresa" value={formatearMoneda(totalGastosEmpresa)} hint="Sistema + gastos fijos" />
+                    <StatCard icon={<i className="bi bi-building" />} label="Costos Variables" value={formatearMoneda(totalGastosSistemaAll)} hint="Total de costos variables" />
+                </div>
+                <div className="col-12 col-md-6 col-xl-3">
+                    <StatCard icon={<i className="bi bi-calculator" />} label="Costos Empresa Total" value={formatearMoneda(totalGastosEmpresa)} hint="Costos fijos + costos variables" />
                 </div>
                 <div className="col-12 col-md-6 col-xl-3">
                     <StatCard icon={<i className="bi bi-people" />} label="Camioneros Activos" value={formatearNumero(resumen?.indicadores?.cantidadCamionerosConMovimiento || 0)} hint="Con movimiento en el mes" />
@@ -586,35 +610,60 @@ export default function Finanzas() {
             <div className="row g-3 mb-4">
                 <div className="col-12 col-lg-7">
                     <div className="card shadow-sm h-100 finanzas-section-card">
-                        <div className="card-header bg-transparent border-0 pt-3">
-                            <h5 className="mb-0 d-flex align-items-center gap-2"><i className="bi bi-bar-chart-line" /> Gastos Del Sistema</h5>
-                            <div className="small text-body-secondary">Costos automáticos detectados en el sistema</div>
+                        <div className="card-header bg-transparent border-0 pt-3 d-flex align-items-start">
+                            <div>
+                                <h5 className="mb-0 d-flex align-items-center gap-2"><i className="bi bi-bar-chart-line" /> Costos Variables</h5>
+                                <div className="small text-body-secondary">Calculados como porcentaje del ingreso total. Aquí se listan también los costos variables históricos.</div>
+                            </div>
+
                         </div>
                         <div className="card-body">
                             <div className="d-flex justify-content-between py-2 border-bottom">
+                                <span>Neumáticos </span>
+                                <strong>{formatearMoneda(gastosVariables.neumaticos)}</strong>
+                            </div>
+                            <div className="d-flex justify-content-between py-2 border-bottom">
+                                <span>Peajes, gastos y otros</span>
+                                <strong>{formatearMoneda(gastosVariables.peajesGastosOtros)}</strong>
+                            </div>
+                            <div className="d-flex justify-content-between py-2 border-bottom">
+                                <span>Mantenimiento Preventivo + Correctivo</span>
+                                <strong>{formatearMoneda(gastosVariables.mantenimientoPreventivoCorrectivo)}</strong>
+                            </div>
+
+                            <div className="d-flex justify-content-between py-2 border-bottom">
                                 <span>Sueldos camioneros</span>
-                                <strong>{formatearMoneda(gastosSistema.sueldosCamioneros)}</strong>
+                                <strong>{formatearMoneda(toNum(gastosSistema.sueldosCamioneros))}</strong>
                             </div>
                             <div className="d-flex justify-content-between py-2 border-bottom">
                                 <span>Combustible</span>
-                                <strong>{formatearMoneda(gastosSistema.combustible)}</strong>
+                                <strong>{formatearMoneda(toNum(gastosSistema.combustible))}</strong>
                             </div>
-                            <div className="d-flex justify-content-between py-2 border-bottom">
+                            <div className="d-flex justify-content-between py-2">
                                 <span>Comisiones intermediarios</span>
-                                <strong>{formatearMoneda(gastosSistema.comisionesIntermediarios)}</strong>
+                                <strong>{formatearMoneda(toNum(gastosSistema.comisionesIntermediarios))}</strong>
                             </div>
-                            <div className="d-flex justify-content-between py-2 mt-2">
-                                <span className="fw-semibold">Total gastos sistema</span>
-                                <strong>{formatearMoneda(totalGastosSistema)}</strong>
+
+                            <div className="d-flex justify-content-between py-2 mt-3">
+                                <span className="fw-semibold">Total costos variables</span>
+                                <strong>{formatearMoneda(totalGastosSistemaAll)}</strong>
                             </div>
                         </div>
+
+                        {showGastosSistemaRaw && (
+                            <div className="card mt-2">
+                                <div className="card-body small">
+                                    <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify({ resumen: resumen?.resumen, gastosSistema }, null, 2)}</pre>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 <div className="col-12 col-lg-5">
                     <div className="card shadow-sm h-100 finanzas-section-card">
                         <div className="card-header bg-transparent border-0 pt-3">
-                            <h5 className="mb-0 d-flex align-items-center gap-2"><i className="bi bi-buildings" /> Gastos Fijos Mensuales</h5>
+                            <h5 className="mb-0 d-flex align-items-center gap-2"><i className="bi bi-buildings" /> Costos Fijos Mensuales</h5>
                             <div className="small text-body-secondary">Luz, alquiler, sueldos administrativos, seguros y más</div>
                         </div>
                         <div className="card-body">
@@ -654,12 +703,12 @@ export default function Finanzas() {
                                     <tbody>
                                         {gastosFijosLoading && (
                                             <tr>
-                                                <td colSpan={3} className="text-body-secondary text-center py-3">Cargando gastos fijos...</td>
+                                                <td colSpan={3} className="text-body-secondary text-center py-3">Cargando costos fijos...</td>
                                             </tr>
                                         )}
                                         {!gastosFijosLoading && gastosFijosMes.length === 0 && (
                                             <tr>
-                                                <td colSpan={3} className="text-body-secondary text-center py-3">Sin gastos fijos cargados para este mes.</td>
+                                                <td colSpan={3} className="text-body-secondary text-center py-3">Sin costos fijos cargados para este mes.</td>
                                             </tr>
                                         )}
                                         {gastosFijosMes.map((item) => (
@@ -682,7 +731,7 @@ export default function Finanzas() {
                             </div>
 
                             <div className="d-flex justify-content-between mt-3">
-                                <span className="fw-semibold">Total gastos fijos</span>
+                                <span className="fw-semibold">Total costos fijos</span>
                                 <strong>{formatearMoneda(totalGastosFijos)}</strong>
                             </div>
                         </div>

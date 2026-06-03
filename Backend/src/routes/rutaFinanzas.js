@@ -394,12 +394,16 @@ router.get('/resumen-mensual',
                 .sort((a, b) => b.total - a.total);
 
             const gastosSistema = {
+                neumaticos: Number((ingresosTotales * 0.04).toFixed(2)),
+                peajesGastosOtros: Number((ingresosTotales * 0.02).toFixed(2)),
+                mantenimientoPreventivoCorrectivo: Number((ingresosTotales * 0.05).toFixed(2)),
+                // Mantener los costos "históricos" para que el frontend pueda mostrarlos:
                 sueldosCamioneros: Number(sueldosCamioneros.toFixed(2)),
                 combustible: Number(combustibleTotal.toFixed(2)),
                 comisionesIntermediarios: Number(comisionesIntermediarios.toFixed(2))
             };
             const totalGastosFijos = Number(gastosFijos.reduce((sum, item) => sum + toNum(item?.monto), 0).toFixed(2));
-            const totalGastosSistema = Number((gastosSistema.sueldosCamioneros + gastosSistema.combustible + gastosSistema.comisionesIntermediarios).toFixed(2));
+            const totalGastosSistema = Number((gastosSistema.neumaticos + gastosSistema.peajesGastosOtros + gastosSistema.mantenimientoPreventivoCorrectivo).toFixed(2));
             const utilidadOperativa = Number((ingresosTotales - totalGastosSistema).toFixed(2));
             const totalGastosEmpresa = Number((totalGastosSistema + totalGastosFijos).toFixed(2));
             const utilidadNeta = Number((ingresosTotales - totalGastosEmpresa).toFixed(2));

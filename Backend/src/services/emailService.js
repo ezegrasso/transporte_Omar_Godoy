@@ -173,3 +173,12 @@ export async function sendEmailToCamioneros({ subject, text }) {
     const ok = results.filter(r => r.status === 'fulfilled').length;
     return { total: recipients.length, enviados: ok };
 }
+
+// Enviar a todos los usuarios con rol administracion
+export async function sendEmailToAdministracion({ subject, text }) {
+    const list = await Usuario.findAll({ where: { rol: 'administracion' }, attributes: ['email'] });
+    const recipients = (list || []).map(u => u.email).filter(Boolean);
+    const results = await Promise.allSettled(recipients.map(to => sendEmail({ to, subject, text })));
+    const ok = results.filter(r => r.status === 'fulfilled').length;
+    return { total: recipients.length, enviados: ok };
+}

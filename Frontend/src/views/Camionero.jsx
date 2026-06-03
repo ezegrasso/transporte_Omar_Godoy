@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PageHeader from '../components/UI/PageHeader';
+import NotificationBell from '../components/UI/NotificationBell';
 import api from '../services/api';
 import EmptyState from '../components/UI/EmptyState';
 import { useToast } from '../context/ToastContext';
@@ -640,8 +641,10 @@ export default function Camionero() {
 
     return (
         <div className="container py-3 space-y-4">
-            <PageHeader title="Panel Camionero" subtitle="Toma y finalización de viajes" actions={loading && <span className="spinner-border spinner-border-sm text-secondary" role="status" />} showUserMenu={true} />
+            <PageHeader title="Panel Camionero" subtitle="Toma y finalización de viajes" actions={<><NotificationBell />{loading && <span className="spinner-border spinner-border-sm text-secondary" role="status" />}</>} showUserMenu={true} />
             {error && <div className="alert alert-danger" role="alert">{error}</div>}
+
+            {/* Vencimientos trasladados a interfaz dedicada: /camionero/vencimientos */}
 
             {viajeEnCursoActual && (
                 <div ref={enCursoRef} className={`card shadow-sm border-success ${flashCard ? 'row-saved-anim' : ''}`}>

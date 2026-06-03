@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
 import sequelize, { connectDB, syncModels } from './config/db.js';
+import { Op } from 'sequelize';
 import { ensureDatabase } from './config/ensureDatabase.js';
 import { ensureSchema } from './config/ensureSchema.js';
 import camionesRouter from './routes/rutaCamiones.js';
@@ -18,12 +19,13 @@ import adelantosRouter from './routes/rutaAdelantos.js';
 import estadiasRouter from './routes/rutaEstadias.js';
 import combustibleRouter from './routes/rutaCombustible.js';
 import finanzasRouter from './routes/rutaFinanzas.js';
+import rutaVencimientos from './routes/rutaVencimientos.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import rutaAcoplados from './routes/rutaAcoplados.js';
 import rutaClientes from './routes/rutaClientes.js';
 import rutaComisionistas from './routes/rutaComisionistas.js';
 import Usuario from './models/Usuario.js';
-import './models/Camion.js';
+import Camion from './models/Camion.js';
 import Viaje from './models/Viajes.js';
 import Notificacion from './models/Notificacion.js';
 import Adelanto from './models/Adelanto.js';
@@ -33,6 +35,8 @@ import './models/Comisionista.js';
 import './models/CombustibleMovimiento.js';
 import './models/CombustibleStock.js';
 import './models/GastoFijo.js';
+import Vencimiento from './models/Vencimiento.js';
+import { getById as getAcopladoById } from './models/Acoplado.js';
 import { setupSwagger } from './config/swagger.js';
 
 dotenv.config();
@@ -94,6 +98,7 @@ app.use('/api/adelantos', adelantosRouter);
 app.use('/api/estadias', estadiasRouter);
 app.use('/api/combustible', combustibleRouter);
 app.use('/api/finanzas', finanzasRouter);
+app.use('/api/vencimientos', rutaVencimientos);
 
 // Healthcheck simple
 app.get('/health', (req, res) => {
@@ -117,7 +122,7 @@ app.get('/health/metrics', async (req, res) => {
         const dd = String(desde.getDate()).padStart(2, '0');
         const desdeStr = `${yyyy}-${mm}-${dd}`; // DATEONLY
 
-        const recientes = await Viaje.count({ where: { fecha: { [sequelize.Op.gte]: desdeStr } } });
+        const recientes = await Viaje.count({ where: { fecha: { [Op.gte]: desdeStr } } });
 
         const durationMs = Date.now() - start;
         res.json({
@@ -190,9 +195,90 @@ const PORT = process.env.PORT || 3000;
         }
     };
 
+    // Tarea: revisar vencimientos (técnica/seguro/senasa) y notificar cuando expiren
+    const runCheckVencimientos = async () => {
+        try {
+            const today = new Date();
+            const iso = today.toISOString().slice(0, 10);
+            const pendientes = await Vencimiento.findAll({ where: { fechaHasta: { [Op.lte]: iso }, notificado: false } });
+
+            const itemLabel = {
+                tecnica: 'Técnica',
+                seguro: 'Seguro',
+                senasa: 'Senasa',
+                carnet: 'Carnet',
+                curso_profesional: 'Curso profesional',
+                psicofisico: 'Psicofísico',
+            };
+
+            const formatDate = (dateOnly) => {
+                try {
+                    const [y, m, d] = String(dateOnly || '').split('-').map(Number);
+                    if (!y || !m || !d) return String(dateOnly || '');
+                    return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+                } catch {
+                    return String(dateOnly || '');
+                }
+            };
+
+            let created = 0;
+            for (const v of pendientes) {
+                const label = itemLabel[v.item] || v.item;
+                let referencia = `${v.tipoObjeto} #${v.objetoId}`;
+
+                if (v.tipoObjeto === 'camion') {
+                    const camion = await Camion.findByPk(v.objetoId, { attributes: ['patente'] });
+                    referencia = camion?.patente
+                        ? `camión patente ${camion.patente}`
+                        : `camión #${v.objetoId}`;
+                } else if (v.tipoObjeto === 'camionero') {
+                    const chofer = await Usuario.findByPk(v.objetoId, { attributes: ['nombre'] });
+                    referencia = chofer?.nombre
+                        ? `camionero ${chofer.nombre}`
+                        : `camionero #${v.objetoId}`;
+                } else if (v.tipoObjeto === 'acoplado') {
+                    const acoplado = await getAcopladoById(v.objetoId);
+                    referencia = acoplado?.patente
+                        ? `acoplado patente ${acoplado.patente}`
+                        : `acoplado #${v.objetoId}`;
+                }
+
+                const texto = `Se detectó un vencimiento de ${label} correspondiente al ${referencia}. Fecha de vencimiento: ${formatDate(v.fechaHasta)}.`;
+                const destinatarioRol = v.tipoObjeto === 'camionero' ? 'camionero' : null;
+                const destinatarioId = v.tipoObjeto === 'camionero' ? v.objetoId : null;
+                await Notificacion.create({
+                    tipo: 'vencimiento',
+                    mensaje: texto,
+                    destinatarioRol,
+                    destinatarioId,
+                });
+                // Enviar email al CEO y al equipo de administración
+                try {
+                    // import dinámico para evitar ciclos
+                    const { sendEmailToCEO, sendEmailToAdministracion } = await import('./services/emailService.js');
+                    await sendEmailToCEO({ subject: 'Vencimiento vencido', text: texto });
+                    await sendEmailToAdministracion({ subject: 'Vencimiento vencido', text: texto });
+                } catch (e) {
+                    console.warn('[checkVencimientos] error enviando email:', e?.message || e);
+                }
+                v.notificado = true;
+                await v.save();
+                created++;
+            }
+            if (created) console.log(`[checkVencimientos] notificaciones:${created}`);
+        } catch (e) {
+            console.warn('[checkVencimientos] error', e?.message || e);
+        }
+    };
+
     const onBoot = String(process.env.CHECK_VENCIDAS_ON_BOOT ?? 'true').toLowerCase() === 'true';
     const intervalMin = Number(process.env.CHECK_VENCIDAS_INTERVAL_MIN ?? 1440); // por defecto, diario
     if (onBoot) runCheckVencidas();
     if (intervalMin > 0) setInterval(runCheckVencidas, intervalMin * 60 * 1000);
+
+    // Programar chequeo de vencimientos con la misma cadencia
+    const onBootV = String(process.env.CHECK_VENCIMIENTOS_ON_BOOT ?? 'true').toLowerCase() === 'true';
+    if (onBootV) runCheckVencimientos();
+    if (intervalMin > 0) setInterval(runCheckVencimientos, intervalMin * 60 * 1000);
 })();
 

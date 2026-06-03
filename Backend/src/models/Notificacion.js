@@ -5,6 +5,8 @@ const Notificacion = sequelize.define('Notificacion', {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     tipo: { type: DataTypes.STRING, allowNull: false },
     mensaje: { type: DataTypes.STRING, allowNull: false },
+    destinatarioRol: { type: DataTypes.STRING, allowNull: true },
+    destinatarioId: { type: DataTypes.INTEGER, allowNull: true },
     fecha: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     leida: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }
 }, {
