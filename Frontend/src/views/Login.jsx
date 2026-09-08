@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [rememberEmail, setRememberEmail] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -73,7 +74,30 @@ export default function Login() {
                         </div>
                         <div className="mb-3">
                             <label className="form-label">Password</label>
-                            <input className="form-control form-control-lg" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" disabled={loading} />
+                            <div className="position-relative">
+                                <input
+                                    className="form-control form-control-lg"
+                                    style={{ paddingRight: '2.75rem' }}
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    disabled={loading}
+                                />
+                                {password.length > 0 && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-link position-absolute top-50 end-0 translate-middle-y text-body-secondary p-0 me-3"
+                                        style={{ boxShadow: 'none', lineHeight: 1 }}
+                                        tabIndex={-1}
+                                        onClick={() => setShowPassword((v) => !v)}
+                                        disabled={loading}
+                                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                    >
+                                        <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <div className="mb-3 form-check">
                             <input

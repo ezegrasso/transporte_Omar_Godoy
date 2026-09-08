@@ -16,7 +16,7 @@
   <script>
     // Mitigación temprana: algunas extensiones/scripts inyectados llaman
     // `mgt.clearMarks(...)` antes de que cargue la app.
-    // Esto NO es parte de la app; solo evita ruido/errores en consola.
+    // Esto NO es parte de la app. (Ya probado)
     window.mgt = window.mgt || {};
     if (typeof window.mgt.clearMarks !== 'function') window.mgt.clearMarks = function () { };
   </script>

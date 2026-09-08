@@ -359,6 +359,45 @@ router.put('/cargas/:id',
     }
 );
 
+router.delete('/cargas/:id',
+    authMiddleware,
+    [
+        param('id').isInt({ min: 1 }).withMessage('Carga inválida')
+    ],
+    async (req, res) => {
+        try {
+            if (!['ceo'].includes(req.user?.rol)) {
+                return res.status(403).json({ error: 'No tienes permisos para eliminar cargas de combustible' });
+            }
+
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+            const cargaId = Number(req.params.id);
+            const carga = await CombustibleMovimiento.findByPk(cargaId);
+            if (!carga) return res.status(404).json({ error: 'Carga no encontrada' });
+            if (carga.tipoRegistro !== 'carga') return res.status(400).json({ error: 'Solo se pueden eliminar registros de tipo carga' });
+
+            if (carga.origen === 'predio') {
+                const litrosPrevios = Number(Number(toNum(carga.litros)).toFixed(2));
+                const stock = await getOrCreateStock();
+                const stockActual = toNum(stock.disponibleLitros);
+                stock.disponibleLitros = Number((stockActual + litrosPrevios).toFixed(2));
+                stock.updatedById = req.user.id;
+                await stock.save();
+            }
+
+            await carga.destroy();
+
+            const stock = await getOrCreateStock();
+            res.json({ success: true, stockPredio: toNum(stock.disponibleLitros) });
+        } catch (e) {
+            console.error('[combustible] Error eliminando carga:', e?.message || e);
+            res.status(500).json({ error: 'Error eliminando carga de combustible' });
+        }
+    }
+);
+
 router.get('/resumen', authMiddleware, async (req, res) => {
     try {
         if (!['ceo', 'administracion'].includes(req.user?.rol)) {

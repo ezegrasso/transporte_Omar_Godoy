@@ -242,6 +242,26 @@ export default function CeoCombustiblePanel({ showToast }) {
         }
     };
 
+    const [eliminandoCargaId, setEliminandoCargaId] = useState(null);
+
+    const eliminarCarga = async (carga) => {
+        if (!carga?.id) return;
+        const confirmado = window.confirm(`¿Eliminar la carga de ${fmtLitros(carga.litros)} L del ${fmtFecha(carga.fechaCarga)}? Esta acción no se puede deshacer.`);
+        if (!confirmado) return;
+
+        try {
+            setEliminandoCargaId(carga.id);
+            await api.delete(`/combustible/cargas/${carga.id}`);
+            showToast?.('Carga de combustible eliminada', 'success');
+            if (edicionCarga.id === carga.id) setEdicionCarga(edicionVacia);
+            await Promise.all([fetchResumen(), refrescarDetalleActual()]);
+        } catch (e) {
+            showToast?.(e?.response?.data?.error || 'Error eliminando carga de combustible', 'error');
+        } finally {
+            setEliminandoCargaId(null);
+        }
+    };
+
     useEffect(() => {
         fetchResumen();
     }, [mes]);
@@ -718,13 +738,23 @@ export default function CeoCombustiblePanel({ showToast }) {
                                                             </td>
                                                             <td>{c?.camionero?.nombre || '-'}</td>
                                                             <td className="text-end">
-                                                                <button
-                                                                    type="button"
-                                                                    className="btn btn-sm btn-outline-primary"
-                                                                    onClick={() => abrirEdicionCarga(c)}
-                                                                >
-                                                                    Editar
-                                                                </button>
+                                                                <div className="d-flex gap-1 justify-content-end">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-outline-primary"
+                                                                        onClick={() => abrirEdicionCarga(c)}
+                                                                    >
+                                                                        Editar
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-sm btn-outline-danger"
+                                                                        onClick={() => eliminarCarga(c)}
+                                                                        disabled={eliminandoCargaId === c.id}
+                                                                    >
+                                                                        {eliminandoCargaId === c.id ? 'Eliminando…' : 'Eliminar'}
+                                                                    </button>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     ))
