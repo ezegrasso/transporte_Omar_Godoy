@@ -278,6 +278,20 @@ export const ensureSchema = async () => {
     } catch (e) {
         console.error('No se pudo asegurar esquema de combustible_stock:', e);
     }
+    // Asegurar columnas de destinatario en notificaciones
+    try {
+        const descNotif = await qi.describeTable('notificaciones');
+        if (!('destinatarioRol' in descNotif)) {
+            await qi.addColumn('notificaciones', 'destinatarioRol', { type: DataTypes.STRING, allowNull: true });
+            console.log("Columna 'destinatarioRol' añadida a 'notificaciones'.");
+        }
+        if (!('destinatarioId' in descNotif)) {
+            await qi.addColumn('notificaciones', 'destinatarioId', { type: DataTypes.INTEGER, allowNull: true });
+            console.log("Columna 'destinatarioId' añadida a 'notificaciones'.");
+        }
+    } catch (e) {
+        console.error('No se pudo asegurar esquema de notificaciones:', e);
+    }
 };
 
 export default ensureSchema;
