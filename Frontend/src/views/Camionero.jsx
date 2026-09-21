@@ -59,6 +59,8 @@ export default function Camionero() {
     const [pagePend, setPagePend] = useState(1);
     const [pageMios, setPageMios] = useState(1);
     const pageSize = 10;
+    const [miosTotal, setMiosTotal] = useState(0);
+    const [miosLoading, setMiosLoading] = useState(false);
     const [modalId, setModalId] = useState(null);
     const [sortPend, setSortPend] = useState({ key: 'fecha', dir: 'asc' });
     const [sortMios, setSortMios] = useState({ key: 'fecha', dir: 'desc' });
@@ -156,14 +158,30 @@ export default function Camionero() {
     };
 
     const fetchPendientes = async () => {
+        // Fetch pending trips
         const { data } = await api.get('/viajes?estado=pendiente&limit=100');
         setPendientes(data.items || data.data || []);
     };
     const fetchMios = async () => {
-        // No pasar estado para que el backend (no ceo/administracion) devuelva todos los viajes del camionero
-        const { data } = await api.get('/viajes?limit=100');
-        const list = data.items || data.data || [];
-        setMios(list);
+        setMiosLoading(true);
+        try {
+            const params = new URLSearchParams();
+            params.set('page', String(pageMios));
+            params.set('limit', String(pageSize));
+            params.set('sortBy', 'fecha');
+            params.set('order', 'DESC');
+            if (estadoMios !== 'todos') params.set('estado', estadoMios);
+            if (filtroMios.trim()) params.set('q', filtroMios.trim());
+
+            const { data } = await api.get(`/viajes?${params.toString()}`);
+            const list = data.data || data.items || [];
+            setMios(list);
+            setMiosTotal(Number(data.total || 0));
+        } catch (e) {
+            showToast?.('Error cargando mis viajes', 'error');
+        } finally {
+            setMiosLoading(false);
+        }
     };
 
     const fetchAdelantos = async (mes = adelantosMes, anio = adelantosAnio) => {
@@ -344,7 +362,7 @@ export default function Camionero() {
         (async () => {
             setLoading(true);
             setError('');
-            try { await Promise.all([fetchPendientes(), fetchMios(), fetchAdelantos(), fetchEstadias(), fetchCombustibleCargas(), fetchCamionesCombustible()]); }
+            try { await Promise.all([fetchPendientes(), fetchViajeEnCurso(), fetchAdelantos(), fetchEstadias(), fetchCombustibleCargas(), fetchCamionesCombustible()]); }
             catch (e) { setError(e?.response?.data?.error || 'Error cargando viajes'); }
             finally { setLoading(false); }
         })();
@@ -387,12 +405,13 @@ export default function Camionero() {
         return pendientesOrdenados.slice(start, start + pageSize);
     }, [pendientesOrdenados, curPend]);
 
-    const miosFiltrados = useMemo(() => {
+    /*const miosFiltrados = useMemo(() => {
         const term = filtroMios.trim().toLowerCase();
         return mios
             .filter(v => estadoMios === 'todos' ? true : v.estado === estadoMios)
             .filter(v => !term || `${v.origen ?? ''} ${v.destino ?? ''} ${v.tipoMercaderia ?? ''} ${v.cliente ?? ''} ${v.camion?.patente ?? v.camionId ?? ''}`.toLowerCase().includes(term));
-    }, [mios, filtroMios, estadoMios]);
+    }, [mios, filtroMios, estadoMios]); 
+
     const miosOrdenados = useMemo(() => {
         const arr = [...miosFiltrados];
         const dir = sortMios.dir === 'asc' ? 1 : -1;
@@ -416,21 +435,26 @@ export default function Camionero() {
             return 0;
         });
         return arr;
-    }, [miosFiltrados, sortMios]);
-    const totalMiosPages = Math.max(1, Math.ceil(miosFiltrados.length / pageSize));
-    const curMios = Math.min(pageMios, totalMiosPages);
-    const miosPagina = useMemo(() => {
-        const start = (curMios - 1) * pageSize;
-        return miosOrdenados.slice(start, start + pageSize);
-    }, [miosOrdenados, curMios]);
+    }, [miosFiltrados, sortMios]);*/
+    const totalMiosPages = Math.max(1, Math.ceil(miosTotal / pageSize));
+    const curMios = pageMios;
+    /* const miosPagina = useMemo(() => {
+         const start = (curMios - 1) * pageSize;
+         return miosOrdenados.slice(start, start + pageSize);
+     }, [miosOrdenados, curMios]); */
 
     // Viaje en curso actual (normalmente hay 1). Tomamos el más reciente por fecha.
-    const viajeEnCursoActual = useMemo(() => {
-        const enCurso = mios.filter(v => v.estado === 'en curso');
-        if (enCurso.length === 0) return null;
-        return enCurso.sort((a, b) => parseDateOnlyLocal(b.fecha || 0) - parseDateOnlyLocal(a.fecha || 0))[0];
-    }, [mios]);
+    const [viajeEnCursoActual, setViajeEnCursoActual] = useState(null);
 
+    const fetchViajeEnCurso = async () => {
+        try {
+            const { data } = await api.get('/viajes?estado=en curso&limit=5&sortBy=fecha&order=DESC');
+            const list = data.data || [];
+            setViajeEnCursoActual(list[0] || null);
+        } catch {
+            setViajeEnCursoActual(null);
+        }
+    };
     const camionesDisponiblesCombustible = useMemo(() => {
         if (Array.isArray(camionesCombustible) && camionesCombustible.length > 0) {
             return camionesCombustible;
@@ -451,11 +475,27 @@ export default function Camionero() {
     }, [camionesCombustible, pendientes, mios]);
 
     useEffect(() => {
+        fetchViajeEnCurso();
+    }, []);
+
+    useEffect(() => {
         if (!showCombustibleModal || !viajeEnCursoActual) return;
         const camionId = viajeEnCursoActual?.camion?.id || viajeEnCursoActual?.camionId || '';
         if (!camionId) return;
         setCombustibleForm((prev) => ({ ...prev, camionId: String(camionId) }));
     }, [showCombustibleModal, viajeEnCursoActual]);
+
+    useEffect(() => {
+        fetchMios();
+    }, [pageMios, estadoMios]);
+
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setPageMios(1);
+            fetchMios();
+        }, 400); // debounce para no pegarle al backend en cada tecla
+        return () => clearTimeout(t);
+    }, [filtroMios]);
 
     const viajeSeleccionado = useMemo(() => mios.find(v => v.id === modalId) || null, [mios, modalId]);
 
@@ -607,30 +647,26 @@ export default function Camionero() {
     };
 
     // Exportar mis viajes a PDF
-    const exportMiosViajesPDF = () => {
+    const exportMiosViajesPDF = async () => {
         try {
             const [anio, mes] = mesExportacion.split('-');
-            const viajesMes = miosOrdenados.filter(v => {
-                if (!v.fecha) return false;
-                const [vAno, vMes] = String(v.fecha).split('-');
-                return vAno === anio && vMes === mes;
-            });
+            const from = `${anio}-${mes}-01`;
+            const lastDay = new Date(Number(anio), Number(mes), 0).getDate();
+            const to = `${anio}-${mes}-${String(lastDay).padStart(2, '0')}`;
+
+            const params = new URLSearchParams({ limit: '1000', sortBy: 'fecha', order: 'DESC', from, to });
+            if (estadoMios !== 'todos') params.set('estado', estadoMios);
+
+            const { data } = await api.get(`/viajes?${params.toString()}`);
+            const viajesMes = data.data || [];
 
             const mesNombre = new Date(mesExportacion + '-01').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
             const titulo = `Mis Viajes - ${estadoMios.charAt(0).toUpperCase() + estadoMios.slice(1)} (${mesNombre})`;
             const headers = ['Fecha', 'Estado', 'Origen', 'Destino', 'Tipo', 'Cliente', 'Camión', 'Km', 'Precio/Tn', 'Toneladas', 'Importe'];
             const rows = viajesMes.map(v => [
-                formatDateOnly(v.fecha),
-                v.estado || '-',
-                v.origen || '-',
-                v.destino || '-',
-                v.tipoMercaderia || '-',
-                v.cliente || '-',
-                v.camion?.patente || v.camionId || '-',
-                v.km ?? '-',
-                v.precioTonelada ?? '-',
-                v.kilosCargados ?? '-',
-                v.importe ?? '-'
+                formatDateOnly(v.fecha), v.estado || '-', v.origen || '-', v.destino || '-',
+                v.tipoMercaderia || '-', v.cliente || '-', v.camion?.patente || v.camionId || '-',
+                v.km ?? '-', v.precioTonelada ?? '-', v.kilosCargados ?? '-', v.importe ?? '-'
             ]);
             generarListadoViajesPDF(titulo, headers, rows, `mis_viajes_${estadoMios}.pdf`, viajesMes);
             showToast(`PDF de mis viajes generado (${viajesMes.length} viajes)`, 'success');
@@ -1146,7 +1182,7 @@ export default function Camionero() {
                         )}
                     </div>
                     <div className="d-flex justify-content-between align-items-center mt-2">
-                        <small className="text-body-secondary">Mostrando {(miosPagina.length && (curMios - 1) * pageSize + 1) || 0} - {(curMios - 1) * pageSize + miosPagina.length} de {miosFiltrados.length}</small>
+                        <small className="text-body-secondary">Mostrando {(mios.length && (curMios - 1) * pageSize + 1) || 0} - {(curMios - 1) * pageSize + mios.length} de {miosTotal}</small>
                         <div className="btn-group btn-group-sm" role="group">
                             <button className="btn btn-outline-secondary" disabled={curMios <= 1} onClick={() => setPageMios(p => Math.max(1, p - 1))}>Anterior</button>
                             <button className="btn btn-outline-secondary" disabled={curMios >= totalMiosPages} onClick={() => setPageMios(p => Math.min(totalMiosPages, p + 1))}>Siguiente</button>
