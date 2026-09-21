@@ -55,7 +55,7 @@ export default function Camionero() {
     const [showFinalizarModal, setShowFinalizarModal] = useState(false);
     const [filtroPend, setFiltroPend] = useState('');
     const [filtroMios, setFiltroMios] = useState('');
-    const [estadoMios, setEstadoMios] = useState('en curso'); // 'todos' | 'en curso' | 'finalizado'
+    const [estadoMios, setEstadoMios] = useState('todos'); // 'todos' | 'en curso' | 'finalizado'
     const [pagePend, setPagePend] = useState(1);
     const [pageMios, setPageMios] = useState(1);
     const pageSize = 10;
