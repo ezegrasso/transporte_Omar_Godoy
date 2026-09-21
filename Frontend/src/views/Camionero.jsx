@@ -1125,7 +1125,7 @@ export default function Camionero() {
                         </div>
                     </div>
                     <div className="table-responsive">
-                        {miosFiltrados.length === 0 ? (
+                        {mios.length === 0 ? (
                             <EmptyState title="Sin viajes en curso" description="Tomá un viaje para comenzar" />
                         ) : (
                             <table className={`table ${compact ? 'table-sm' : ''} table-striped table-hover align-middle table-sticky`}>
@@ -1149,7 +1149,7 @@ export default function Camionero() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {miosPagina.map(v => (
+                                    {mios.map(v => (
                                         <tr key={v.id} className={savedMioId === v.id ? 'table-warning row-saved-anim' : ''}>
                                             <td>{formatDateOnly(v.fecha)}</td>
                                             <td>
